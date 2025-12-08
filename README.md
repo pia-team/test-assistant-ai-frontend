@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Test Assistant AI - Next.js Frontend
+
+Modern web application for automated test generation and execution.
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Auth**: NextAuth.js + Keycloak
+- **State**: TanStack Query (React Query)
+- **Icons**: Lucide React
+- **Toast**: Sonner
+- **i18n**: Cookie-based (TR/EN)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20+
+- npm or pnpm
+- Keycloak server configured
+
+### Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Copy environment file
+cp .env.example .env.local
+
+# Edit .env.local with your values
+```
+
+### Environment Variables
+
+```env
+KEYCLOAK_CLIENT_SECRET=your-keycloak-client-secret
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-nextauth-secret-key
+API_URL=http://localhost:8093
+```
+
+### Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production Build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+### Docker
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# Build image
+docker build -t test-assistant-ai-nextjs .
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Run container
+docker run -p 3000:3000 \
+  -e KEYCLOAK_CLIENT_SECRET=xxx \
+  -e NEXTAUTH_SECRET=xxx \
+  -e API_URL=http://backend:8093 \
+  test-assistant-ai-nextjs
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+src/
+├── app/
+│   ├── (protected)/     # Auth-guarded routes
+│   │   ├── page.tsx           # Home
+│   │   ├── test-run/          # Test execution
+│   │   └── upload-json/       # JSON upload
+│   ├── login/            # Login page
+│   ├── api/auth/         # NextAuth handlers
+│   ├── actions/          # Server Actions
+│   └── layout.tsx        # Root layout
+├── components/
+│   ├── ui/              # shadcn components
+│   ├── navbar.tsx
+│   └── providers.tsx
+├── lib/
+│   ├── auth.ts          # NextAuth config
+│   ├── i18n.ts          # i18n helpers
+│   └── utils.ts
+├── locales/
+│   ├── tr.json
+│   └── en.json
+└── types/
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Features
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- 🔐 Keycloak SSO Authentication
+- 🌍 Multi-language support (TR/EN)
+- 🌙 Dark/Light theme
+- ⚡ Server-side rendering
+- 📦 React Query caching
+- 🐳 Docker ready
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm start` | Start production server |
+| `npm run lint` | Run ESLint |

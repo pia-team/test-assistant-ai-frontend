@@ -1,0 +1,65 @@
+{
+    "common": {
+        "appName": "Test Assistant AI",
+        "loading": "Loading...",
+        "error": "Error",
+        "success": "Success",
+        "cancel": "Cancel",
+        "save": "Save",
+        "delete": "Delete",
+        "edit": "Edit",
+        "close": "Close",
+        "submit": "Submit",
+        "back": "Back",
+        "next": "Next",
+        "yes": "Yes",
+        "no": "No"
+    },
+    "nav": {
+        "home": "Home",
+        "uploadJson": "Upload JSON",
+        "testRun": "Run Tests",
+        "logout": "Logout",
+        "theme": "Theme",
+        "language": "Language"
+    },
+    "login": {
+        "title": "Sign In",
+        "subtitle": "Welcome to Test Assistant AI",
+        "signInWith": "Sign in with",
+        "signingIn": "Signing in..."
+    },
+    "home": {
+        "title": "Test Assistant AI",
+        "subtitle": "Automated test generation and execution platform",
+        "uploadCard": {
+            "title": "Upload JSON Schema",
+            "description": "Upload your API schema and generate test scenarios"
+        },
+        "runCard": {
+            "title": "Run Tests",
+            "description": "Execute your Cucumber tests and view results"
+        }
+    },
+    "uploadJson": {
+        "title": "Upload JSON Schema",
+        "subtitle": "Upload your API schema and generate test scenarios",
+        "dropzone": "Drop file here or click to upload",
+        "generate": "Generate Tests",
+        "generating": "Generating..."
+    },
+    "testRun": {
+        "title": "Run Tests",
+        "subtitle": "Execute your Cucumber tests with customized parameters",
+        "enterTags": "Enter Cucumber tags (e.g. @smoke)",
+        "runTests": "Run Tests",
+        "running": "Running...",
+        "tagsGuide": "Tags Guide",
+        "readyToExecute": "Ready to execute",
+        "environment": "Environment",
+        "parallelExecution": "Parallel Execution",
+        "threadCount": "Thread Count",
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+    }
+}

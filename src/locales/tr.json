@@ -1,0 +1,65 @@
+{
+    "common": {
+        "appName": "Test Assistant AI",
+        "loading": "Yükleniyor...",
+        "error": "Hata",
+        "success": "Başarılı",
+        "cancel": "İptal",
+        "save": "Kaydet",
+        "delete": "Sil",
+        "edit": "Düzenle",
+        "close": "Kapat",
+        "submit": "Gönder",
+        "back": "Geri",
+        "next": "İleri",
+        "yes": "Evet",
+        "no": "Hayır"
+    },
+    "nav": {
+        "home": "Ana Sayfa",
+        "uploadJson": "JSON Yükle",
+        "testRun": "Test Çalıştır",
+        "logout": "Çıkış Yap",
+        "theme": "Tema",
+        "language": "Dil"
+    },
+    "login": {
+        "title": "Giriş Yap",
+        "subtitle": "Test Assistant AI'a hoş geldiniz",
+        "signInWith": "ile giriş yap",
+        "signingIn": "Giriş yapılıyor..."
+    },
+    "home": {
+        "title": "Test Assistant AI",
+        "subtitle": "Otomatik test oluşturma ve çalıştırma platformu",
+        "uploadCard": {
+            "title": "JSON Şema Yükle",
+            "description": "API şemanızı yükleyin ve test senaryoları oluşturun"
+        },
+        "runCard": {
+            "title": "Testleri Çalıştır",
+            "description": "Cucumber testlerinizi çalıştırın ve sonuçları görüntüleyin"
+        }
+    },
+    "uploadJson": {
+        "title": "JSON Şema Yükle",
+        "subtitle": "API şemanızı yükleyin ve test senaryoları oluşturun",
+        "dropzone": "Dosyayı buraya sürükleyin veya tıklayın",
+        "generate": "Testleri Oluştur",
+        "generating": "Oluşturuluyor..."
+    },
+    "testRun": {
+        "title": "Testleri Çalıştır",
+        "subtitle": "Cucumber testlerinizi özelleştirilmiş parametrelerle çalıştırın",
+        "enterTags": "Cucumber etiketlerini girin (örn: @smoke)",
+        "runTests": "Testleri Çalıştır",
+        "running": "Çalışıyor...",
+        "tagsGuide": "Etiket Rehberi",
+        "readyToExecute": "Çalıştırmaya hazır",
+        "environment": "Ortam",
+        "parallelExecution": "Paralel Çalıştırma",
+        "threadCount": "Thread Sayısı",
+        "enabled": "Aktif",
+        "disabled": "Pasif"
+    }
+}
