@@ -1,6 +1,6 @@
 {
     "common": {
-        "appName": "Test Assistant AI",
+        "appName": "CoTesterAi",
         "loading": "Yükleniyor...",
         "error": "Hata",
         "success": "Başarılı",
@@ -29,12 +29,12 @@
     },
     "login": {
         "title": "Giriş Yap",
-        "subtitle": "Test Assistant AI'a hoş geldiniz",
+        "subtitle": "CoTesterAi'a hoş geldiniz",
         "signInWith": "ile giriş yap",
         "signingIn": "Giriş yapılıyor..."
     },
     "home": {
-        "title": "Test Assistant AI",
+        "title": "CoTesterAi",
         "subtitle": "Otomatik test oluşturma ve çalıştırma platformu",
         "uploadCard": {
             "title": "JSON Şema Yükle",
@@ -59,7 +59,9 @@
         "validJsonOnly": "Lütfen geçerli bir JSON/HAR dosyası seçin",
         "uploadFailure": "Dosya yüklenirken hata oluştu",
         "networkError": "Ağ hatası",
-        "noStepsReturned": "Adım oluşturulamadı"
+        "noStepsReturned": "Adım oluşturulamadı",
+        "cardTitle": "JSON / HAR Dosyası",
+        "supportedFormats": "JSON veya HAR dosyaları desteklenir"
     },
     "testRun": {
         "title": "Testleri Çalıştır",
@@ -69,11 +71,13 @@
         "running": "Çalışıyor...",
         "tagsGuide": "Etiket Rehberi",
         "readyToExecute": "Çalıştırmaya hazır",
+        "readyToExecuteDesc": "Yukarıya etiket girin ve başlatmak için Testleri Çalıştır'a tıklayın",
         "environment": "Ortam",
         "parallelExecution": "Paralel Çalıştırma",
         "threadCount": "Thread Sayısı",
         "enabled": "Aktif",
-        "disabled": "Pasif"
+        "disabled": "Pasif",
+        "testConfiguration": "Test Yapılandırması"
     },
     "generateTests": {
         "title": "Yapay Zeka Destekli Test Oluştur",
@@ -93,6 +97,7 @@
         "readyToGenerate": "Oluşturmaya Hazır",
         "readyToGenerateDesc": "Seçeneklerinizi yapılandırın ve yapay zeka destekli test paketleri oluşturmak için butona tıklayın",
         "testsGeneratedSuccess": "Testler başarıyla oluşturuldu!",
-        "errorGeneratingTests": "Test oluşturma hatası"
+        "errorGeneratingTests": "Test oluşturma hatası",
+        "generatedResults": "Oluşturulan Sonuçlar"
     }
 }

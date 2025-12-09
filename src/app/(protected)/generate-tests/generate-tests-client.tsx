@@ -47,6 +47,7 @@ interface GenerateTestsClientProps {
             testsGeneratedSuccess?: string;
             errorGeneratingTests?: string;
             download?: string;
+            generatedResults?: string;
         };
         common: {
             error: string;
@@ -245,7 +246,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                     {/* Results Card - Right Side */}
                     <Card className="lg:col-span-3">
                         <CardHeader>
-                            <CardTitle className="text-lg">Generated Results</CardTitle>
+                            <CardTitle className="text-lg">{dictionary.generateTests.generatedResults}</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {!result ? (

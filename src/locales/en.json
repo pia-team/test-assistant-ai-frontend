@@ -1,6 +1,6 @@
 {
     "common": {
-        "appName": "Test Assistant AI",
+        "appName": "CoTesterAi",
         "loading": "Loading...",
         "error": "Error",
         "success": "Success",
@@ -29,12 +29,12 @@
     },
     "login": {
         "title": "Sign In",
-        "subtitle": "Welcome to Test Assistant AI",
+        "subtitle": "Welcome to CoTesterAi",
         "signInWith": "Sign in with",
         "signingIn": "Signing in..."
     },
     "home": {
-        "title": "Test Assistant AI",
+        "title": "CoTesterAi",
         "subtitle": "Automated test generation and execution platform",
         "uploadCard": {
             "title": "Upload JSON Schema",
@@ -59,7 +59,9 @@
         "validJsonOnly": "Please select a valid JSON/HAR file",
         "uploadFailure": "Error uploading file",
         "networkError": "Network error",
-        "noStepsReturned": "Could not generate steps"
+        "noStepsReturned": "Could not generate steps",
+        "cardTitle": "JSON / HAR File",
+        "supportedFormats": "JSON or HAR files are supported"
     },
     "testRun": {
         "title": "Run Tests",
@@ -69,11 +71,13 @@
         "running": "Running...",
         "tagsGuide": "Tags Guide",
         "readyToExecute": "Ready to execute",
+        "readyToExecuteDesc": "Enter tags above and click Run Tests to start",
         "environment": "Environment",
         "parallelExecution": "Parallel Execution",
         "threadCount": "Thread Count",
         "enabled": "Enabled",
-        "disabled": "Disabled"
+        "disabled": "Disabled",
+        "testConfiguration": "Test Configuration"
     },
     "generateTests": {
         "title": "AI Powered Test Generation",
@@ -93,6 +97,7 @@
         "readyToGenerate": "Ready to Generate",
         "readyToGenerateDesc": "Configure your options and click 'Generate' to create AI-powered test suites",
         "testsGeneratedSuccess": "Tests generated successfully!",
-        "errorGeneratingTests": "Error generating tests"
+        "errorGeneratingTests": "Error generating tests",
+        "generatedResults": "Generated Results"
     }
 }

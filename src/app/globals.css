@@ -116,13 +116,16 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground min-h-screen;
+    /* Added min-h-screen for good measure, kept text-foreground */
   }
 }
 
 /* Global cursor-pointer for all clickable elements */
 @layer components {
+
   /* Buttons */
   button:not(:disabled),
   [role="button"]:not(:disabled),
@@ -163,6 +166,7 @@
     cursor: pointer;
     transition: all 0.2s ease;
   }
+
   .card-clickable:hover {
     transform: translateY(-2px);
   }
@@ -177,9 +181,12 @@
 
 /* Loading overlay animation */
 @keyframes pulse-bg {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.4;
   }
+
   50% {
     opacity: 0.8;
   }
@@ -194,6 +201,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -203,16 +211,20 @@
   from {
     transform: rotate(360deg);
   }
+
   to {
     transform: rotate(0deg);
   }
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.3;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.6;
     transform: scale(1.05);
@@ -230,4 +242,3 @@
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
-

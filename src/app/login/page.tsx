@@ -2,18 +2,18 @@ import { signIn } from "@/lib/auth";
 import { getDictionary, getLocale } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { KeyRound } from "lucide-react";
+import { LogoIcon } from "@/components/ui/logo";
 
 export default async function LoginPage() {
     const locale = await getLocale();
     const dict = await getDictionary(locale);
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
-            <Card className="w-full max-w-md border-border/50 shadow-xl backdrop-blur-sm">
+        <div className="min-h-screen flex items-center justify-center p-4">
+            <Card className="w-full max-w-md border-border/50 shadow-xl backdrop-blur-md bg-background/60">
                 <CardHeader className="text-center space-y-4">
-                    <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg">
-                        <KeyRound className="w-8 h-8 text-primary-foreground" />
+                    <div className="mx-auto flex items-center justify-center">
+                        <LogoIcon className="w-16 h-16" />
                     </div>
                     <div>
                         <CardTitle className="text-2xl font-bold">{dict.login.title}</CardTitle>
@@ -26,7 +26,7 @@ export default async function LoginPage() {
                     <form
                         action={async () => {
                             "use server";
-                            await signIn("keycloak", { redirectTo: "/" });
+                            await signIn("keycloak", { redirectTo: "/home" });
                         }}
                     >
                         <Button

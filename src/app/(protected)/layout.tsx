@@ -1,4 +1,5 @@
 import { Navbar } from "@/components/navbar";
+import { LocaleProvider } from "@/components/locale-context";
 import { getDictionary, getLocale } from "@/lib/i18n";
 
 export default async function ProtectedLayout({
@@ -10,9 +11,12 @@ export default async function ProtectedLayout({
     const dict = await getDictionary(locale);
 
     return (
-        <div className="min-h-screen bg-background">
-            <Navbar dictionary={dict} currentLocale={locale} />
-            <main className="container mx-auto px-4 py-8">{children}</main>
-        </div>
+        <LocaleProvider initialLocale={locale} initialDictionary={dict}>
+            <div className="min-h-screen bg-transparent/5"> {/* Added slight tint for readability if needed, or just transparent */}
+                <Navbar />
+                <main className="container mx-auto px-4 py-8">{children}</main>
+            </div>
+        </LocaleProvider>
     );
 }
+

@@ -40,11 +40,13 @@ interface TestRunClientProps {
             running: string;
             tagsGuide: string;
             readyToExecute: string;
+            readyToExecuteDesc?: string;
             environment: string;
             parallelExecution: string;
             threadCount: string;
             enabled: string;
             disabled: string;
+            testConfiguration?: string;
         };
         common: {
             error: string;
@@ -133,7 +135,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
 
                     <CardHeader className="pb-4">
                         <div className="flex items-center justify-between">
-                            <CardTitle className="text-lg">Test Configuration</CardTitle>
+                            <CardTitle className="text-lg">{dictionary.testRun.testConfiguration}</CardTitle>
 
                             {/* Tags Guide Modal */}
                             <Dialog>
@@ -276,7 +278,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                     {dictionary.testRun.readyToExecute}
                                 </h5>
                                 <p className="text-sm text-muted-foreground/70 mt-1">
-                                    Enter tags above and click Run Tests to start
+                                    {dictionary.testRun.readyToExecuteDesc}
                                 </p>
                             </CardContent>
                         </Card>

@@ -13,36 +13,34 @@ import {
 import { Home, Upload, Play, LogOut, Moon, Sun, Languages, Rocket } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { useLocale, type Locale } from "@/components/locale-context";
+import { LogoIcon } from "@/components/ui/logo";
 
-interface NavbarProps {
-    dictionary: {
-        nav: {
-            home: string;
-            generateTests: string;
-            uploadJson: string;
-            testRun: string;
-            logout: string;
-            theme: string;
-            language: string;
-        };
-    };
-    currentLocale: string;
-}
-
-export function Navbar({ dictionary, currentLocale }: NavbarProps) {
+export function Navbar() {
     const pathname = usePathname();
     const { theme, setTheme } = useTheme();
+    const { locale, dictionary, setLocale } = useLocale();
 
     const navItems = [
-        { href: "/", label: dictionary.nav.home, icon: Home },
+        { href: "/home", label: dictionary.nav.home, icon: Home },
         { href: "/generate-tests", label: dictionary.nav.generateTests, icon: Rocket },
         { href: "/upload-json", label: dictionary.nav.uploadJson, icon: Upload },
         { href: "/test-run", label: dictionary.nav.testRun, icon: Play },
     ];
 
-    const handleLocaleChange = async (locale: string) => {
-        document.cookie = `locale=${locale};path=/;max-age=31536000`;
-        window.location.reload();
+    const handleLocaleChange = (newLocale: Locale) => {
+        setLocale(newLocale);
+    };
+
+    const handleLogout = async () => {
+        // Keycloak logout URL with redirect back to signout page
+        const keycloakLogoutUrl = `https://diam.dnext-pia.com/realms/orbitant-realm/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin + '/auth/signout')}&client_id=orbitant-ui-client`;
+
+        // Sign out from NextAuth first (without redirect)
+        await signOut({ redirect: false });
+
+        // Redirect to Keycloak logout
+        window.location.href = keycloakLogoutUrl;
     };
 
     return (
@@ -50,12 +48,10 @@ export function Navbar({ dictionary, currentLocale }: NavbarProps) {
             <div className="container mx-auto px-4">
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-                            <span className="text-primary-foreground font-bold text-sm">TA</span>
-                        </div>
+                    <Link href="/home" className="flex items-center gap-2">
+                        <LogoIcon />
                         <span className="font-semibold hidden sm:inline-block">
-                            Test Assistant AI
+                            CoTesterAi
                         </span>
                     </Link>
 
@@ -90,13 +86,13 @@ export function Navbar({ dictionary, currentLocale }: NavbarProps) {
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem
                                     onClick={() => handleLocaleChange("tr")}
-                                    className={currentLocale === "tr" ? "bg-secondary" : ""}
+                                    className={locale === "tr" ? "bg-secondary" : ""}
                                 >
                                     🇹🇷 Türkçe
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     onClick={() => handleLocaleChange("en")}
-                                    className={currentLocale === "en" ? "bg-secondary" : ""}
+                                    className={locale === "en" ? "bg-secondary" : ""}
                                 >
                                     🇬🇧 English
                                 </DropdownMenuItem>
@@ -118,7 +114,7 @@ export function Navbar({ dictionary, currentLocale }: NavbarProps) {
                         <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => signOut({ callbackUrl: "/login" })}
+                            onClick={handleLogout}
                         >
                             <LogOut className="w-4 h-4" />
                         </Button>

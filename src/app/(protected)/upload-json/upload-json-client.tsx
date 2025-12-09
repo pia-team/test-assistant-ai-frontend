@@ -24,6 +24,8 @@ interface UploadJsonClientProps {
             uploadFailure?: string;
             networkError?: string;
             noStepsReturned?: string;
+            cardTitle?: string;
+            supportedFormats?: string;
         };
         common: {
             error: string;
@@ -134,7 +136,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                 <Card>
 
                     <CardHeader>
-                        <CardTitle className="text-lg">JSON / HAR Dosyası</CardTitle>
+                        <CardTitle className="text-lg">{dictionary.uploadJson.cardTitle}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {/* Dropzone */}
@@ -186,7 +188,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                                                 {dictionary.uploadJson.dropzone}
                                             </span>
                                             <span className="text-xs text-muted-foreground/70">
-                                                JSON veya HAR dosyaları desteklenir
+                                                {dictionary.uploadJson.supportedFormats}
                                             </span>
                                         </>
                                     )}
