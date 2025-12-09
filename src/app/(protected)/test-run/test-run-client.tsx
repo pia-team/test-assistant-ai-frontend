@@ -23,6 +23,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { FullScreenLoader } from "@/components/ui/full-screen-loader";
 import { Play, Terminal, Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -109,192 +110,179 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     };
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-2"
-            >
-                <h1 className="text-3xl font-bold">{dictionary.testRun.title}</h1>
-                <p className="text-muted-foreground">{dictionary.testRun.subtitle}</p>
-            </motion.div>
+        <>
+            {/* Full Screen Loading Overlay */}
+            <FullScreenLoader
+                isLoading={runTestsMutation.isPending}
+                message={dictionary.testRun.running}
+            />
 
-            {/* Controls */}
-            <Card className="relative overflow-hidden">
-                {/* Loading Overlay */}
-                {runTestsMutation.isPending && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center"
-                    >
-                        <div className="flex flex-col items-center gap-3">
-                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                            <span className="text-sm font-medium">{dictionary.testRun.running}</span>
-                            <div className="w-32 h-1 bg-muted rounded-full overflow-hidden">
-                                <motion.div
-                                    className="h-full bg-primary rounded-full"
-                                    initial={{ width: "0%" }}
-                                    animate={{ width: "100%" }}
-                                    transition={{ duration: 30, ease: "linear" }}
-                                />
-                            </div>
+            <div className="space-y-6">
+                {/* Header */}
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-2"
+                >
+                    <h1 className="text-3xl font-bold">{dictionary.testRun.title}</h1>
+                    <p className="text-muted-foreground">{dictionary.testRun.subtitle}</p>
+                </motion.div>
+
+                {/* Controls */}
+                <Card>
+
+                    <CardHeader className="pb-4">
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg">Test Configuration</CardTitle>
+
+                            {/* Tags Guide Modal */}
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                                        <Info className="w-4 h-4" />
+                                        {dictionary.testRun.tagsGuide}
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>{dictionary.testRun.tagsGuide}</DialogTitle>
+                                        <DialogDescription>{dictionary.testRun.enterTags}</DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-3 mt-4">
+                                        <div className="flex items-center gap-2">
+                                            <code className="px-2 py-1 bg-muted rounded text-sm">@smoke</code>
+                                            <span className="text-sm text-muted-foreground">- Run smoke tests</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <code className="px-2 py-1 bg-muted rounded text-sm">
+                                                @regression and not @slow
+                                            </code>
+                                            <span className="text-sm text-muted-foreground">- Complex logic</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <code className="px-2 py-1 bg-muted rounded text-sm">@login or @signup</code>
+                                            <span className="text-sm text-muted-foreground">- Run either matching</span>
+                                        </div>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         </div>
-                    </motion.div>
-                )}
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {/* Parameters Grid */}
+                        <div className="grid sm:grid-cols-3 gap-4">
+                            {/* Environment */}
+                            <div className="space-y-2">
+                                <Label>{dictionary.testRun.environment}</Label>
+                                <Select value={env} onValueChange={setEnv} disabled={runTestsMutation.isPending}>
+                                    <SelectTrigger className="transition-opacity">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {ENV_OPTIONS.map((opt) => (
+                                            <SelectItem key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
-                <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">Test Configuration</CardTitle>
-
-                        {/* Tags Guide Modal */}
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground transition-colors">
-                                    <Info className="w-4 h-4" />
-                                    {dictionary.testRun.tagsGuide}
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>{dictionary.testRun.tagsGuide}</DialogTitle>
-                                    <DialogDescription>{dictionary.testRun.enterTags}</DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-3 mt-4">
-                                    <div className="flex items-center gap-2">
-                                        <code className="px-2 py-1 bg-muted rounded text-sm">@smoke</code>
-                                        <span className="text-sm text-muted-foreground">- Run smoke tests</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <code className="px-2 py-1 bg-muted rounded text-sm">
-                                            @regression and not @slow
-                                        </code>
-                                        <span className="text-sm text-muted-foreground">- Complex logic</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <code className="px-2 py-1 bg-muted rounded text-sm">@login or @signup</code>
-                                        <span className="text-sm text-muted-foreground">- Run either matching</span>
-                                    </div>
+                            {/* Parallel Execution */}
+                            <div className="space-y-2">
+                                <Label>{dictionary.testRun.parallelExecution}</Label>
+                                <div className="flex items-center gap-3 h-10">
+                                    <Switch
+                                        checked={isParallel}
+                                        onCheckedChange={setIsParallel}
+                                        disabled={runTestsMutation.isPending}
+                                    />
+                                    <Badge variant={isParallel ? "default" : "secondary"}>
+                                        {isParallel ? dictionary.testRun.enabled : dictionary.testRun.disabled}
+                                    </Badge>
                                 </div>
-                            </DialogContent>
-                        </Dialog>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {/* Parameters Grid */}
-                    <div className="grid sm:grid-cols-3 gap-4">
-                        {/* Environment */}
-                        <div className="space-y-2">
-                            <Label>{dictionary.testRun.environment}</Label>
-                            <Select value={env} onValueChange={setEnv} disabled={runTestsMutation.isPending}>
-                                <SelectTrigger className="transition-opacity">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {ENV_OPTIONS.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                            </div>
 
-                        {/* Parallel Execution */}
-                        <div className="space-y-2">
-                            <Label>{dictionary.testRun.parallelExecution}</Label>
-                            <div className="flex items-center gap-3 h-10">
-                                <Switch
-                                    checked={isParallel}
-                                    onCheckedChange={setIsParallel}
-                                    disabled={runTestsMutation.isPending}
-                                />
-                                <Badge variant={isParallel ? "default" : "secondary"}>
-                                    {isParallel ? dictionary.testRun.enabled : dictionary.testRun.disabled}
-                                </Badge>
+                            {/* Thread Count */}
+                            <div className="space-y-2">
+                                <Label>{dictionary.testRun.threadCount}</Label>
+                                <Select
+                                    value={threads.toString()}
+                                    onValueChange={(v) => setThreads(parseInt(v))}
+                                    disabled={!isParallel || runTestsMutation.isPending}
+                                >
+                                    <SelectTrigger className={!isParallel ? "opacity-50" : ""}>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {THREAD_OPTIONS.map((opt) => (
+                                            <SelectItem key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
 
-                        {/* Thread Count */}
-                        <div className="space-y-2">
-                            <Label>{dictionary.testRun.threadCount}</Label>
-                            <Select
-                                value={threads.toString()}
-                                onValueChange={(v) => setThreads(parseInt(v))}
-                                disabled={!isParallel || runTestsMutation.isPending}
+                        {/* Tags Input + Run Button */}
+                        <div className="flex gap-3">
+                            <Input
+                                placeholder={dictionary.testRun.enterTags}
+                                value={tags}
+                                onChange={(e) => setTags(e.target.value)}
+                                className="flex-1"
+                                onKeyDown={(e) => e.key === "Enter" && !runTestsMutation.isPending && handleRun()}
+                                disabled={runTestsMutation.isPending}
+                            />
+                            <Button
+                                onClick={handleRun}
+                                disabled={runTestsMutation.isPending || !tags.trim()}
+                                className="gap-2 px-6 min-w-[140px] transition-all"
+                                size="lg"
                             >
-                                <SelectTrigger className={!isParallel ? "opacity-50" : ""}>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {THREAD_OPTIONS.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                {runTestsMutation.isPending ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        {dictionary.testRun.running}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Play className="w-4 h-4" />
+                                        {dictionary.testRun.runTests}
+                                    </>
+                                )}
+                            </Button>
                         </div>
-                    </div>
-
-                    {/* Tags Input + Run Button */}
-                    <div className="flex gap-3">
-                        <Input
-                            placeholder={dictionary.testRun.enterTags}
-                            value={tags}
-                            onChange={(e) => setTags(e.target.value)}
-                            className="flex-1"
-                            onKeyDown={(e) => e.key === "Enter" && !runTestsMutation.isPending && handleRun()}
-                            disabled={runTestsMutation.isPending}
-                        />
-                        <Button
-                            onClick={handleRun}
-                            disabled={runTestsMutation.isPending || !tags.trim()}
-                            className="gap-2 px-6 min-w-[140px] transition-all"
-                            size="lg"
-                        >
-                            {runTestsMutation.isPending ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    {dictionary.testRun.running}
-                                </>
-                            ) : (
-                                <>
-                                    <Play className="w-4 h-4" />
-                                    {dictionary.testRun.runTests}
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Error Alert */}
-            {error && (
-                <Card className="border-red-500/50 bg-red-500/10">
-                    <CardContent className="py-3 text-red-500">{error}</CardContent>
+                    </CardContent>
                 </Card>
-            )}
 
-            {/* Report Viewer / Empty State */}
-            <div className="mt-4">
-                {logs ? (
-                    <TestReportViewer logs={logs} tags={tags} />
-                ) : (
-                    <Card className="text-center py-12 border-dashed">
-                        <CardContent>
-                            <Terminal className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                            <h5 className="font-medium text-muted-foreground">
-                                {dictionary.testRun.readyToExecute}
-                            </h5>
-                            <p className="text-sm text-muted-foreground/70 mt-1">
-                                Enter tags above and click Run Tests to start
-                            </p>
-                        </CardContent>
+                {/* Error Alert */}
+                {error && (
+                    <Card className="border-red-500/50 bg-red-500/10">
+                        <CardContent className="py-3 text-red-500">{error}</CardContent>
                     </Card>
                 )}
+
+                {/* Report Viewer / Empty State */}
+                <div className="mt-4">
+                    {logs ? (
+                        <TestReportViewer logs={logs} tags={tags} />
+                    ) : (
+                        <Card className="text-center py-12 border-dashed">
+                            <CardContent>
+                                <Terminal className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                                <h5 className="font-medium text-muted-foreground">
+                                    {dictionary.testRun.readyToExecute}
+                                </h5>
+                                <p className="text-sm text-muted-foreground/70 mt-1">
+                                    Enter tags above and click Run Tests to start
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
             </div>
-        </div>
+        </>
     );
 }
