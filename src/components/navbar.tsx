@@ -10,7 +10,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home, Upload, Play, LogOut, Moon, Sun, Languages } from "lucide-react";
+import { Home, Upload, Play, LogOut, Moon, Sun, Languages, Rocket } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,7 @@ interface NavbarProps {
     dictionary: {
         nav: {
             home: string;
+            generateTests: string;
             uploadJson: string;
             testRun: string;
             logout: string;
@@ -34,6 +35,7 @@ export function Navbar({ dictionary, currentLocale }: NavbarProps) {
 
     const navItems = [
         { href: "/", label: dictionary.nav.home, icon: Home },
+        { href: "/generate-tests", label: dictionary.nav.generateTests, icon: Rocket },
         { href: "/upload-json", label: dictionary.nav.uploadJson, icon: Upload },
         { href: "/test-run", label: dictionary.nav.testRun, icon: Play },
     ];

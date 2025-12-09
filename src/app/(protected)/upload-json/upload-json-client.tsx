@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Upload, FileJson, Loader2 } from "lucide-react";
+import { Upload, FileJson, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
-import { generateTestsAction } from "@/app/actions/test-actions";
+import { motion } from "framer-motion";
+import { uploadJsonAction, type UploadJsonResponse } from "@/app/actions/upload-json-action";
+import { GeneratedFilesDisplay } from "@/components/generated-files-display";
 
 interface UploadJsonClientProps {
     dictionary: {
@@ -19,190 +18,226 @@ interface UploadJsonClientProps {
             dropzone: string;
             generate: string;
             generating: string;
+            selectedFile?: string;
+            validJsonOnly?: string;
+            uploadFailure?: string;
+            networkError?: string;
+            noStepsReturned?: string;
         };
         common: {
             error: string;
             success: string;
+            copy?: string;
+            download?: string;
+            copied?: string;
         };
     };
 }
 
 export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
-    const [jsonSchema, setJsonSchema] = useState<string>("");
-    const [fileName, setFileName] = useState<string>("");
-    const [hasFeatureFile, setHasFeatureFile] = useState(true);
-    const [hasAPITests, setHasAPITests] = useState(true);
-    const [hasTestPayload, setHasTestPayload] = useState(false);
-    const [hasSwaggerTest, setHasSwaggerTest] = useState(false);
-    const [result, setResult] = useState<string>("");
+    const [file, setFile] = useState<File | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [result, setResult] = useState<UploadJsonResponse | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const generateMutation = useMutation({
-        mutationFn: generateTestsAction,
+    const uploadMutation = useMutation({
+        mutationFn: async (file: File) => {
+            const formData = new FormData();
+            formData.append("file", file);
+            return uploadJsonAction(formData);
+        },
         onSuccess: (data) => {
-            setResult(JSON.stringify(data, null, 2));
+            setResult(data);
             toast.success(dictionary.common.success);
         },
         onError: (error: Error) => {
-            toast.error(error.message);
+            toast.error(error.message || dictionary.uploadJson.uploadFailure || "Upload failed");
         },
     });
 
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const selectedFile = e.target.files?.[0];
+        if (!selectedFile) return;
 
-        setFileName(file.name);
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const content = event.target?.result as string;
-                JSON.parse(content); // Validate JSON
-                setJsonSchema(content);
-            } catch {
-                toast.error("Invalid JSON file");
-            }
-        };
-        reader.readAsText(file);
+        if (selectedFile.type === "application/json" || selectedFile.name.endsWith(".json") || selectedFile.name.endsWith(".har")) {
+            setFile(selectedFile);
+            setResult(null);
+            toast.success(`${dictionary.uploadJson.selectedFile || "Dosya seçildi:"} ${selectedFile.name}`);
+        } else {
+            toast.error(dictionary.uploadJson.validJsonOnly || "Lütfen geçerli bir JSON/HAR dosyası seçin");
+        }
+    }, [dictionary]);
+
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    }, []);
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
     }, []);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
-        const file = e.dataTransfer.files[0];
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const droppedFile = e.dataTransfer.files[0];
+        if (!droppedFile) return;
+
+        if (droppedFile.type === "application/json" || droppedFile.name.endsWith(".json") || droppedFile.name.endsWith(".har")) {
+            setFile(droppedFile);
+            setResult(null);
+            toast.success(`${dictionary.uploadJson.selectedFile || "Dosya seçildi:"} ${droppedFile.name}`);
+        } else {
+            toast.error(dictionary.uploadJson.validJsonOnly || "Lütfen geçerli bir JSON/HAR dosyası seçin");
+        }
+    }, [dictionary]);
+
+    const handleUpload = () => {
         if (!file) return;
+        uploadMutation.mutate(file);
+    };
 
-        setFileName(file.name);
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const content = event.target?.result as string;
-                JSON.parse(content);
-                setJsonSchema(content);
-            } catch {
-                toast.error("Invalid JSON file");
-            }
-        };
-        reader.readAsText(file);
-    }, []);
-
-    const handleGenerate = () => {
-        if (!jsonSchema) return;
-        generateMutation.mutate({
-            jsonSchema,
-            hasFeatureFile,
-            hasAPITests,
-            hasTestPayload,
-            hasSwaggerTest,
-        });
+    const handleClearFile = () => {
+        setFile(null);
+        setResult(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
     };
 
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="space-y-2">
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-2"
+            >
                 <h1 className="text-3xl font-bold">{dictionary.uploadJson.title}</h1>
                 <p className="text-muted-foreground">{dictionary.uploadJson.subtitle}</p>
-            </div>
+            </motion.div>
 
-            <div className="grid lg:grid-cols-2 gap-6">
-                {/* Upload Card */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">JSON Schema</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {/* Dropzone */}
-                        <div
-                            onDrop={handleDrop}
-                            onDragOver={(e) => e.preventDefault()}
-                            className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 hover:bg-muted/30 transition-colors cursor-pointer"
-                        >
-                            <input
-                                type="file"
-                                accept=".json"
-                                className="hidden"
-                                id="file-upload"
-                                onChange={handleFileChange}
-                            />
-                            <label htmlFor="file-upload" className="cursor-pointer">
-                                <div className="flex flex-col items-center gap-3">
-                                    {fileName ? (
-                                        <>
+            {/* Upload Card */}
+            <Card className="relative overflow-hidden">
+                {/* Loading Overlay */}
+                {uploadMutation.isPending && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center"
+                    >
+                        <div className="flex flex-col items-center gap-3">
+                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                            <span className="text-sm font-medium">{dictionary.uploadJson.generating}</span>
+                            <div className="w-32 h-1 bg-muted rounded-full overflow-hidden">
+                                <motion.div
+                                    className="h-full bg-primary rounded-full"
+                                    initial={{ width: "0%" }}
+                                    animate={{ width: "100%" }}
+                                    transition={{ duration: 30, ease: "linear" }}
+                                />
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+
+                <CardHeader>
+                    <CardTitle className="text-lg">JSON / HAR Dosyası</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {/* Dropzone */}
+                    <div
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        className={`
+                            border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer
+                            ${isDragging
+                                ? "border-primary bg-primary/5 scale-[1.02]"
+                                : "border-border hover:border-primary/50 hover:bg-muted/30"
+                            }
+                        `}
+                    >
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".json,.har"
+                            className="hidden"
+                            id="file-upload"
+                            onChange={handleFileChange}
+                        />
+                        <label htmlFor="file-upload" className="cursor-pointer">
+                            <div className="flex flex-col items-center gap-3">
+                                {file ? (
+                                    <>
+                                        <div className="relative">
                                             <FileJson className="w-12 h-12 text-primary" />
-                                            <span className="font-medium">{fileName}</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Upload className="w-12 h-12 text-muted-foreground" />
-                                            <span className="text-muted-foreground">
-                                                {dictionary.uploadJson.dropzone}
-                                            </span>
-                                        </>
-                                    )}
-                                </div>
-                            </label>
-                        </div>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    handleClearFile();
+                                                }}
+                                                className="absolute -top-2 -right-2 p-1 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                        <span className="font-medium">{file.name}</span>
+                                        <span className="text-sm text-muted-foreground">
+                                            {(file.size / 1024).toFixed(1)} KB
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Upload className={`w-12 h-12 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+                                        <span className="text-muted-foreground">
+                                            {dictionary.uploadJson.dropzone}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground/70">
+                                            JSON veya HAR dosyaları desteklenir
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                        </label>
+                    </div>
 
-                        {/* Options */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="flex items-center gap-3">
-                                <Switch checked={hasFeatureFile} onCheckedChange={setHasFeatureFile} />
-                                <Label>Feature File</Label>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <Switch checked={hasAPITests} onCheckedChange={setHasAPITests} />
-                                <Label>API Tests</Label>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <Switch checked={hasTestPayload} onCheckedChange={setHasTestPayload} />
-                                <Label>Test Payload</Label>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <Switch checked={hasSwaggerTest} onCheckedChange={setHasSwaggerTest} />
-                                <Label>Swagger Test</Label>
-                            </div>
-                        </div>
+                    {/* Generate Button */}
+                    <Button
+                        onClick={handleUpload}
+                        disabled={uploadMutation.isPending || !file}
+                        className="w-full gap-2"
+                        size="lg"
+                    >
+                        {uploadMutation.isPending ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                {dictionary.uploadJson.generating}
+                            </>
+                        ) : (
+                            <>
+                                <Upload className="w-4 h-4" />
+                                {dictionary.uploadJson.generate}
+                            </>
+                        )}
+                    </Button>
+                </CardContent>
+            </Card>
 
-                        {/* Generate Button */}
-                        <Button
-                            onClick={handleGenerate}
-                            disabled={generateMutation.isPending || !jsonSchema}
-                            className="w-full gap-2"
-                            size="lg"
-                        >
-                            {generateMutation.isPending ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    {dictionary.uploadJson.generating}
-                                </>
-                            ) : (
-                                <>
-                                    <Upload className="w-4 h-4" />
-                                    {dictionary.uploadJson.generate}
-                                </>
-                            )}
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                {/* Result Card */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">Generated Output</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ScrollArea className="h-[400px] w-full rounded-lg border bg-muted/30 p-4">
-                            {result ? (
-                                <pre className="text-sm font-mono whitespace-pre-wrap">{result}</pre>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                                    <FileJson className="w-12 h-12 mb-4 opacity-30" />
-                                    <p>Output will appear here</p>
-                                </div>
-                            )}
-                        </ScrollArea>
-                    </CardContent>
-                </Card>
-            </div>
+            {/* Results */}
+            {result && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                >
+                    <GeneratedFilesDisplay data={result} dictionary={dictionary} />
+                </motion.div>
+            )}
         </div>
     );
 }

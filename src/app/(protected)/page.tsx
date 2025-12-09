@@ -2,13 +2,20 @@ import Link from "next/link";
 import { getDictionary, getLocale } from "@/lib/i18n";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, Play, ArrowRight } from "lucide-react";
+import { Upload, Play, ArrowRight, Rocket } from "lucide-react";
 
 export default async function HomePage() {
     const locale = await getLocale();
     const dict = await getDictionary(locale);
 
     const cards = [
+        {
+            href: "/generate-tests",
+            icon: Rocket,
+            title: dict.home.dashboardCard.title,
+            description: dict.home.dashboardCard.description,
+            gradient: "from-violet-500 to-fuchsia-500",
+        },
         {
             href: "/upload-json",
             icon: Upload,

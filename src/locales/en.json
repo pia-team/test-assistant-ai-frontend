@@ -13,10 +13,14 @@
         "back": "Back",
         "next": "Next",
         "yes": "Yes",
-        "no": "No"
+        "no": "No",
+        "copy": "Copy",
+        "download": "Download",
+        "copied": "Copied!"
     },
     "nav": {
         "home": "Home",
+        "generateTests": "Generate Tests",
         "uploadJson": "Upload JSON",
         "testRun": "Run Tests",
         "logout": "Logout",
@@ -39,6 +43,10 @@
         "runCard": {
             "title": "Run Tests",
             "description": "Execute your Cucumber tests and view results"
+        },
+        "dashboardCard": {
+            "title": "AI Powered Test Generation",
+            "description": "Automatically generate test suites from your API documentation"
         }
     },
     "uploadJson": {
@@ -46,7 +54,12 @@
         "subtitle": "Upload your API schema and generate test scenarios",
         "dropzone": "Drop file here or click to upload",
         "generate": "Generate Tests",
-        "generating": "Generating..."
+        "generating": "Generating...",
+        "selectedFile": "File selected:",
+        "validJsonOnly": "Please select a valid JSON/HAR file",
+        "uploadFailure": "Error uploading file",
+        "networkError": "Network error",
+        "noStepsReturned": "Could not generate steps"
     },
     "testRun": {
         "title": "Run Tests",
@@ -61,5 +74,25 @@
         "threadCount": "Thread Count",
         "enabled": "Enabled",
         "disabled": "Disabled"
+    },
+    "generateTests": {
+        "title": "AI Powered Test Generation",
+        "subtitle": "Instantly generate comprehensive test suites from your API documentation or Swagger URL",
+        "configuration": "Configuration",
+        "targetUrl": "Target URL",
+        "targetUrlPlaceholder": "https://api.example.com/swagger.json",
+        "jsonSchema": "JSON Schema (Optional)",
+        "jsonSchemaPlaceholder": "{\"id\": \"int\", \"name\": \"string\"}",
+        "outputOptions": "Output Options",
+        "featureFile": "Feature File",
+        "apiTests": "API Tests",
+        "testPayload": "Test Payload",
+        "swaggerTests": "Swagger Tests",
+        "generateTestSuite": "Generate Test Suite",
+        "generating": "Generating...",
+        "readyToGenerate": "Ready to Generate",
+        "readyToGenerateDesc": "Configure your options and click 'Generate' to create AI-powered test suites",
+        "testsGeneratedSuccess": "Tests generated successfully!",
+        "errorGeneratingTests": "Error generating tests"
     }
 }
