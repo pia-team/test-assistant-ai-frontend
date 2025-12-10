@@ -170,3 +170,8 @@ export function isJobComplete(job: Job | null | undefined): boolean {
 export function isJobFailed(job: Job | null | undefined): boolean {
     return job?.status === "FAILED";
 }
+
+// Helper to check if job stopped
+export function isJobStopped(job: Job | null | undefined): boolean {
+    return job?.status === "STOPPED";
+}

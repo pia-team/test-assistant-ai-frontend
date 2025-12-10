@@ -1,6 +1,6 @@
 "use client";
 
-import { useAllJobs, useCancelJob, isJobInProgress, isJobComplete, isJobFailed } from "@/lib/use-job";
+import { useAllJobs, useCancelJob, isJobInProgress, isJobComplete, isJobFailed, isJobStopped } from "@/lib/use-job";
 import {
     Card,
     CardContent,
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle, XCircle, Clock, Square, User } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Clock, Square, User, Ban } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { tr } from "date-fns/locale";
 
@@ -32,6 +32,8 @@ function getJobStatusIcon(status: string) {
             return <CheckCircle className="w-4 h-4 text-green-500" />;
         case "FAILED":
             return <XCircle className="w-4 h-4 text-red-500" />;
+        case "STOPPED":
+            return <Ban className="w-4 h-4 text-gray-500" />;
         default:
             return null;
     }
@@ -169,6 +171,8 @@ export function JobDashboard() {
                                                 <span className="text-red-500 text-sm max-w-[200px] truncate block" title={job.error || ""}>
                                                     {job.error}
                                                 </span>
+                                            ) : isJobStopped(job) ? (
+                                                <span className="text-gray-500 text-sm">Durduruldu</span>
                                             ) : isJobComplete(job) ? (
                                                 <span className="text-green-500 text-sm">Başarılı</span>
                                             ) : (

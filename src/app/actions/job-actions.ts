@@ -3,7 +3,7 @@
 import { auth } from "@/lib/auth";
 
 export type JobType = "GENERATE_TESTS" | "RUN_TESTS" | "UPLOAD_JSON";
-export type JobStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+export type JobStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "STOPPED";
 
 export interface Job {
     id: string;
