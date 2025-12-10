@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 
-export type JobType = "GENERATE_TESTS" | "RUN_TESTS" | "UPLOAD_JSON";
+export type JobType = "GENERATE_TESTS" | "RUN_TESTS" | "UPLOAD_JSON" | "OPEN_REPORT";
 export type JobStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "STOPPED";
 
 export interface Job {
@@ -180,4 +180,25 @@ export async function cancelJob(jobId: string): Promise<void> {
     if (!response.ok) {
         throw new Error(`Failed to cancel job: ${await response.text()}`);
     }
+}
+
+// Start open report job
+export async function startOpenReportJob(): Promise<Job> {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${API_URL}/api/jobs/report/open`, {
+        method: "POST",
+        headers,
+    });
+
+    if (response.status === 409) {
+        const data = await response.json();
+        throw new Error(`JOB_ALREADY_RUNNING:${JSON.stringify(data.activeJob)}`);
+    }
+
+    if (!response.ok) {
+        throw new Error(`Failed to start job: ${await response.text()}`);
+    }
+
+    return response.json();
 }

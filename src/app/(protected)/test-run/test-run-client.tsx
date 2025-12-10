@@ -27,11 +27,13 @@ import { Play, Terminal, Info, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { TestReportViewer } from "@/components/test-report-viewer";
+import { ReportSection } from "@/components/report-section";
 import {
     useActiveJob,
     useJobStatus,
     useStartRunTestsJob,
     useClearJob,
+    useStartOpenReportJob,
     isJobInProgress,
     isJobComplete,
     isJobFailed,
@@ -357,6 +359,9 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                     </Card>
                 </motion.div>
             )}
+
+            {/* Test Report Section */}
+            <ReportSection />
 
             {/* Report Viewer / Empty State */}
             <div className="mt-4">

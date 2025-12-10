@@ -9,6 +9,7 @@ import {
     getActiveJob,
     getAllJobs,
     cancelJob,
+    startOpenReportJob,
     type Job,
     type JobType,
 } from "@/app/actions/job-actions";
@@ -174,4 +175,15 @@ export function isJobFailed(job: Job | null | undefined): boolean {
 // Helper to check if job stopped
 export function isJobStopped(job: Job | null | undefined): boolean {
     return job?.status === "STOPPED";
+}
+
+export function useStartOpenReportJob() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: startOpenReportJob,
+        onSuccess: (job) => {
+            queryClient.invalidateQueries({ queryKey: ["activeJob"] });
+            queryClient.setQueryData(["job", job.id], job);
+        },
+    });
 }
