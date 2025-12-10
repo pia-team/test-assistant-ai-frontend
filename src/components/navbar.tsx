@@ -83,7 +83,7 @@ export function Navbar() {
                         {/* Language Switcher */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
+                                <Button variant="ghost" size="icon" suppressHydrationWarning>
                                     <Languages className="w-4 h-4" />
                                 </Button>
                             </DropdownMenuTrigger>
