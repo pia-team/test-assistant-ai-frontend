@@ -108,7 +108,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                 </CardHeader>
                 <CardContent className="p-0 bg-black flex justify-center items-center min-h-[250px]">
                     {test.video ? (
-                        <video controls className="w-full max-h-[350px]">
+                        <video controls className="w-full aspect-video h-auto rounded-md">
                             <source src={test.video} type="video/webm" />
                             Your browser does not support the video tag.
                         </video>
