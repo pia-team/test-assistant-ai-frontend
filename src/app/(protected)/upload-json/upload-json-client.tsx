@@ -1,15 +1,24 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FullScreenLoader } from "@/components/ui/full-screen-loader";
-import { Upload, FileJson, Loader2, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Upload, FileJson, Loader2, X, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { uploadJsonAction, type UploadJsonResponse } from "@/app/actions/upload-json-action";
 import { GeneratedFilesDisplay } from "@/components/generated-files-display";
+import { type UploadJsonResponse } from "@/app/actions/upload-json-action";
+import {
+    useActiveJob,
+    useJobStatus,
+    useStartUploadJsonJob,
+    useClearJob,
+    isJobInProgress,
+    isJobComplete,
+    isJobFailed,
+} from "@/lib/use-job";
 
 interface UploadJsonClientProps {
     dictionary: {
@@ -26,6 +35,8 @@ interface UploadJsonClientProps {
             noStepsReturned?: string;
             cardTitle?: string;
             supportedFormats?: string;
+            processingInBackground?: string;
+            jobAlreadyRunning?: string;
         };
         common: {
             error: string;
@@ -40,23 +51,41 @@ interface UploadJsonClientProps {
 export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
-    const [result, setResult] = useState<UploadJsonResponse | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const uploadMutation = useMutation({
-        mutationFn: async (file: File) => {
-            const formData = new FormData();
-            formData.append("file", file);
-            return uploadJsonAction(formData);
-        },
-        onSuccess: (data) => {
-            setResult(data);
+    // Job hooks
+    const { data: activeJob } = useActiveJob("UPLOAD_JSON");
+    const { data: jobStatus } = useJobStatus(activeJob?.id);
+    const startJobMutation = useStartUploadJsonJob();
+    const clearJob = useClearJob("UPLOAD_JSON");
+
+    // Sync job status with active job
+    const currentJob = jobStatus ?? activeJob;
+    const isProcessing = isJobInProgress(currentJob);
+    const isComplete = isJobComplete(currentJob);
+    const isFailed = isJobFailed(currentJob);
+
+    // Extract result from completed job
+    const result: UploadJsonResponse | null = isComplete && currentJob?.result
+        ? (currentJob.result as UploadJsonResponse)
+        : null;
+
+    // Track shown toasts to prevent duplicates
+    const shownToastRef = useRef<string | null>(null);
+
+    // Show toast on completion (only once per job)
+    useEffect(() => {
+        if (!currentJob?.id) return;
+        
+        if (isComplete && shownToastRef.current !== `complete-${currentJob.id}`) {
+            shownToastRef.current = `complete-${currentJob.id}`;
             toast.success(dictionary.common.success);
-        },
-        onError: (error: Error) => {
-            toast.error(error.message || dictionary.uploadJson.uploadFailure || "Upload failed");
-        },
-    });
+        }
+        if (isFailed && shownToastRef.current !== `failed-${currentJob.id}`) {
+            shownToastRef.current = `failed-${currentJob.id}`;
+            toast.error(currentJob.error || dictionary.uploadJson.uploadFailure || "Upload failed");
+        }
+    }, [isComplete, isFailed, currentJob?.id, currentJob?.error, dictionary]);
 
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
@@ -64,7 +93,6 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
 
         if (selectedFile.type === "application/json" || selectedFile.name.endsWith(".json") || selectedFile.name.endsWith(".har")) {
             setFile(selectedFile);
-            setResult(null);
             toast.success(`${dictionary.uploadJson.selectedFile || "Dosya seçildi:"} ${selectedFile.name}`);
         } else {
             toast.error(dictionary.uploadJson.validJsonOnly || "Lütfen geçerli bir JSON/HAR dosyası seçin");
@@ -93,7 +121,6 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
 
         if (droppedFile.type === "application/json" || droppedFile.name.endsWith(".json") || droppedFile.name.endsWith(".har")) {
             setFile(droppedFile);
-            setResult(null);
             toast.success(`${dictionary.uploadJson.selectedFile || "Dosya seçildi:"} ${droppedFile.name}`);
         } else {
             toast.error(dictionary.uploadJson.validJsonOnly || "Lütfen geçerli bir JSON/HAR dosyası seçin");
@@ -102,108 +129,184 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
 
     const handleUpload = () => {
         if (!file) return;
-        uploadMutation.mutate(file);
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        startJobMutation.mutate(formData, {
+            onError: (error) => {
+                if (error.message.startsWith("JOB_ALREADY_RUNNING:")) {
+                    toast.warning(dictionary.uploadJson.jobAlreadyRunning || "Bu işlem zaten çalışıyor");
+                } else {
+                    toast.error(error.message || dictionary.uploadJson.uploadFailure || "Upload failed");
+                }
+            },
+        });
     };
 
     const handleClearFile = () => {
         setFile(null);
-        setResult(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
+    const handleNewUpload = () => {
+        clearJob(currentJob?.id);
+        setFile(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
     };
 
     return (
-        <>
-            {/* Full Screen Loading Overlay */}
-            <FullScreenLoader
-                isLoading={uploadMutation.isPending}
-                message={dictionary.uploadJson.generating}
-            />
+        <div className="space-y-6">
+            {/* Header */}
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-2"
+            >
+                <h1 className="text-3xl font-bold">{dictionary.uploadJson.title}</h1>
+                <p className="text-muted-foreground">{dictionary.uploadJson.subtitle}</p>
+            </motion.div>
 
-            <div className="space-y-6">
-                {/* Header */}
+            {/* Processing Status Banner */}
+            {isProcessing && (
                 <motion.div
-                    initial={{ opacity: 0, y: -20 }}
+                    initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="space-y-2"
                 >
-                    <h1 className="text-3xl font-bold">{dictionary.uploadJson.title}</h1>
-                    <p className="text-muted-foreground">{dictionary.uploadJson.subtitle}</p>
+                    <Card className="border-blue-500/50 bg-blue-500/10">
+                        <CardContent className="py-4">
+                            <div className="flex items-center gap-3">
+                                <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                                <div className="flex-1">
+                                    <p className="font-medium text-blue-500">
+                                        {dictionary.uploadJson.processingInBackground || "Arka planda işleniyor..."}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {dictionary.uploadJson.generating}
+                                    </p>
+                                </div>
+                                <Badge variant="outline" className="text-blue-500">
+                                    {currentJob?.status}
+                                </Badge>
+                            </div>
+                            <Progress className="mt-3" value={currentJob?.status === "RUNNING" ? 50 : 10} />
+                        </CardContent>
+                    </Card>
                 </motion.div>
+            )}
 
-                {/* Upload Card */}
-                <Card>
+            {/* Error Banner */}
+            {isFailed && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                >
+                    <Card className="border-red-500/50 bg-red-500/10">
+                        <CardContent className="py-4">
+                            <div className="flex items-center gap-3">
+                                <AlertCircle className="w-5 h-5 text-red-500" />
+                                <div className="flex-1">
+                                    <p className="font-medium text-red-500">İşlem Başarısız</p>
+                                    <p className="text-sm text-muted-foreground">{currentJob?.error}</p>
+                                </div>
+                                <Button variant="outline" size="sm" onClick={handleNewUpload}>
+                                    Yeniden Dene
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
 
-                    <CardHeader>
-                        <CardTitle className="text-lg">{dictionary.uploadJson.cardTitle}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {/* Dropzone */}
-                        <div
-                            onDrop={handleDrop}
-                            onDragOver={handleDragOver}
-                            onDragLeave={handleDragLeave}
-                            className={`
+            {/* Upload Card */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">{dictionary.uploadJson.cardTitle}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {/* Dropzone */}
+                    <div
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        className={`
                             border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer
                             ${isDragging
-                                    ? "border-primary bg-primary/5 scale-[1.02]"
-                                    : "border-border hover:border-primary/50 hover:bg-muted/30"
-                                }
+                                ? "border-primary bg-primary/5 scale-[1.02]"
+                                : "border-border hover:border-primary/50 hover:bg-muted/30"
+                            }
+                            ${isProcessing ? "opacity-50 pointer-events-none" : ""}
                         `}
-                        >
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept=".json,.har"
-                                className="hidden"
-                                id="file-upload"
-                                onChange={handleFileChange}
-                            />
-                            <label htmlFor="file-upload" className="cursor-pointer">
-                                <div className="flex flex-col items-center gap-3">
-                                    {file ? (
-                                        <>
-                                            <div className="relative">
-                                                <FileJson className="w-12 h-12 text-primary" />
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        handleClearFile();
-                                                    }}
-                                                    className="absolute -top-2 -right-2 p-1 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                                >
-                                                    <X className="w-3 h-3" />
-                                                </button>
-                                            </div>
-                                            <span className="font-medium">{file.name}</span>
-                                            <span className="text-sm text-muted-foreground">
-                                                {(file.size / 1024).toFixed(1)} KB
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Upload className={`w-12 h-12 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
-                                            <span className="text-muted-foreground">
-                                                {dictionary.uploadJson.dropzone}
-                                            </span>
-                                            <span className="text-xs text-muted-foreground/70">
-                                                {dictionary.uploadJson.supportedFormats}
-                                            </span>
-                                        </>
-                                    )}
-                                </div>
-                            </label>
-                        </div>
+                    >
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".json,.har"
+                            className="hidden"
+                            id="file-upload"
+                            onChange={handleFileChange}
+                            disabled={isProcessing}
+                        />
+                        <label htmlFor="file-upload" className="cursor-pointer">
+                            <div className="flex flex-col items-center gap-3">
+                                {file ? (
+                                    <>
+                                        <div className="relative">
+                                            <FileJson className="w-12 h-12 text-primary" />
+                                            <button
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    handleClearFile();
+                                                }}
+                                                className="absolute -top-2 -right-2 p-1 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                disabled={isProcessing}
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                        <span className="font-medium">{file.name}</span>
+                                        <span className="text-sm text-muted-foreground">
+                                            {(file.size / 1024).toFixed(1)} KB
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Upload className={`w-12 h-12 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+                                        <span className="text-muted-foreground">
+                                            {dictionary.uploadJson.dropzone}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground/70">
+                                            {dictionary.uploadJson.supportedFormats}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                        </label>
+                    </div>
 
-                        {/* Generate Button */}
+                    {/* Generate Button */}
+                    {isComplete ? (
+                        <Button
+                            onClick={handleNewUpload}
+                            className="w-full gap-2"
+                            size="lg"
+                            variant="outline"
+                        >
+                            <Upload className="w-4 h-4" />
+                            Yeni Dosya Yükle
+                        </Button>
+                    ) : (
                         <Button
                             onClick={handleUpload}
-                            disabled={uploadMutation.isPending || !file}
+                            disabled={isProcessing || !file || startJobMutation.isPending}
                             className="w-full gap-2"
                             size="lg"
                         >
-                            {uploadMutation.isPending ? (
+                            {startJobMutation.isPending || isProcessing ? (
                                 <>
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                     {dictionary.uploadJson.generating}
@@ -215,19 +318,19 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                                 </>
                             )}
                         </Button>
-                    </CardContent>
-                </Card>
+                    )}
+                </CardContent>
+            </Card>
 
-                {/* Results */}
-                {result && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                    >
-                        <GeneratedFilesDisplay data={result} dictionary={dictionary} />
-                    </motion.div>
-                )}
-            </div>
-        </>
+            {/* Results */}
+            {result && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                >
+                    <GeneratedFilesDisplay data={result} dictionary={dictionary} />
+                </motion.div>
+            )}
+        </div>
     );
 }

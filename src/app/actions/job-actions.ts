@@ -1,0 +1,149 @@
+"use server";
+
+import { auth } from "@/lib/auth";
+
+export type JobType = "GENERATE_TESTS" | "RUN_TESTS" | "UPLOAD_JSON";
+export type JobStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+
+export interface Job {
+    id: string;
+    type: JobType;
+    status: JobStatus;
+    request: unknown;
+    result: unknown;
+    error: string | null;
+    createdAt: string;
+    completedAt: string | null;
+}
+
+const API_URL = process.env.API_URL || "http://localhost:8093";
+
+async function getAuthHeaders() {
+    const session = await auth();
+    if (!session) {
+        throw new Error("Unauthorized");
+    }
+    return {
+        Authorization: `Bearer ${session.accessToken}`,
+    };
+}
+
+// Start generate-tests job
+export async function startGenerateTestsJob(params: {
+    url?: string;
+    jsonSchema: string;
+    hasFeatureFile: boolean;
+    hasAPITests: boolean;
+    hasTestPayload: boolean;
+    hasSwaggerTest: boolean;
+}): Promise<Job> {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${API_URL}/api/jobs/generate-tests`, {
+        method: "POST",
+        headers: {
+            ...headers,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(params),
+    });
+
+    if (response.status === 409) {
+        const data = await response.json();
+        throw new Error(`JOB_ALREADY_RUNNING:${JSON.stringify(data.activeJob)}`);
+    }
+
+    if (!response.ok) {
+        throw new Error(`Failed to start job: ${await response.text()}`);
+    }
+
+    return response.json();
+}
+
+// Start run-tests job
+export async function startRunTestsJob(params: {
+    tags: string;
+    env: string;
+    isParallel: boolean;
+    threads: number | null;
+}): Promise<Job> {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${API_URL}/api/jobs/run-tests`, {
+        method: "POST",
+        headers: {
+            ...headers,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(params),
+    });
+
+    if (response.status === 409) {
+        const data = await response.json();
+        throw new Error(`JOB_ALREADY_RUNNING:${JSON.stringify(data.activeJob)}`);
+    }
+
+    if (!response.ok) {
+        throw new Error(`Failed to start job: ${await response.text()}`);
+    }
+
+    return response.json();
+}
+
+// Start upload-json job
+export async function startUploadJsonJob(formData: FormData): Promise<Job> {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${API_URL}/api/jobs/upload-json`, {
+        method: "POST",
+        headers,
+        body: formData,
+    });
+
+    if (response.status === 409) {
+        const data = await response.json();
+        throw new Error(`JOB_ALREADY_RUNNING:${JSON.stringify(data.activeJob)}`);
+    }
+
+    if (!response.ok) {
+        throw new Error(`Failed to start job: ${await response.text()}`);
+    }
+
+    return response.json();
+}
+
+// Get job status
+export async function getJobStatus(jobId: string): Promise<Job> {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${API_URL}/api/jobs/${jobId}`, {
+        method: "GET",
+        headers,
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to get job status: ${await response.text()}`);
+    }
+
+    return response.json();
+}
+
+// Get active job by type
+export async function getActiveJob(type: JobType): Promise<Job | null> {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${API_URL}/api/jobs/active/${type}`, {
+        method: "GET",
+        headers,
+    });
+
+    if (response.status === 204) {
+        return null;
+    }
+
+    if (!response.ok) {
+        throw new Error(`Failed to get active job: ${await response.text()}`);
+    }
+
+    return response.json();
+}

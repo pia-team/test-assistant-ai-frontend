@@ -15,6 +15,7 @@ import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { useLocale, type Locale } from "@/components/locale-context";
 import { LogoIcon } from "@/components/ui/logo";
+import { BackgroundProcessIndicator } from "@/components/background-process-indicator";
 
 export function Navbar() {
     const pathname = usePathname();
@@ -76,6 +77,9 @@ export function Navbar() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
+                        {/* Background Process Indicator */}
+                        <BackgroundProcessIndicator />
+
                         {/* Language Switcher */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
