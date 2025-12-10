@@ -7,6 +7,8 @@ import {
     startUploadJsonJob,
     getJobStatus,
     getActiveJob,
+    getAllJobs,
+    cancelJob,
     type Job,
     type JobType,
 } from "@/app/actions/job-actions";
@@ -127,6 +129,31 @@ export function useClearJob(type: JobType) {
             queryClient.removeQueries({ queryKey: ["job", jobId] });
         }
     };
+}
+
+// Hook to get all jobs for dashboard
+export function useAllJobs() {
+    return useQuery({
+        queryKey: ["allJobs"],
+        queryFn: () => getAllJobs(),
+        refetchInterval: 5000, // Poll every 5 seconds for dashboard
+    });
+}
+
+// Hook to cancel a job
+export function useCancelJob() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: cancelJob,
+        onSuccess: (_data, jobId) => {
+            queryClient.invalidateQueries({ queryKey: ["allJobs"] });
+            queryClient.invalidateQueries({ queryKey: ["job", jobId] });
+            // We also need to invalidate activeJob queries, but we don't know the type here easily
+            // Simpler to invalidate all activeJob queries
+            queryClient.invalidateQueries({ queryKey: ["activeJob"] });
+        },
+    });
 }
 
 // Helper to check if job is in progress

@@ -12,6 +12,9 @@ export interface Job {
     request: unknown;
     result: unknown;
     error: string | null;
+    userId: string;
+    username: string;
+    cancelledBy?: string;
     createdAt: string;
     completedAt: string | null;
 }
@@ -146,4 +149,35 @@ export async function getActiveJob(type: JobType): Promise<Job | null> {
     }
 
     return response.json();
+}
+
+// Get all jobs
+export async function getAllJobs(): Promise<Job[]> {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${API_URL}/api/jobs`, {
+        method: "GET",
+        headers,
+        cache: "no-store",
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to get jobs: ${await response.text()}`);
+    }
+
+    return response.json();
+}
+
+// Cancel job
+export async function cancelJob(jobId: string): Promise<void> {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${API_URL}/api/jobs/${jobId}/cancel`, {
+        method: "POST",
+        headers,
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to cancel job: ${await response.text()}`);
+    }
 }

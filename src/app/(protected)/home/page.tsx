@@ -3,6 +3,7 @@ import { getDictionary, getLocale } from "@/lib/i18n";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, Play, ArrowRight, Rocket } from "lucide-react";
+import { JobDashboard } from "./job-dashboard";
 
 export default async function HomePage() {
     const locale = await getLocale();
@@ -45,7 +46,7 @@ export default async function HomePage() {
             </div>
 
             {/* Feature Cards */}
-            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
                 {cards.map((card) => (
                     <Link key={card.href} href={card.href} className="group">
                         <Card className="h-full border-border/50 hover:border-border transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
@@ -67,6 +68,11 @@ export default async function HomePage() {
                         </Card>
                     </Link>
                 ))}
+            </div>
+
+            {/* Job Dashboard */}
+            <div className="max-w-6xl mx-auto">
+                <JobDashboard />
             </div>
         </div>
     );
