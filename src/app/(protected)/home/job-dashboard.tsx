@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle, XCircle, Clock, Square, User, Ban } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
-import { tr } from "date-fns/locale";
+import { tr } from "date-fns/locale/tr";
 
 function getJobStatusIcon(status: string) {
     switch (status) {

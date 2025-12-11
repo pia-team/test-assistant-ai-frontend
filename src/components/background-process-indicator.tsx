@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSocket } from "@/providers/socket-provider";
 import { motion, AnimatePresence } from "framer-motion";
 
 const JOB_TYPES: { type: JobType; label: string; path: string }[] = [
@@ -23,7 +24,7 @@ const JOB_TYPES: { type: JobType; label: string; path: string }[] = [
 
 function getJobStatusIcon(job: Job | null) {
     if (!job) return null;
-    
+
     switch (job.status) {
         case "PENDING":
             return <Clock className="w-4 h-4 text-yellow-500" />;
@@ -40,7 +41,7 @@ function getJobStatusIcon(job: Job | null) {
 
 function getJobStatusLabel(job: Job | null) {
     if (!job) return "";
-    
+
     switch (job.status) {
         case "PENDING":
             return "Bekliyor...";
@@ -57,6 +58,9 @@ function getJobStatusLabel(job: Job | null) {
 
 export function BackgroundProcessIndicator() {
     const router = useRouter();
+    const { connectionStatus } = useSocket();
+
+    
 
     // Query all job types
     const jobQueries = useQueries({
@@ -101,17 +105,26 @@ export function BackgroundProcessIndicator() {
                             <CheckCircle className="w-5 h-5 text-green-500" />
                         )}
                     </AnimatePresence>
-                    
-                    {/* Badge with count */}
-                    <Badge 
-                        variant="secondary" 
+
+                    <Badge
+                        variant="secondary"
                         className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
                     >
                         {activeJobs.length}
                     </Badge>
+                    <span
+                        className={`absolute -bottom-1 -right-1 w-2 h-2 rounded-full ${
+                            connectionStatus === "connected"
+                                ? "bg-green-500"
+                                : connectionStatus === "connecting"
+                                ? "bg-yellow-500 animate-pulse"
+                                : "bg-red-500"
+                        }`}
+                        aria-label={`socket-${connectionStatus}`}
+                    />
                 </Button>
             </DropdownMenuTrigger>
-            
+
             <DropdownMenuContent align="end" className="w-64">
                 {activeJobs.map(({ type, label, path, job }) => (
                     <DropdownMenuItem
@@ -119,7 +132,7 @@ export function BackgroundProcessIndicator() {
                         onClick={() => router.push(path)}
                         className="flex items-center justify-between cursor-pointer"
                     >
-                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             {getJobStatusIcon(job ?? null)}
                             <span>{label}</span>
                         </div>

@@ -1,6 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useSocket } from "@/providers/socket-provider";
+import { JOB_UPDATE } from "@/lib/socket-events";
 import {
     startGenerateTestsJob,
     startRunTestsJob,
@@ -15,7 +18,7 @@ import {
 } from "@/app/actions/job-actions";
 
 // Hook to get active job by type - fetches from backend only on first mount if cache is empty
-export function useActiveJob(type: JobType) {    
+export function useActiveJob(type: JobType) {
     return useQuery({
         queryKey: ["activeJob", type],
         queryFn: () => getActiveJob(type),
@@ -31,28 +34,24 @@ export function useActiveJob(type: JobType) {
 // Hook to poll job status - this one should poll while job is active
 export function useJobStatus(jobId: string | null | undefined) {
     const queryClient = useQueryClient();
-    
+
     return useQuery({
         queryKey: ["job", jobId],
         queryFn: async () => {
             const status = await getJobStatus(jobId!);
             // When job completes, also update the activeJob cache with full result
-            if (status.status === "COMPLETED" || status.status === "FAILED") {
-                queryClient.setQueryData(["activeJob", status.type], status);
+            if (status.status === "COMPLETED" || status.status === "FAILED" || status.status === "STOPPED") {
+                const current = queryClient.getQueryData<Job | null>(["activeJob", status.type]);
+                if (current && current.id === status.id) {
+                    queryClient.setQueryData(["activeJob", status.type], null);
+                }
+                queryClient.setQueryData(["job", status.id], status);
             }
             return status;
         },
         enabled: !!jobId,
-        staleTime: 0, // Always refetch for polling
-        gcTime: Infinity, // Keep in cache
-        refetchInterval: (query) => {
-            const status = query.state.data?.status;
-            // Stop polling when completed or failed
-            if (status === "COMPLETED" || status === "FAILED") {
-                return false;
-            }
-            return 3000; // Poll every 3 seconds
-        },
+        staleTime: Infinity,
+        gcTime: Infinity,
         refetchOnWindowFocus: false,
     });
 }
@@ -68,6 +67,8 @@ export function useStartGenerateTestsJob() {
             queryClient.setQueryData(["activeJob", "GENERATE_TESTS"], job);
             // Set initial job data
             queryClient.setQueryData(["job", job.id], job);
+            queryClient.invalidateQueries({ queryKey: ["allJobs"] });
+            queryClient.invalidateQueries({ queryKey: ["activeJob", "GENERATE_TESTS"] });
         },
         onError: (error: Error) => {
             // If job already running, parse the active job from error
@@ -89,6 +90,8 @@ export function useStartRunTestsJob() {
         onSuccess: (job) => {
             queryClient.setQueryData(["activeJob", "RUN_TESTS"], job);
             queryClient.setQueryData(["job", job.id], job);
+            queryClient.invalidateQueries({ queryKey: ["allJobs"] });
+            queryClient.invalidateQueries({ queryKey: ["activeJob", "RUN_TESTS"] });
         },
         onError: (error: Error) => {
             if (error.message.startsWith("JOB_ALREADY_RUNNING:")) {
@@ -109,6 +112,8 @@ export function useStartUploadJsonJob() {
         onSuccess: (job) => {
             queryClient.setQueryData(["activeJob", "UPLOAD_JSON"], job);
             queryClient.setQueryData(["job", job.id], job);
+            queryClient.invalidateQueries({ queryKey: ["allJobs"] });
+            queryClient.invalidateQueries({ queryKey: ["activeJob", "UPLOAD_JSON"] });
         },
         onError: (error: Error) => {
             if (error.message.startsWith("JOB_ALREADY_RUNNING:")) {
@@ -132,12 +137,70 @@ export function useClearJob(type: JobType) {
     };
 }
 
+// Hook to listen for global job updates
+export function useJobUpdates() {
+    const { socket } = useSocket();
+    const queryClient = useQueryClient();
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleJobUpdate = (updatedJob: Job) => {
+            console.log("Debug: Socket event received", updatedJob);
+
+            // Update single job cache
+            queryClient.setQueryData(["job", updatedJob.id], updatedJob);
+
+            // Update active job cache if it matches the active one
+            queryClient.setQueryData(["activeJob", updatedJob.type], (current: Job | undefined) => {
+                if (current && current.id === updatedJob.id) {
+                    if (updatedJob.status === "COMPLETED" || updatedJob.status === "FAILED" || updatedJob.status === "STOPPED") {
+                        return null;
+                    }
+                    return updatedJob;
+                }
+                // If we receive a running/pending job and we have no active job, it's a new one
+                if (!current && (updatedJob.status === "PENDING" || updatedJob.status === "RUNNING")) {
+                    return updatedJob;
+                }
+                return current;
+            });
+
+            // Update allJobs list
+            queryClient.setQueryData(["allJobs"], (oldJobs: Job[] = []) => {
+                if (!Array.isArray(oldJobs)) return [updatedJob];
+
+                // Check if job exists
+                const index = oldJobs.findIndex(j => j.id === updatedJob.id);
+                if (index !== -1) {
+                    const newJobs = [...oldJobs];
+                    newJobs[index] = updatedJob;
+                    return newJobs;
+                }
+                // Add new job (at the beginning properly sorted)
+                return [updatedJob, ...oldJobs];
+            });
+
+            queryClient.invalidateQueries({ queryKey: ["allJobs"] });
+            // Invalidate activeJob to be safe/sure
+            queryClient.invalidateQueries({ queryKey: ["activeJob", updatedJob.type] });
+        };
+
+        socket.on(JOB_UPDATE, handleJobUpdate);
+
+        return () => {
+            socket.off(JOB_UPDATE, handleJobUpdate);
+        };
+    }, [socket, queryClient]);
+}
+
 // Hook to get all jobs for dashboard
 export function useAllJobs() {
     return useQuery({
         queryKey: ["allJobs"],
         queryFn: () => getAllJobs(),
-        refetchInterval: 5000, // Poll every 5 seconds for dashboard
+        refetchOnReconnect: true,
+        refetchOnMount: "always",
     });
 }
 
@@ -184,6 +247,7 @@ export function useStartOpenReportJob() {
         onSuccess: (job) => {
             queryClient.invalidateQueries({ queryKey: ["activeJob"] });
             queryClient.setQueryData(["job", job.id], job);
+            queryClient.invalidateQueries({ queryKey: ["allJobs"] });
         },
     });
 }
