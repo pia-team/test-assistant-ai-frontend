@@ -6,9 +6,15 @@ import { ThemeProvider } from "./theme-provider";
 import { Toaster } from "sonner";
 import { SocketProvider } from "@/providers/socket-provider";
 import { useJobUpdates } from "@/lib/use-job";
+import { useJobsPolling } from "@/lib/realtime";
 
 function SocketEffects() {
     useJobUpdates();
+    return null;
+}
+
+function JobsPollingEffects() {
+    useJobsPolling();
     return null;
 }
 
@@ -38,6 +44,7 @@ export function Providers({ children }: { children: ReactNode }) {
                 >
                     {children}
                     <SocketEffects />
+                    <JobsPollingEffects />
                     <Toaster richColors position="top-right" />
                 </ThemeProvider>
             </SocketProvider>
