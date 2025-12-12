@@ -106,14 +106,28 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                         <CardTitle className="text-sm">Execution Video</CardTitle>
                     </div>
                 </CardHeader>
-                <CardContent className="p-0 bg-black flex justify-center items-center min-h-[250px]">
-                    {test.video ? (
-                        <video controls className="w-full aspect-video h-auto rounded-md">
+                <CardContent className="p-4 bg-black min-h-[250px] space-y-4">
+                    {test.videos && test.videos.length > 0 ? (
+                        test.videos.map((vid, idx) => (
+                            <div key={idx} className="space-y-2">
+                                {test.videos.length > 1 && (
+                                    <p className="text-xs text-muted-foreground">Video {idx + 1}</p>
+                                )}
+                                <video controls className="w-full aspect-video h-auto rounded-md border border-white/10">
+                                    <source src={vid} type="video/webm" />
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        ))
+                    ) : test.video ? (
+                         <video controls className="w-full aspect-video h-auto rounded-md">
                             <source src={test.video} type="video/webm" />
                             Your browser does not support the video tag.
                         </video>
                     ) : (
-                        <div className="text-muted-foreground text-sm">No video recording available</div>
+                        <div className="flex justify-center items-center h-[200px] text-muted-foreground text-sm">
+                            No video recording available
+                        </div>
                     )}
                 </CardContent>
             </Card>

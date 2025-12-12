@@ -92,15 +92,25 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const [isParallel, setIsParallel] = useState(true);
     const [threads, setThreads] = useState(5);
     const [error, setError] = useState<string | null>(null);
+    const [viewJobId, setViewJobId] = useState<string | null>(null);
 
     // Job hooks
     const { data: activeJob } = useActiveJob("RUN_TESTS");
-    const { data: jobStatus } = useJobStatus(activeJob?.id);
+    
+    // Sync viewJobId with activeJob if running
+    useEffect(() => {
+        if (activeJob?.id && !viewJobId) {
+            setViewJobId(activeJob.id);
+        }
+    }, [activeJob, viewJobId]);
+
+    const { data: jobStatus } = useJobStatus(viewJobId);
     const startJobMutation = useStartRunTestsJob();
     const clearJob = useClearJob("RUN_TESTS");
 
     // Sync job status with active job
-    const currentJob = jobStatus ?? activeJob;
+    // Prefer jobStatus (polled specific job) over generic activeJob
+    const currentJob = jobStatus || activeJob;
     const isProcessing = isJobInProgress(currentJob);
     const isComplete = isJobComplete(currentJob);
     const isFailed = isJobFailed(currentJob);
@@ -140,8 +150,13 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                 threads: isParallel ? threads : null,
             },
             {
+                onSuccess: (job) => {
+                    setViewJobId(job.id);
+                },
                 onError: (err) => {
                     if (err.message.startsWith("JOB_ALREADY_RUNNING:")) {
+                        const activeJobData = JSON.parse(err.message.replace("JOB_ALREADY_RUNNING:", ""));
+                        setViewJobId(activeJobData.id);
                         toast.warning(dictionary.testRun.jobAlreadyRunning || "Bu işlem zaten çalışıyor");
                     } else {
                         setError(err.message);
@@ -155,6 +170,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const handleNewRun = () => {
         clearJob(currentJob?.id);
         setError(null);
+        setViewJobId(null);
     };
 
     return (

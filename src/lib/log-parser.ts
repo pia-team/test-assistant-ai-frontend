@@ -12,6 +12,7 @@ export interface TestCase {
     browser: string;
     steps: TestStep[];
     video: string | null;
+    videos: string[];
     errors: string[];
 }
 
@@ -34,7 +35,7 @@ export const parseLogsToDashboardData = (
     const lines = logs.split("\n");
     const testCases: TestCase[] = [];
     let currentTest: TestCase | null = null;
-    let globalVideo: string | null = null;
+    let globalVideos: string[] = [];
 
     const defaultTitle = tags ? `Test Run (${tags})` : "Test Run";
 
@@ -46,7 +47,9 @@ export const parseLogsToDashboardData = (
             duration: "0s",
             browser: "Chrome",
             steps: [],
+            steps: [],
             video: null,
+            videos: [],
             errors: [],
         };
     };
@@ -142,8 +145,11 @@ export const parseLogsToDashboardData = (
             const fullPath = line.split("Video kaydedildi:")[1]?.trim() || "";
             const filename = fullPath.split("\\").pop() || "";
             const videoUrl = `http://localhost:8093/videos/${filename}`;
-            if (currentTest) currentTest.video = videoUrl;
-            globalVideo = videoUrl;
+            if (currentTest) {
+                currentTest.video = videoUrl;
+                currentTest.videos.push(videoUrl);
+            }
+            globalVideos.push(videoUrl);
         }
     });
 
@@ -155,7 +161,12 @@ export const parseLogsToDashboardData = (
     }
 
     if (currentTest) {
-        if (!currentTest.video && globalVideo) currentTest.video = globalVideo;
+        if (currentTest.videos.length === 0 && globalVideos.length > 0) {
+            currentTest.videos = [...globalVideos];
+            currentTest.video = globalVideos[0];
+        } else if (!currentTest.video && currentTest.videos.length > 0) {
+            currentTest.video = currentTest.videos[0];
+        }
         currentTest.duration = `${currentTest.steps.length * 2}s`;
         if (!testCases.includes(currentTest)) testCases.push(currentTest);
     }
