@@ -1,26 +1,38 @@
-"use client";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Loader2, ExternalLink } from "lucide-react";
-import { useStartOpenReportJob, useActiveJob, isJobInProgress, isJobComplete } from "@/lib/use-job";
+import { useStartOpenReportJob, useActiveJob, useJobStatus, isJobInProgress, isJobComplete } from "@/lib/use-job";
 import { toast } from "sonner";
 
 export function ReportSection() {
+    const [currentJobId, setCurrentJobId] = useState<string | null>(null);
     const { data: activeJob } = useActiveJob("OPEN_REPORT");
-    const startReportMutation = useStartOpenReportJob();
+    const { data: jobStatus } = useJobStatus(currentJobId);
     
-    const isProcessing = isJobInProgress(activeJob);
-    const isComplete = isJobComplete(activeJob);
+    const startReportMutation = useStartOpenReportJob();
+
+    // Sync active job to local state continuously if we don't have one tracked
+    useEffect(() => {
+        if (activeJob?.id && !currentJobId) {
+            setCurrentJobId(activeJob.id);
+        }
+    }, [activeJob, currentJobId]);
+
+    // specific tracked job takes precedence as it persists after completion
+    const job = jobStatus || activeJob;
+    
+    const isProcessing = isJobInProgress(job);
+    const isComplete = isJobComplete(job);
 
     // If complete and has URL, maybe show it?
     // result is generic unknown, cast it
-    const reportUrl = activeJob?.result ? (activeJob.result as any).reportUrl : null;
+    const reportUrl = job?.result ? (job.result as any).reportUrl : null;
 
     const handleOpenReport = () => {
         startReportMutation.mutate(undefined, {
-            onSuccess: (job) => {
+            onSuccess: (newJob) => {
+                setCurrentJobId(newJob.id);
                 toast.success("Rapor oluşturma işlemi başlatıldı");
             },
             onError: (err) => {
@@ -77,9 +89,9 @@ export function ReportSection() {
                         </Button>
                     )}
                     
-                    {activeJob?.error && (
+                    {job?.error && (
                         <span className="text-sm text-red-500">
-                             Hata: {activeJob.error}
+                             Hata: {job.error}
                         </span>
                     )}
                 </div>

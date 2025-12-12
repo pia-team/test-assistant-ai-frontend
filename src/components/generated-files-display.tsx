@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { FileContent, UploadJsonResponse } from "@/app/actions/upload-json-action";
+import SyntaxHighlighter from "react-syntax-highlighter";
+import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 
 interface GeneratedFilesDisplayProps {
     data: UploadJsonResponse;
@@ -166,11 +168,20 @@ export function GeneratedFilesDisplay({ data, dictionary }: GeneratedFilesDispla
                                                 transition={{ duration: 0.3 }}
                                             >
                                                 <div className="border-t">
-                                                    <ScrollArea className="max-h-[400px]">
-                                                        <pre className="p-4 text-sm font-mono overflow-x-auto">
-                                                            <code>{file.code}</code>
-                                                        </pre>
-                                                    </ScrollArea>
+                                                    <SyntaxHighlighter
+                                                        language={getLanguageFromFileName(fileName)}
+                                                        style={atomOneDark}
+                                                        customStyle={{
+                                                            margin: 0,
+                                                            padding: "1rem",
+                                                            fontSize: "0.875rem",
+                                                            borderRadius: 0,
+                                                        }}
+                                                        wrapLines={true}
+                                                        wrapLongLines={true}
+                                                    >
+                                                        {file.code}
+                                                    </SyntaxHighlighter>
                                                 </div>
                                             </motion.div>
                                         )}

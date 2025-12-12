@@ -89,6 +89,27 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
         return "bg-blue-500/20 text-blue-400 border-blue-500";
     };
 
+    const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+
+    // Reset video index when test changes
+    useEffect(() => {
+        setCurrentVideoIndex(0);
+    }, [test?.id]);
+
+    const activeVideos = test?.videos && test.videos.length > 0
+        ? test.videos
+        : test?.video
+            ? [test.video]
+            : [];
+
+    const handlePrevVideo = () => {
+        setCurrentVideoIndex((prev) => (prev > 0 ? prev - 1 : activeVideos.length - 1));
+    };
+
+    const handleNextVideo = () => {
+        setCurrentVideoIndex((prev) => (prev < activeVideos.length - 1 ? prev + 1 : 0));
+    };
+
     return (
         <div className="flex flex-col gap-4 h-full">
             {/* Test Title Header */}
@@ -100,20 +121,57 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
 
             {/* Video Section */}
             <Card>
-                <CardHeader className="py-2 border-b">
+                <CardHeader className="py-2 border-b flex flex-row items-center justify-between space-y-0">
                     <div className="flex items-center gap-2">
                         <Video className="w-4 h-4 text-primary" />
                         <CardTitle className="text-sm">Execution Video</CardTitle>
                     </div>
+                    {activeVideos.length > 1 && (
+                        <span className="text-xs text-muted-foreground">
+                            {currentVideoIndex + 1} / {activeVideos.length}
+                        </span>
+                    )}
                 </CardHeader>
-                <CardContent className="p-0 bg-black flex justify-center items-center min-h-[250px]">
-                    {test.video ? (
-                        <video controls className="w-full aspect-video h-auto rounded-md">
-                            <source src={test.video} type="video/webm" />
-                            Your browser does not support the video tag.
-                        </video>
+                <CardContent className="p-0 bg-black flex flex-col justify-center items-center min-h-[250px] relative group">
+                    {activeVideos.length > 0 ? (
+                        <>
+                            <div className="w-full relative">
+                                <video
+                                    key={activeVideos[currentVideoIndex]}
+                                    controls
+                                    className="w-full aspect-video h-auto rounded-md"
+                                >
+                                    <source src={activeVideos[currentVideoIndex]} type="video/webm" />
+                                    Your browser does not support the video tag.
+                                </video>
+
+                                {/* Navigation Arrows */}
+                                {activeVideos.length > 1 && (
+                                    <>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={handlePrevVideo}
+                                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <ChevronLeft className="w-6 h-6" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={handleNextVideo}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <ChevronRight className="w-6 h-6" />
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+                        </>
                     ) : (
-                        <div className="text-muted-foreground text-sm">No video recording available</div>
+                        <div className="text-muted-foreground text-sm flex items-center h-[250px]">
+                            No video recording available
+                        </div>
                     )}
                 </CardContent>
             </Card>

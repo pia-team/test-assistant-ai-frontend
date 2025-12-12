@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import SyntaxHighlighter from "react-syntax-highlighter";
+import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import {
     useActiveJob,
     useJobStatus,
@@ -466,12 +468,31 @@ interface ResultPanelProps {
     onDownload: (fileName: string, content: string) => void;
 }
 
+const getLanguageFromFileName = (fileName: string): string => {
+    if (fileName.endsWith(".feature")) return "gherkin";
+    if (fileName.endsWith(".json")) return "json";
+    return "javascript";
+};
+
 function ResultPanel({ content, fileName, dictionary, tabKey, copiedTab, onCopy, onDownload }: ResultPanelProps) {
     return (
         <div className="space-y-3">
-            <ScrollArea className="h-[350px] w-full rounded-lg border bg-muted/30 p-4">
-                <pre className="text-sm font-mono whitespace-pre-wrap">{content}</pre>
-            </ScrollArea>
+            <div className="h-[350px] w-full rounded-lg border overflow-hidden">
+                <SyntaxHighlighter
+                    language={getLanguageFromFileName(fileName)}
+                    style={atomOneDark}
+                    customStyle={{
+                        margin: 0,
+                        padding: "1rem",
+                        height: "100%",
+                        fontSize: "0.875rem",
+                    }}
+                    wrapLines={true}
+                    wrapLongLines={true}
+                >
+                    {content}
+                </SyntaxHighlighter>
+            </div>
             <div className="flex gap-2">
                 <Button
                     variant="outline"
