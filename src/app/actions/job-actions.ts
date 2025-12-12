@@ -165,7 +165,9 @@ export async function getAllJobs(): Promise<Job[]> {
         throw new Error(`Failed to get jobs: ${await response.text()}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    // Handle paginated response from backend
+    return data.content || data || [];
 }
 
 // Cancel job

@@ -23,6 +23,7 @@
         "generateTests": "Generate Tests",
         "uploadJson": "Upload JSON",
         "testRun": "Run Tests",
+        "requests": "Requests",
         "logout": "Logout",
         "theme": "Theme",
         "language": "Language"

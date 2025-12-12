@@ -10,7 +10,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home, Upload, Play, LogOut, Moon, Sun, Languages, Rocket } from "lucide-react";
+import { Home, Upload, Play, LogOut, Moon, Sun, Languages, Rocket, Activity } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { useLocale, type Locale } from "@/components/locale-context";
@@ -27,6 +27,7 @@ export function Navbar() {
         { href: "/generate-tests", label: dictionary.nav.generateTests, icon: Rocket },
         { href: "/upload-json", label: dictionary.nav.uploadJson, icon: Upload },
         { href: "/test-run", label: dictionary.nav.testRun, icon: Play },
+        { href: "/requests", label: dictionary.nav.requests || "Requests", icon: Activity },
     ];
 
     const handleLocaleChange = (newLocale: Locale) => {

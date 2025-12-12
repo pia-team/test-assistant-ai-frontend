@@ -23,6 +23,7 @@
         "generateTests": "Test Oluştur",
         "uploadJson": "JSON Yükle",
         "testRun": "Test Çalıştır",
+        "requests": "İstekler",
         "logout": "Çıkış Yap",
         "theme": "Tema",
         "language": "Dil"
