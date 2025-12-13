@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useLocale } from '@/components/locale-context';
 
 function getStatusColor(status: number): string {
   if (status >= 200 && status < 300) return 'bg-green-500';
@@ -27,6 +28,7 @@ function getMethodColor(method: string): string {
 }
 
 export function RequestLogDashboard() {
+  const { dictionary } = useLocale();
   const [page, setPage] = useState(0);
   const [size] = useState(20);
   const { data, isLoading, refetch, isFetching } = useRequestLogs(page, size);
@@ -43,7 +45,7 @@ export function RequestLogDashboard() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Request Logs</CardTitle>
+        <CardTitle>{dictionary.requestLog.title}</CardTitle>
         <Button
           variant="outline"
           size="sm"
@@ -51,24 +53,24 @@ export function RequestLogDashboard() {
           disabled={isFetching}
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
-          Refresh
+          {dictionary.requestLog.refresh}
         </Button>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="text-center py-8">Loading...</div>
+          <div className="text-center py-8">{dictionary.requestLog.loading}</div>
         ) : (
           <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left p-2">Time</th>
-                    <th className="text-left p-2">Method</th>
-                    <th className="text-left p-2">Path</th>
-                    <th className="text-left p-2">Status</th>
-                    <th className="text-left p-2">Duration</th>
-                    <th className="text-left p-2">IP</th>
+                    <th className="text-left p-2">{dictionary.requestLog.time}</th>
+                    <th className="text-left p-2">{dictionary.requestLog.method}</th>
+                    <th className="text-left p-2">{dictionary.requestLog.path}</th>
+                    <th className="text-left p-2">{dictionary.requestLog.status}</th>
+                    <th className="text-left p-2">{dictionary.requestLog.duration}</th>
+                    <th className="text-left p-2">{dictionary.requestLog.ip}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -104,7 +106,7 @@ export function RequestLogDashboard() {
 
             <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-muted-foreground">
-                Total: {data?.totalElements} requests
+                {dictionary.requestLog.total.replace('{count}', String(data?.totalElements || 0))}
               </div>
               <div className="flex gap-2">
                 <Button
@@ -116,7 +118,7 @@ export function RequestLogDashboard() {
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <span className="text-sm py-1">
-                  Page {page + 1} of {data?.totalPages || 1}
+                  {dictionary.requestLog.page.replace('{current}', String(page + 1)).replace('{total}', String(data?.totalPages || 1))}
                 </span>
                 <Button
                   variant="outline"

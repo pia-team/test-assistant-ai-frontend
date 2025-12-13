@@ -15,11 +15,12 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle, XCircle, Clock, Wifi, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocale } from "@/components/locale-context";
 
-const JOB_TYPES: { type: JobType; label: string; path: string }[] = [
-    { type: "GENERATE_TESTS", label: "Test Üretimi", path: "/generate-tests" },
-    { type: "RUN_TESTS", label: "Test Çalıştırma", path: "/test-run" },
-    { type: "UPLOAD_JSON", label: "JSON Yükleme", path: "/upload-json" },
+const JOB_TYPES: { type: JobType; labelKey: "generateTests" | "runTests" | "uploadJson"; path: string }[] = [
+    { type: "GENERATE_TESTS", labelKey: "generateTests", path: "/generate-tests" },
+    { type: "RUN_TESTS", labelKey: "runTests", path: "/test-run" },
+    { type: "UPLOAD_JSON", labelKey: "uploadJson", path: "/upload-json" },
 ];
 
 function getJobStatusIcon(job: Job | null) {
@@ -39,26 +40,28 @@ function getJobStatusIcon(job: Job | null) {
     }
 }
 
-function getJobStatusLabel(job: Job | null) {
-    if (!job) return "";
-    
-    switch (job.status) {
-        case "PENDING":
-            return "Bekliyor...";
-        case "RUNNING":
-            return "Çalışıyor...";
-        case "COMPLETED":
-            return "Tamamlandı";
-        case "FAILED":
-            return "Başarısız";
-        default:
-            return job.status;
-    }
-}
 
 export function BackgroundProcessIndicator() {
     const router = useRouter();
     const { isConnected } = useSocket();
+    const { dictionary } = useLocale();
+
+    const getJobStatusLabel = (job: Job | null) => {
+        if (!job) return "";
+        
+        switch (job.status) {
+            case "PENDING":
+                return dictionary.backgroundProcess.pending;
+            case "RUNNING":
+                return dictionary.backgroundProcess.running;
+            case "COMPLETED":
+                return dictionary.backgroundProcess.completed;
+            case "FAILED":
+                return dictionary.backgroundProcess.failed;
+            default:
+                return job.status;
+        }
+    };
 
     // Query all job types - data is updated by socket events in SocketContext
     const jobQueries = useQueries({
@@ -137,12 +140,12 @@ export function BackgroundProcessIndicator() {
                     {isConnected ? (
                         <>
                             <Wifi className="w-4 h-4 text-green-500" />
-                            <span className="text-green-500 text-xs">Real-time bağlantı aktif</span>
+                            <span className="text-green-500 text-xs">{dictionary.backgroundProcess.realtimeActive}</span>
                         </>
                     ) : (
                         <>
                             <WifiOff className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-muted-foreground text-xs">Bağlantı bekleniyor...</span>
+                            <span className="text-muted-foreground text-xs">{dictionary.backgroundProcess.connectionWaiting}</span>
                         </>
                     )}
                 </DropdownMenuItem>
@@ -151,7 +154,7 @@ export function BackgroundProcessIndicator() {
                     <div className="border-t my-1" />
                 )}
                 
-                {activeJobs.map(({ type, label, path, job }) => (
+                {activeJobs.map(({ type, labelKey, path, job }) => (
                     <DropdownMenuItem
                         key={type}
                         onClick={() => router.push(path)}
@@ -159,7 +162,7 @@ export function BackgroundProcessIndicator() {
                     >
                         <div className="flex items-center gap-2">
                             {getJobStatusIcon(job ?? null)}
-                            <span>{label}</span>
+                            <span>{dictionary.backgroundProcess[labelKey]}</span>
                         </div>
                         <div className="flex items-center gap-2">
                             {job?.progress !== undefined && isJobInProgress(job) && (
@@ -174,7 +177,7 @@ export function BackgroundProcessIndicator() {
                 
                 {activeJobs.length === 0 && (
                     <DropdownMenuItem className="text-center text-muted-foreground text-xs cursor-default" disabled>
-                        Aktif işlem yok
+                        {dictionary.backgroundProcess.noActiveProcess}
                     </DropdownMenuItem>
                 )}
             </DropdownMenuContent>

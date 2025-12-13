@@ -23,6 +23,7 @@ import { Progress } from "@/components/ui/progress";
 import { Loader2, CheckCircle, XCircle, Clock, Square, User, Ban, Wifi, WifiOff } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { useLocale } from "@/components/locale-context";
 
 function getJobStatusIcon(status: string) {
     switch (status) {
@@ -41,30 +42,34 @@ function getJobStatusIcon(status: string) {
     }
 }
 
-function getJobTypeLabel(type: string) {
-    switch (type) {
-        case "GENERATE_TESTS":
-            return "Test Üretimi";
-        case "RUN_TESTS":
-            return "Test Çalıştırma";
-        case "UPLOAD_JSON":
-            return "JSON Yükleme";
-        default:
-            return type;
-    }
-}
 
 export function JobDashboard() {
+    const { dictionary } = useLocale();
     const { data: jobs, isLoading, error } = useAllJobs();
     const { mutate: cancelJob } = useCancelJob();
     const { isConnected } = useSocket();
+
+    const getJobTypeLabel = (type: string) => {
+        switch (type) {
+            case "GENERATE_TESTS":
+                return dictionary.jobDashboard.generateTests;
+            case "RUN_TESTS":
+                return dictionary.jobDashboard.runTests;
+            case "UPLOAD_JSON":
+                return dictionary.jobDashboard.uploadJson;
+            case "OPEN_REPORT":
+                return dictionary.jobDashboard.openReport;
+            default:
+                return type;
+        }
+    };
 
     if (isLoading) {
         return (
             <Card>
                 <CardHeader>
-                    <CardTitle>Geçmiş İşlemler</CardTitle>
-                    <CardDescription>Yükleniyor...</CardDescription>
+                    <CardTitle>{dictionary.jobDashboard.pastOperations}</CardTitle>
+                    <CardDescription>{dictionary.jobDashboard.loading}</CardDescription>
                 </CardHeader>
                 <CardContent className="h-32 flex items-center justify-center">
                     <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -77,9 +82,9 @@ export function JobDashboard() {
         return (
             <Card>
                 <CardHeader>
-                    <CardTitle>Geçmiş İşlemler</CardTitle>
+                    <CardTitle>{dictionary.jobDashboard.pastOperations}</CardTitle>
                     <CardDescription className="text-red-500">
-                        Veriler yüklenirken bir hata oluştu
+                        {dictionary.jobDashboard.loadError}
                     </CardDescription>
                 </CardHeader>
             </Card>
@@ -90,11 +95,11 @@ export function JobDashboard() {
         return (
             <Card>
                 <CardHeader>
-                    <CardTitle>Geçmiş İşlemler</CardTitle>
-                    <CardDescription>Henüz bir işlem bulunmuyor</CardDescription>
+                    <CardTitle>{dictionary.jobDashboard.pastOperations}</CardTitle>
+                    <CardDescription>{dictionary.jobDashboard.noJobs}</CardDescription>
                 </CardHeader>
                 <CardContent className="text-center py-8 text-muted-foreground">
-                    Listenelenecek işlem yok.
+                    {dictionary.jobDashboard.noJobsToList}
                 </CardContent>
             </Card>
         );
@@ -104,21 +109,21 @@ export function JobDashboard() {
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle>İşlem Geçmişi</CardTitle>
+                    <CardTitle>{dictionary.jobDashboard.title}</CardTitle>
                     <CardDescription>
-                        Tüm aktif, tamamlanan ve hatalı işlemlerin listesi
+                        {dictionary.jobDashboard.description}
                     </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
                     {isConnected ? (
                         <Badge variant="outline" className="text-green-500 border-green-500">
                             <Wifi className="w-3 h-3 mr-1" />
-                            Canlı
+                            {dictionary.jobDashboard.live}
                         </Badge>
                     ) : (
                         <Badge variant="outline" className="text-muted-foreground">
                             <WifiOff className="w-3 h-3 mr-1" />
-                            Bağlantı yok
+                            {dictionary.jobDashboard.noConnection}
                         </Badge>
                     )}
                 </div>
@@ -128,13 +133,13 @@ export function JobDashboard() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[100px]">Durum</TableHead>
-                                <TableHead>İşlem Tipi</TableHead>
-                                <TableHead>Kullanıcı</TableHead>
-                                <TableHead>Başlangıç</TableHead>
-                                <TableHead>Süre</TableHead>
-                                <TableHead>Sonuç</TableHead>
-                                <TableHead className="text-right">İşlemler</TableHead>
+                                <TableHead className="w-[100px]">{dictionary.jobDashboard.status}</TableHead>
+                                <TableHead>{dictionary.jobDashboard.jobType}</TableHead>
+                                <TableHead>{dictionary.jobDashboard.user}</TableHead>
+                                <TableHead>{dictionary.jobDashboard.startTime}</TableHead>
+                                <TableHead>{dictionary.jobDashboard.duration}</TableHead>
+                                <TableHead>{dictionary.jobDashboard.result}</TableHead>
+                                <TableHead className="text-right">{dictionary.jobDashboard.actions}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -189,7 +194,7 @@ export function JobDashboard() {
                                                 <div className="flex flex-col gap-1 min-w-[150px]">
                                                     <Progress value={job.progress || 0} className="h-2" />
                                                     <span className="text-xs text-blue-500 truncate" title={job.progressMessage}>
-                                                        {job.progressMessage || `%${job.progress || 0} tamamlandı`}
+                                                        {job.progressMessage || `%${job.progress || 0} ${dictionary.jobDashboard.completed}`}
                                                     </span>
                                                 </div>
                                             ) : (
@@ -202,9 +207,9 @@ export function JobDashboard() {
                                                     {job.error}
                                                 </span>
                                             ) : isJobStopped(job) ? (
-                                                <span className="text-gray-500 text-sm">Durduruldu</span>
+                                                <span className="text-gray-500 text-sm">{dictionary.jobDashboard.stopped}</span>
                                             ) : isJobComplete(job) ? (
-                                                <span className="text-green-500 text-sm">Başarılı</span>
+                                                <span className="text-green-500 text-sm">{dictionary.jobDashboard.successful}</span>
                                             ) : (
                                                 <span className="text-muted-foreground text-sm">-</span>
                                             )}
@@ -218,7 +223,7 @@ export function JobDashboard() {
                                                     onClick={() => cancelJob(job.id)}
                                                 >
                                                     <Square className="w-3 h-3 mr-1 fill-current" />
-                                                    Durdur
+                                                    {dictionary.jobDashboard.stop}
                                                 </Button>
                                             )}
                                         </TableCell>

@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CheckCircle, XCircle, MinusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/locale-context";
 
 interface TestListPanelProps {
     testCases: TestCase[];
@@ -23,6 +24,8 @@ export function TestListPanel({
     filter,
     setFilter,
 }: TestListPanelProps) {
+    const { dictionary } = useLocale();
+    
     const filteredTests = testCases.filter((t) => {
         if (filter === "ALL") return true;
         return t.status === filter;
@@ -52,7 +55,10 @@ export function TestListPanel({
                             value={status}
                             className="text-xs py-2 data-[state=active]:bg-primary"
                         >
-                            {status.charAt(0) + status.slice(1).toLowerCase()}
+                            {status === "ALL" ? dictionary.testList.all : 
+                             status === "PASSED" ? dictionary.testList.passed :
+                             status === "FAILED" ? dictionary.testList.failed :
+                             dictionary.testList.skipped}
                             <span className="ml-1 opacity-70">({counts[status]})</span>
                         </TabsTrigger>
                     ))}
@@ -109,7 +115,12 @@ export function TestListPanel({
                     ) : (
                         <div className="text-center py-12 text-muted-foreground">
                             <StatusIcon status={filter} />
-                            <p className="mt-2 text-sm">No {filter.toLowerCase()} scenarios found.</p>
+                            <p className="mt-2 text-sm">
+                                {filter === "ALL" ? dictionary.testList.all : 
+                                 filter === "PASSED" ? dictionary.testList.passed :
+                                 filter === "FAILED" ? dictionary.testList.failed :
+                                 dictionary.testList.skipped} {dictionary.testList.noScenariosFound}
+                            </p>
                         </div>
                     )}
                 </div>
