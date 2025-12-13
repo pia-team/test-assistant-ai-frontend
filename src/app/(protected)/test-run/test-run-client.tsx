@@ -220,13 +220,13 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                     <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                                     <div className="flex-1">
                                         <p className="font-medium text-blue-500">
-                                            {dictionary.testRun.processingInBackground || "Testler çalıştırılıyor..."}
+                                            {currentJob?.progressMessage || dictionary.testRun.processingInBackground || "Testler çalıştırılıyor..."}
                                         </p>
                                         <p className="text-sm text-muted-foreground">
-                                            {dictionary.testRun.running}
+                                            Adım: %{currentJob?.progress || 0} tamamlandı
                                         </p>
                                     </div>
-                                    <Badge variant="outline" className="text-blue-500">
+                                    <Badge variant="outline" className="text-blue-500 font-mono">
                                         %{currentJob?.progress || 0}
                                     </Badge>
                                 </div>

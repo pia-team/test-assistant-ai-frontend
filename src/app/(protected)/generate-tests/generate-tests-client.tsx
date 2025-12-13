@@ -195,17 +195,17 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                                 <div className="flex-1">
                                     <p className="font-medium text-blue-500">
-                                        {dictionary.generateTests.processingInBackground || "Arka planda işleniyor..."}
+                                        {currentJob?.progressMessage || dictionary.generateTests.processingInBackground || "Arka planda işleniyor..."}
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        {dictionary.generateTests.generating}
+                                        Adım: %{currentJob?.progress || 0} tamamlandı
                                     </p>
                                 </div>
-                                <Badge variant="outline" className="text-blue-500">
-                                    {currentJob?.status}
+                                <Badge variant="outline" className="text-blue-500 font-mono">
+                                    %{currentJob?.progress || 0}
                                 </Badge>
                             </div>
-                            <Progress className="mt-3" value={currentJob?.progress || (currentJob?.status === "RUNNING" ? 10 : 0)} />
+                            <Progress className="mt-3" value={currentJob?.progress || 0} />
                         </CardContent>
                     </Card>
                 </motion.div>

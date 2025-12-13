@@ -18,6 +18,7 @@ export interface Job {
     type: JobType;
     status: JobStatus;
     progress?: number;
+    progressMessage?: string;
     request?: unknown;
     result?: unknown;
     error?: string | null;

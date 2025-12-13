@@ -186,9 +186,11 @@ export function JobDashboard() {
                                         </TableCell>
                                         <TableCell className="text-muted-foreground text-sm">
                                             {isJobInProgress(job) ? (
-                                                <div className="flex flex-col gap-1 min-w-[100px]">
+                                                <div className="flex flex-col gap-1 min-w-[150px]">
                                                     <Progress value={job.progress || 0} className="h-2" />
-                                                    <span className="text-xs text-blue-500">%{job.progress || 0}</span>
+                                                    <span className="text-xs text-blue-500 truncate" title={job.progressMessage}>
+                                                        {job.progressMessage || `%${job.progress || 0} tamamlandı`}
+                                                    </span>
                                                 </div>
                                             ) : (
                                                 `${durationSeconds} sn`

@@ -96,9 +96,10 @@ export function SocketProvider({ children }: SocketProviderProps) {
     });
 
     socketService.onJobProgress((data) => {
-      console.log('[Socket] Job progress:', data.id, data.progress);
+      console.log('[Socket] Job progress:', data.id, data.progress, data.message);
       updateJobInCache(data.id, { 
-        progress: data.progress 
+        progress: data.progress,
+        progressMessage: data.message 
       });
     });
 
