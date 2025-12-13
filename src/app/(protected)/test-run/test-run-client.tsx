@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import {
     Dialog,
     DialogContent,
@@ -23,9 +24,24 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import { Play, Terminal, Info, Loader2, AlertCircle } from "lucide-react";
+import { 
+    Play, 
+    Terminal, 
+    Info, 
+    Loader2, 
+    AlertCircle, 
+    Settings2, 
+    Zap, 
+    Server,
+    Clock,
+    CheckCircle2,
+    XCircle,
+    RefreshCw,
+    Tag,
+    Cpu
+} from "lucide-react";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { TestReportViewer } from "@/components/test-report-viewer";
 import { ReportSection } from "@/components/report-section";
 import {
@@ -37,6 +53,7 @@ import {
     isJobInProgress,
     isJobComplete,
     isJobFailed,
+    isJobStopped,
 } from "@/lib/use-job";
 import { useSocket } from "@/context/SocketContext";
 
@@ -174,6 +191,8 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         setViewJobId(null);
     };
 
+    const isStopped = isJobStopped(currentJob);
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -186,87 +205,176 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                 <p className="text-muted-foreground">{dictionary.testRun.subtitle}</p>
             </motion.div>
 
-            {/* Processing Status Banner */}
-            {isProcessing && (
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                >
-                    <Card className="border-blue-500/50 bg-blue-500/10">
-                        <CardContent className="py-4">
-                            <div className="flex items-center gap-3">
-                                <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-                                <div className="flex-1">
-                                    <p className="font-medium text-blue-500">
-                                        {dictionary.testRun.processingInBackground || "Arka planda çalışıyor..."}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {dictionary.testRun.running}
-                                    </p>
+            {/* Status Banners */}
+            <AnimatePresence mode="wait">
+                {isProcessing && (
+                    <motion.div
+                        key="processing"
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                    >
+                        <Card className="border-blue-500/50 bg-blue-500/10">
+                            <CardContent className="py-4">
+                                <div className="flex items-center gap-3">
+                                    <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                                    <div className="flex-1">
+                                        <p className="font-medium text-blue-500">
+                                            {dictionary.testRun.processingInBackground || "Testler çalıştırılıyor..."}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {dictionary.testRun.running}
+                                        </p>
+                                    </div>
+                                    <Badge variant="outline" className="text-blue-500">
+                                        %{currentJob?.progress || 0}
+                                    </Badge>
                                 </div>
-                                <Badge variant="outline" className="text-blue-500">
-                                    {currentJob?.status}
-                                </Badge>
+                                <Progress className="mt-3" value={currentJob?.progress || 0} />
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                )}
+
+                {(error || isFailed) && (
+                    <motion.div
+                        key="error"
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                    >
+                        <Card className="border-red-500/50 bg-red-500/10">
+                            <CardContent className="py-4">
+                                <div className="flex items-center gap-3">
+                                    <XCircle className="w-5 h-5 text-red-500" />
+                                    <div className="flex-1">
+                                        <p className="font-medium text-red-500">Test Çalıştırma Başarısız</p>
+                                        <p className="text-sm text-muted-foreground">{error || currentJob?.error}</p>
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={handleNewRun} className="gap-2">
+                                        <RefreshCw className="w-4 h-4" />
+                                        Yeniden Dene
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                )}
+
+                {isComplete && (
+                    <motion.div
+                        key="success"
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                    >
+                        <Card className="border-green-500/50 bg-green-500/10">
+                            <CardContent className="py-4">
+                                <div className="flex items-center gap-3">
+                                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                                    <div className="flex-1">
+                                        <p className="font-medium text-green-500">Testler Tamamlandı</p>
+                                        <p className="text-sm text-muted-foreground">Test sonuçları aşağıda görüntüleniyor</p>
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={handleNewRun} className="gap-2">
+                                        <Play className="w-4 h-4" />
+                                        Yeni Test
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Main Grid Layout */}
+            <div className="grid lg:grid-cols-5 gap-6">
+                {/* Configuration Card - Left Side */}
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600">
+                                <Settings2 className="w-4 h-4 text-white" />
                             </div>
-                            <Progress className="mt-3" value={currentJob?.status === "RUNNING" ? 50 : 10} />
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            )}
+                            {dictionary.testRun.testConfiguration || "Test Yapılandırması"}
+                        </CardTitle>
+                        <CardDescription>
+                            Test çalıştırma parametrelerini yapılandırın
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                        {/* Tags Input */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label className="flex items-center gap-2 text-muted-foreground">
+                                    <Tag className="w-4 h-4" />
+                                    {dictionary.testRun.enterTags}
+                                </Label>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground">
+                                            <Info className="w-3 h-3 mr-1" />
+                                            {dictionary.testRun.tagsGuide}
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>{dictionary.testRun.tagsGuide}</DialogTitle>
+                                            <DialogDescription>Cucumber tag ifadelerini kullanarak testleri filtreleyin</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-3 mt-4">
+                                            <div className="p-3 bg-muted rounded-lg space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                    <code className="px-2 py-1 bg-background rounded text-sm font-mono">@smoke</code>
+                                                    <span className="text-sm text-muted-foreground">Smoke testlerini çalıştır</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <code className="px-2 py-1 bg-background rounded text-sm font-mono">@regression and not @slow</code>
+                                                    <span className="text-sm text-muted-foreground">Karmaşık mantık</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <code className="px-2 py-1 bg-background rounded text-sm font-mono">@login or @signup</code>
+                                                    <span className="text-sm text-muted-foreground">Eşleşen herhangi biri</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                            <Input
+                                placeholder="@smoke, @regression, @api..."
+                                value={tags}
+                                onChange={(e) => setTags(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && !isProcessing && handleRun()}
+                                disabled={isProcessing}
+                                className="font-mono"
+                            />
+                        </div>
 
-            {/* Controls */}
-            <Card>
-                <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{dictionary.testRun.testConfiguration}</CardTitle>
+                        <Separator />
 
-                        {/* Tags Guide Modal */}
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground transition-colors">
-                                    <Info className="w-4 h-4" />
-                                    {dictionary.testRun.tagsGuide}
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>{dictionary.testRun.tagsGuide}</DialogTitle>
-                                    <DialogDescription>{dictionary.testRun.enterTags}</DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-3 mt-4">
-                                    <div className="flex items-center gap-2">
-                                        <code className="px-2 py-1 bg-muted rounded text-sm">@smoke</code>
-                                        <span className="text-sm text-muted-foreground">- Run smoke tests</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <code className="px-2 py-1 bg-muted rounded text-sm">
-                                            @regression and not @slow
-                                        </code>
-                                        <span className="text-sm text-muted-foreground">- Complex logic</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <code className="px-2 py-1 bg-muted rounded text-sm">@login or @signup</code>
-                                        <span className="text-sm text-muted-foreground">- Run either matching</span>
-                                    </div>
-                                </div>
-                            </DialogContent>
-                        </Dialog>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {/* Parameters Grid */}
-                    <div className="grid sm:grid-cols-3 gap-4">
                         {/* Environment */}
                         <div className="space-y-2">
-                            <Label>{dictionary.testRun.environment}</Label>
+                            <Label className="flex items-center gap-2 text-muted-foreground">
+                                <Server className="w-4 h-4" />
+                                {dictionary.testRun.environment}
+                            </Label>
                             <Select value={env} onValueChange={setEnv} disabled={isProcessing}>
-                                <SelectTrigger className="transition-opacity">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {ENV_OPTIONS.map((opt) => (
                                         <SelectItem key={opt.value} value={opt.value}>
-                                            {opt.label}
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-2 h-2 rounded-full ${
+                                                    opt.value === 'prod' ? 'bg-red-500' :
+                                                    opt.value === 'staging' ? 'bg-yellow-500' :
+                                                    opt.value === 'uat' ? 'bg-blue-500' :
+                                                    'bg-green-500'
+                                                }`} />
+                                                {opt.label}
+                                            </div>
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -274,129 +382,143 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                         </div>
 
                         {/* Parallel Execution */}
-                        <div className="space-y-2">
-                            <Label>{dictionary.testRun.parallelExecution}</Label>
-                            <div className="flex items-center gap-3 h-10">
-                                <Switch
-                                    checked={isParallel}
-                                    onCheckedChange={setIsParallel}
-                                    disabled={isProcessing}
-                                />
-                                <Badge variant={isParallel ? "default" : "secondary"}>
-                                    {isParallel ? dictionary.testRun.enabled : dictionary.testRun.disabled}
-                                </Badge>
-                            </div>
-                        </div>
-
-                        {/* Thread Count */}
-                        <div className="space-y-2">
-                            <Label>{dictionary.testRun.threadCount}</Label>
-                            <Select
-                                value={threads.toString()}
-                                onValueChange={(v) => setThreads(parseInt(v))}
-                                disabled={!isParallel || isProcessing}
-                            >
-                                <SelectTrigger className={!isParallel ? "opacity-50" : ""}>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {THREAD_OPTIONS.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
-                    {/* Tags Input + Run Button */}
-                    <div className="flex gap-3">
-                        <Input
-                            placeholder={dictionary.testRun.enterTags}
-                            value={tags}
-                            onChange={(e) => setTags(e.target.value)}
-                            className="flex-1"
-                            onKeyDown={(e) => e.key === "Enter" && !isProcessing && handleRun()}
-                            disabled={isProcessing}
-                        />
-                        {isComplete ? (
-                            <Button
-                                onClick={handleNewRun}
-                                className="gap-2 px-6 min-w-[140px]"
-                                size="lg"
-                                variant="outline"
-                            >
-                                <Play className="w-4 h-4" />
-                                Yeni Test
-                            </Button>
-                        ) : (
-                            <Button
-                                onClick={handleRun}
-                                disabled={isProcessing || !tags.trim() || startJobMutation.isPending}
-                                className="gap-2 px-6 min-w-[140px] transition-all"
-                                size="lg"
-                            >
-                                {startJobMutation.isPending || isProcessing ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        {dictionary.testRun.running}
-                                    </>
-                                ) : (
-                                    <>
-                                        <Play className="w-4 h-4" />
-                                        {dictionary.testRun.runTests}
-                                    </>
-                                )}
-                            </Button>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Error Alert */}
-            {(error || isFailed) && (
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                >
-                    <Card className="border-red-500/50 bg-red-500/10">
-                        <CardContent className="py-4">
-                            <div className="flex items-center gap-3">
-                                <AlertCircle className="w-5 h-5 text-red-500" />
-                                <div className="flex-1">
-                                    <p className="font-medium text-red-500">İşlem Başarısız</p>
-                                    <p className="text-sm text-muted-foreground">{error || currentJob?.error}</p>
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <Label className="flex items-center gap-2 text-muted-foreground">
+                                    <Zap className="w-4 h-4" />
+                                    {dictionary.testRun.parallelExecution}
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                    <Switch
+                                        checked={isParallel}
+                                        onCheckedChange={setIsParallel}
+                                        disabled={isProcessing}
+                                    />
+                                    <Badge variant={isParallel ? "default" : "secondary"} className="text-xs">
+                                        {isParallel ? dictionary.testRun.enabled : dictionary.testRun.disabled}
+                                    </Badge>
                                 </div>
-                                <Button variant="outline" size="sm" onClick={handleNewRun}>
-                                    Yeniden Dene
-                                </Button>
                             </div>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            )}
+                            
+                            {isParallel && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="space-y-2"
+                                >
+                                    <Label className="flex items-center gap-2 text-muted-foreground text-sm">
+                                        <Cpu className="w-4 h-4" />
+                                        {dictionary.testRun.threadCount}
+                                    </Label>
+                                    <Select
+                                        value={threads.toString()}
+                                        onValueChange={(v) => setThreads(parseInt(v))}
+                                        disabled={isProcessing}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {THREAD_OPTIONS.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    {opt.label} thread
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </motion.div>
+                            )}
+                        </div>
 
-            {/* Test Report Section */}
-            <ReportSection />
+                        <Separator />
 
-            {/* Report Viewer / Empty State */}
-            <div className="mt-4">
-                {result?.logs ? (
-                    <TestReportViewer logs={result.logs} tags={tags} />
-                ) : (
-                    <Card className="text-center py-12 border-dashed">
-                        <CardContent>
-                            <Terminal className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                            <h5 className="font-medium text-muted-foreground">
-                                {dictionary.testRun.readyToExecute}
-                            </h5>
-                            <p className="text-sm text-muted-foreground/70 mt-1">
-                                {dictionary.testRun.readyToExecuteDesc}
-                            </p>
-                        </CardContent>
-                    </Card>
-                )}
+                        {/* Run Button */}
+                        <Button
+                            onClick={isComplete || isFailed ? handleNewRun : handleRun}
+                            disabled={isProcessing || (!tags.trim() && !isComplete && !isFailed) || startJobMutation.isPending}
+                            className="w-full gap-2"
+                            size="lg"
+                            variant={isComplete || isFailed ? "outline" : "default"}
+                        >
+                            {startJobMutation.isPending || isProcessing ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    {dictionary.testRun.running}
+                                </>
+                            ) : isComplete || isFailed ? (
+                                <>
+                                    <RefreshCw className="w-4 h-4" />
+                                    Yeni Test Çalıştır
+                                </>
+                            ) : (
+                                <>
+                                    <Play className="w-4 h-4" />
+                                    {dictionary.testRun.runTests}
+                                </>
+                            )}
+                        </Button>
+
+                        <Separator />
+
+                        {/* Test Report Section - Integrated */}
+                        <ReportSection />
+                    </CardContent>
+                </Card>
+
+                {/* Results Card - Right Side */}
+                <Card className="lg:col-span-3">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600">
+                                <Terminal className="w-4 h-4 text-white" />
+                            </div>
+                            Test Sonuçları
+                        </CardTitle>
+                        <CardDescription>
+                            Test çalıştırma sonuçları ve raporlar
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {result?.logs ? (
+                            <TestReportViewer logs={result.logs} tags={tags} />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-[400px]">
+                                <motion.div
+                                    animate={{
+                                        scale: [1, 1.05, 1],
+                                        opacity: [0.5, 0.8, 0.5],
+                                    }}
+                                    transition={{
+                                        duration: 3,
+                                        repeat: Infinity,
+                                        ease: "easeInOut",
+                                    }}
+                                    className="w-24 h-24 rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 flex items-center justify-center mb-4"
+                                >
+                                    <Terminal className="w-12 h-12 text-primary opacity-60" />
+                                </motion.div>
+                                <h5 className="font-semibold text-muted-foreground">
+                                    {dictionary.testRun.readyToExecute}
+                                </h5>
+                                <p className="text-sm text-muted-foreground/70 text-center max-w-[300px] mt-1">
+                                    {dictionary.testRun.readyToExecuteDesc || "Tag girerek testleri çalıştırabilirsiniz"}
+                                </p>
+                                {isConnected ? (
+                                    <Badge variant="outline" className="mt-4 text-green-500 border-green-500/50">
+                                        <div className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse" />
+                                        Gerçek zamanlı bağlantı aktif
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="outline" className="mt-4 text-yellow-500 border-yellow-500/50">
+                                        <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2" />
+                                        Bağlantı bekleniyor...
+                                    </Badge>
+                                )}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );

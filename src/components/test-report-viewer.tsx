@@ -33,9 +33,9 @@ export function TestReportViewer({ logs, tags }: TestReportViewerProps) {
         dashboardData.testCases[0];
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full animate-in fade-in duration-300">
-            {/* Left Panel: List */}
-            <div className="lg:col-span-4 xl:col-span-3">
+        <div className="flex flex-col gap-6 h-full animate-in fade-in duration-300">
+            {/* Test List Panel - Full Width */}
+            <div className="w-full">
                 <TestListPanel
                     testCases={dashboardData.testCases}
                     selectedTestId={selectedTestId}
@@ -45,8 +45,8 @@ export function TestReportViewer({ logs, tags }: TestReportViewerProps) {
                 />
             </div>
 
-            {/* Right Panel: Details */}
-            <div className="lg:col-span-8 xl:col-span-9">
+            {/* Test Detail Panel - Full Width */}
+            <div className="w-full">
                 <TestDetailPanel test={selectedTest} />
             </div>
         </div>

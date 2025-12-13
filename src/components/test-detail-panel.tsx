@@ -17,8 +17,12 @@ import {
     Search,
     ChevronLeft,
     ChevronRight,
+    Play,
+    Clock,
+    FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 interface TestDetailPanelProps {
     test?: TestCase;

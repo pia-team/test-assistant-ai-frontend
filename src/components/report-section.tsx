@@ -52,50 +52,48 @@ export function ReportSection() {
     };
 
     return (
-        <Card>
-            <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-blue-500" />
-                    <CardTitle className="text-lg">Test Raporu</CardTitle>
-                </div>
-                <CardDescription>
-                    Son test koşumlarına ait detaylı Allure raporunu oluşturun ve görüntüleyin.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center gap-4">
-                    <Button 
-                        onClick={handleOpenReport} 
-                        disabled={isProcessing || startReportMutation.isPending}
-                        variant="outline"
-                    >
-                        {isProcessing || startReportMutation.isPending ? (
-                            <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Rapor Hazırlanıyor...
-                            </>
-                        ) : (
-                            <>
-                                <FileText className="w-4 h-4 mr-2" />
-                                Raporu Oluştur/Aç
-                            </>
-                        )}
-                    </Button>
+        <div className="space-y-3">
+            <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-500" />
+                <span className="font-medium text-sm">Test Raporu</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+                Son test koşumlarına ait detaylı Allure raporunu oluşturun.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+                <Button 
+                    onClick={handleOpenReport} 
+                    disabled={isProcessing || startReportMutation.isPending}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                >
+                    {isProcessing || startReportMutation.isPending ? (
+                        <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Hazırlanıyor...
+                        </>
+                    ) : (
+                        <>
+                            <FileText className="w-3 h-3" />
+                            Rapor Oluştur
+                        </>
+                    )}
+                </Button>
 
-                    {isComplete && reportUrl && (
-                        <Button onClick={handleOpenInNewTab} variant="default" className="bg-green-600 hover:bg-green-700">
-                            <ExternalLink className="w-4 h-4 mr-2" />
-                            Raporu Görüntüle
-                        </Button>
-                    )}
-                    
-                    {job?.error && (
-                        <span className="text-sm text-red-500">
-                             Hata: {job.error}
-                        </span>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
+                {isComplete && reportUrl && (
+                    <Button onClick={handleOpenInNewTab} size="sm" className="gap-2 bg-green-600 hover:bg-green-700">
+                        <ExternalLink className="w-3 h-3" />
+                        Görüntüle
+                    </Button>
+                )}
+            </div>
+            
+            {job?.error && (
+                <p className="text-xs text-red-500">
+                    Hata: {job.error}
+                </p>
+            )}
+        </div>
     );
 }
