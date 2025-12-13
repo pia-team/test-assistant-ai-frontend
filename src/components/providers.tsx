@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { useState, type ReactNode } from "react";
 import { ThemeProvider } from "./theme-provider";
 import { Toaster } from "sonner";
+import { SocketProvider } from "@/context/SocketContext";
 
 export function Providers({ children }: { children: ReactNode }) {
     const [queryClient] = useState(
@@ -24,15 +25,17 @@ export function Providers({ children }: { children: ReactNode }) {
     return (
         <SessionProvider>
             <QueryClientProvider client={queryClient}>
-                <ThemeProvider
-                    attribute="class"
-                    defaultTheme="dark"
-                    enableSystem
-                    disableTransitionOnChange
-                >
-                    {children}
-                    <Toaster richColors position="top-right" />
-                </ThemeProvider>
+                <SocketProvider>
+                    <ThemeProvider
+                        attribute="class"
+                        defaultTheme="dark"
+                        enableSystem
+                        disableTransitionOnChange
+                    >
+                        {children}
+                        <Toaster richColors position="top-right" />
+                    </ThemeProvider>
+                </SocketProvider>
             </QueryClientProvider>
         </SessionProvider>
     );

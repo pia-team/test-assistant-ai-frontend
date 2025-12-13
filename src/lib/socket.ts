@@ -46,8 +46,10 @@ class SocketService {
     return new Promise((resolve, reject) => {
       const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:9092';
       
+      // Send token as query parameter for netty-socketio compatibility
+      // (netty-socketio doesn't support socket.io v4 auth object)
       this.socket = io(socketUrl, {
-        auth: { token },
+        query: { token },
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
@@ -170,8 +172,53 @@ class SocketService {
     this.socket?.on('pong', callback);
   }
 
+  subscribeToUserRoom(userId: string) {
+    if (!this.socket) return;
+    this.socket.emit('subscribe', { room: `user:${userId}` });
+  }
+
+  subscribeToAllJobsRoom() {
+    if (!this.socket) return;
+    this.socket.emit('subscribe', { room: 'jobs:all' });
+  }
+
+  onJobCreated(callback: (data: JobCreatedPayload) => void) {
+    this.socket?.on('job:created', callback);
+  }
+
+  onJobStarted(callback: (data: { id: string; status: string; startedAt: string }) => void) {
+    this.socket?.on('job:started', callback);
+  }
+
+  onJobProgress(callback: (data: JobProgressPayload) => void) {
+    this.socket?.on('job:progress', callback);
+  }
+
+  onJobCompleted(callback: (data: JobCompletedPayload) => void) {
+    this.socket?.on('job:completed', callback);
+  }
+
+  onJobFailed(callback: (data: JobFailedPayload) => void) {
+    this.socket?.on('job:failed', callback);
+  }
+
+  onJobStopped(callback: (data: { id: string; cancelledBy: string; completedAt: string }) => void) {
+    this.socket?.on('job:stopped', callback);
+  }
+
+  offAllJobEvents() {
+    if (!this.socket) return;
+    this.socket.off('job:created');
+    this.socket.off('job:started');
+    this.socket.off('job:progress');
+    this.socket.off('job:completed');
+    this.socket.off('job:failed');
+    this.socket.off('job:stopped');
+  }
+
   disconnect() {
     if (this.socket) {
+      this.offAllJobEvents();
       this.socket.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;

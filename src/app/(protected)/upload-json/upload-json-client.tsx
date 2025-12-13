@@ -19,6 +19,7 @@ import {
     isJobComplete,
     isJobFailed,
 } from "@/lib/use-job";
+import { useSocket } from "@/context/SocketContext";
 
 interface UploadJsonClientProps {
     dictionary: {
@@ -53,13 +54,14 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Job hooks
+    // Job hooks - socket updates the cache automatically
     const { data: activeJob } = useActiveJob("UPLOAD_JSON");
     const { data: jobStatus } = useJobStatus(activeJob?.id);
     const startJobMutation = useStartUploadJsonJob();
     const clearJob = useClearJob("UPLOAD_JSON");
+    const { isConnected } = useSocket();
 
-    // Sync job status with active job
+    // Sync job status with active job - socket updates both caches
     const currentJob = jobStatus ?? activeJob;
     const isProcessing = isJobInProgress(currentJob);
     const isComplete = isJobComplete(currentJob);

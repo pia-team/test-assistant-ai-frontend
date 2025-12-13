@@ -38,6 +38,7 @@ import {
     isJobComplete,
     isJobFailed,
 } from "@/lib/use-job";
+import { useSocket } from "@/context/SocketContext";
 
 interface TestRunClientProps {
     dictionary: {
@@ -94,8 +95,9 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const [error, setError] = useState<string | null>(null);
     const [viewJobId, setViewJobId] = useState<string | null>(null);
 
-    // Job hooks
+    // Job hooks - socket updates the cache automatically
     const { data: activeJob } = useActiveJob("RUN_TESTS");
+    const { isConnected } = useSocket();
     
     // Sync viewJobId with activeJob if running
     useEffect(() => {
@@ -108,8 +110,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const startJobMutation = useStartRunTestsJob();
     const clearJob = useClearJob("RUN_TESTS");
 
-    // Sync job status with active job
-    // Prefer jobStatus (polled specific job) over generic activeJob
+    // Sync job status with active job - socket updates both caches
     const currentJob = jobStatus || activeJob;
     const isProcessing = isJobInProgress(currentJob);
     const isComplete = isJobComplete(currentJob);

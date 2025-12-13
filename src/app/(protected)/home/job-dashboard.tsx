@@ -1,6 +1,7 @@
 "use client";
 
 import { useAllJobs, useCancelJob, isJobInProgress, isJobComplete, isJobFailed, isJobStopped } from "@/lib/use-job";
+import { useSocket } from "@/context/SocketContext";
 import {
     Card,
     CardContent,
@@ -18,7 +19,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle, XCircle, Clock, Square, User, Ban } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Loader2, CheckCircle, XCircle, Clock, Square, User, Ban, Wifi, WifiOff } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { tr } from "date-fns/locale";
 
@@ -55,6 +57,7 @@ function getJobTypeLabel(type: string) {
 export function JobDashboard() {
     const { data: jobs, isLoading, error } = useAllJobs();
     const { mutate: cancelJob } = useCancelJob();
+    const { isConnected } = useSocket();
 
     if (isLoading) {
         return (
@@ -99,11 +102,26 @@ export function JobDashboard() {
 
     return (
         <Card>
-            <CardHeader>
-                <CardTitle>İşlem Geçmişi</CardTitle>
-                <CardDescription>
-                    Tüm aktif, tamamlanan ve hatalı işlemlerin listesi
-                </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>İşlem Geçmişi</CardTitle>
+                    <CardDescription>
+                        Tüm aktif, tamamlanan ve hatalı işlemlerin listesi
+                    </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                    {isConnected ? (
+                        <Badge variant="outline" className="text-green-500 border-green-500">
+                            <Wifi className="w-3 h-3 mr-1" />
+                            Canlı
+                        </Badge>
+                    ) : (
+                        <Badge variant="outline" className="text-muted-foreground">
+                            <WifiOff className="w-3 h-3 mr-1" />
+                            Bağlantı yok
+                        </Badge>
+                    )}
+                </div>
             </CardHeader>
             <CardContent>
                 <div className="rounded-md border">
@@ -121,9 +139,10 @@ export function JobDashboard() {
                         </TableHeader>
                         <TableBody>
                             {jobs.map((job) => {
-                                const startDate = new Date(job.createdAt);
+                                const startDate = job.createdAt ? new Date(job.createdAt) : new Date();
                                 const endDate = job.completedAt ? new Date(job.completedAt) : new Date();
-                                const durationSeconds = Math.round((endDate.getTime() - startDate.getTime()) / 1000);
+                                const isValidStartDate = !isNaN(startDate.getTime());
+                                const durationSeconds = isValidStartDate ? Math.round((endDate.getTime() - startDate.getTime()) / 1000) : 0;
 
                                 return (
                                     <TableRow key={job.id}>
@@ -142,26 +161,35 @@ export function JobDashboard() {
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="flex items-center gap-2">
                                                     <User className="w-3 h-3" />
-                                                    <span>{job.username || job.userId || "Sistem"}</span>
+                                                    <span>{job.user?.username || job.username || job.userId || "Sistem"}</span>
                                                 </div>
                                                 {job.cancelledBy && (
                                                     <span className="text-xs text-red-500 ml-5">
-                                                        Durduran: {job.cancelledBy}
+                                                        Durduran: {typeof job.cancelledBy === 'object' ? (job.cancelledBy as { username?: string })?.username : job.cancelledBy}
                                                     </span>
                                                 )}
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-muted-foreground text-sm">
                                             <div className="flex flex-col">
-                                                <span>{formatDistanceToNow(startDate, { addSuffix: true, locale: tr })}</span>
-                                                <span className="text-xs text-muted-foreground/60">
-                                                    {format(startDate, "HH:mm:ss")}
-                                                </span>
+                                                {isValidStartDate ? (
+                                                    <>
+                                                        <span>{formatDistanceToNow(startDate, { addSuffix: true, locale: tr })}</span>
+                                                        <span className="text-xs text-muted-foreground/60">
+                                                            {format(startDate, "HH:mm:ss")}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <span>-</span>
+                                                )}
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-muted-foreground text-sm">
                                             {isJobInProgress(job) ? (
-                                                <span className="animate-pulse">Devam ediyor...</span>
+                                                <div className="flex flex-col gap-1 min-w-[100px]">
+                                                    <Progress value={job.progress || 0} className="h-2" />
+                                                    <span className="text-xs text-blue-500">%{job.progress || 0}</span>
+                                                </div>
                                             ) : (
                                                 `${durationSeconds} sn`
                                             )}

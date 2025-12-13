@@ -5,18 +5,29 @@ import { auth } from "@/lib/auth";
 export type JobType = "GENERATE_TESTS" | "RUN_TESTS" | "UPLOAD_JSON" | "OPEN_REPORT";
 export type JobStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "STOPPED";
 
+export interface JobUser {
+    id: string;
+    keycloakId?: string;
+    username?: string;
+    email?: string;
+    fullName?: string;
+}
+
 export interface Job {
     id: string;
     type: JobType;
     status: JobStatus;
-    request: unknown;
-    result: unknown;
-    error: string | null;
-    userId: string;
-    username: string;
-    cancelledBy?: string;
+    progress?: number;
+    request?: unknown;
+    result?: unknown;
+    error?: string | null;
+    userId?: string;
+    username?: string;
+    user?: JobUser;
+    cancelledBy?: string | JobUser;
     createdAt: string;
-    completedAt: string | null;
+    startedAt?: string | null;
+    completedAt?: string | null;
 }
 
 const API_URL = process.env.API_URL || "http://localhost:8093";

@@ -35,6 +35,7 @@ import {
     isJobComplete,
     isJobFailed,
 } from "@/lib/use-job";
+import { useSocket } from "@/context/SocketContext";
 
 interface GenerateTestsClientProps {
     dictionary: {
@@ -100,13 +101,14 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
     const [hasSwaggerTest, setHasSwaggerTest] = useState(false);
     const [copiedTab, setCopiedTab] = useState<string | null>(null);
 
-    // Job hooks
+    // Job hooks - socket updates the cache automatically
     const { data: activeJob } = useActiveJob("GENERATE_TESTS");
     const { data: jobStatus } = useJobStatus(activeJob?.id);
     const startJobMutation = useStartGenerateTestsJob();
     const clearJob = useClearJob("GENERATE_TESTS");
+    const { isConnected } = useSocket();
 
-    // Sync job status with active job
+    // Sync job status with active job - socket updates both caches
     const currentJob = jobStatus ?? activeJob;
     const isProcessing = isJobInProgress(currentJob);
     const isComplete = isJobComplete(currentJob);
@@ -203,7 +205,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                     {currentJob?.status}
                                 </Badge>
                             </div>
-                            <Progress className="mt-3" value={currentJob?.status === "RUNNING" ? 50 : 10} />
+                            <Progress className="mt-3" value={currentJob?.progress || (currentJob?.status === "RUNNING" ? 10 : 0)} />
                         </CardContent>
                     </Card>
                 </motion.div>

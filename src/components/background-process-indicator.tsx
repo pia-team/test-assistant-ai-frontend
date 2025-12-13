@@ -3,6 +3,7 @@
 import { useQueries } from "@tanstack/react-query";
 import { getActiveJob, type JobType, type Job } from "@/app/actions/job-actions";
 import { isJobInProgress } from "@/lib/use-job";
+import { useSocket } from "@/context/SocketContext";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -11,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Clock, Wifi, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -57,14 +58,17 @@ function getJobStatusLabel(job: Job | null) {
 
 export function BackgroundProcessIndicator() {
     const router = useRouter();
+    const { isConnected } = useSocket();
 
-    // Query all job types
+    // Query all job types - data is updated by socket events in SocketContext
     const jobQueries = useQueries({
         queries: JOB_TYPES.map(({ type }) => ({
             queryKey: ["activeJob", type],
             queryFn: () => getActiveJob(type),
             staleTime: Infinity,
+            gcTime: Infinity,
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
         })),
     });
 
@@ -80,54 +84,99 @@ export function BackgroundProcessIndicator() {
     // Count jobs in progress
     const inProgressCount = activeJobs.filter(({ job }) => isJobInProgress(job)).length;
 
-    if (activeJobs.length === 0) {
-        return null;
-    }
-
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
-                    <AnimatePresence>
+                    <AnimatePresence mode="wait">
                         {inProgressCount > 0 ? (
                             <motion.div
+                                key="loading"
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0 }}
                             >
                                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
                             </motion.div>
+                        ) : isConnected ? (
+                            <motion.div
+                                key="connected"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0 }}
+                            >
+                                <Wifi className="w-5 h-5 text-green-500" />
+                            </motion.div>
                         ) : (
-                            <CheckCircle className="w-5 h-5 text-green-500" />
+                            <motion.div
+                                key="disconnected"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0 }}
+                            >
+                                <WifiOff className="w-5 h-5 text-muted-foreground" />
+                            </motion.div>
                         )}
                     </AnimatePresence>
                     
-                    {/* Badge with count */}
-                    <Badge 
-                        variant="secondary" 
-                        className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
-                    >
-                        {activeJobs.length}
-                    </Badge>
+                    {/* Badge with count - only show if there are active jobs */}
+                    {activeJobs.length > 0 && (
+                        <Badge 
+                            variant="secondary" 
+                            className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                        >
+                            {activeJobs.length}
+                        </Badge>
+                    )}
                 </Button>
             </DropdownMenuTrigger>
             
             <DropdownMenuContent align="end" className="w-64">
+                {/* Socket connection status */}
+                <DropdownMenuItem className="flex items-center gap-2 cursor-default" disabled>
+                    {isConnected ? (
+                        <>
+                            <Wifi className="w-4 h-4 text-green-500" />
+                            <span className="text-green-500 text-xs">Real-time bağlantı aktif</span>
+                        </>
+                    ) : (
+                        <>
+                            <WifiOff className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-muted-foreground text-xs">Bağlantı bekleniyor...</span>
+                        </>
+                    )}
+                </DropdownMenuItem>
+                
+                {activeJobs.length > 0 && (
+                    <div className="border-t my-1" />
+                )}
+                
                 {activeJobs.map(({ type, label, path, job }) => (
                     <DropdownMenuItem
                         key={type}
                         onClick={() => router.push(path)}
                         className="flex items-center justify-between cursor-pointer"
                     >
-                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             {getJobStatusIcon(job ?? null)}
                             <span>{label}</span>
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                            {getJobStatusLabel(job ?? null)}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            {job?.progress !== undefined && isJobInProgress(job) && (
+                                <span className="text-xs text-blue-500">%{job.progress}</span>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                                {getJobStatusLabel(job ?? null)}
+                            </span>
+                        </div>
                     </DropdownMenuItem>
                 ))}
+                
+                {activeJobs.length === 0 && (
+                    <DropdownMenuItem className="text-center text-muted-foreground text-xs cursor-default" disabled>
+                        Aktif işlem yok
+                    </DropdownMenuItem>
+                )}
             </DropdownMenuContent>
         </DropdownMenu>
     );
