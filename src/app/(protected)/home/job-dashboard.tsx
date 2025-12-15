@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useAllJobs, useCancelJob, isJobInProgress, isJobComplete, isJobFailed, isJobStopped } from "@/lib/use-job";
 import { useSocket } from "@/context/SocketContext";
 import {
@@ -20,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, XCircle, Clock, Square, User, Ban, Wifi, WifiOff } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Clock, Square, User, Ban, Wifi, WifiOff, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useLocale } from "@/components/locale-context";
@@ -43,11 +44,21 @@ function getJobStatusIcon(status: string) {
 }
 
 
+const ITEMS_PER_PAGE = 10;
+
 export function JobDashboard() {
     const { dictionary } = useLocale();
     const { data: jobs, isLoading, error } = useAllJobs();
     const { mutate: cancelJob } = useCancelJob();
     const { isConnected } = useSocket();
+    const [currentPage, setCurrentPage] = useState(1);
+
+    // Pagination logic
+    const totalItems = jobs?.length || 0;
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const paginatedJobs = jobs?.slice(startIndex, endIndex) || [];
 
     const getJobTypeLabel = (type: string) => {
         switch (type) {
@@ -143,7 +154,7 @@ export function JobDashboard() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {jobs.map((job) => {
+                            {paginatedJobs.map((job) => {
                                 const startDate = job.createdAt ? new Date(job.createdAt) : new Date();
                                 const endDate = job.completedAt ? new Date(job.completedAt) : new Date();
                                 const isValidStartDate = !isNaN(startDate.getTime());
@@ -233,6 +244,46 @@ export function JobDashboard() {
                         </TableBody>
                     </Table>
                 </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4">
+                        <div className="text-sm text-muted-foreground">
+                            {dictionary.jobDashboard.showing || "Gösterilen"}: {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </Button>
+                            <div className="flex items-center gap-1">
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                    <Button
+                                        key={page}
+                                        variant={currentPage === page ? "default" : "outline"}
+                                        size="sm"
+                                        className="w-8 h-8 p-0"
+                                        onClick={() => setCurrentPage(page)}
+                                    >
+                                        {page}
+                                    </Button>
+                                ))}
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );

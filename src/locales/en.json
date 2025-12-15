@@ -164,7 +164,8 @@
         "stopped": "Stopped",
         "successful": "Successful",
         "stop": "Stop",
-        "completed": "completed"
+        "completed": "completed",
+        "showing": "Showing"
     },
     "backgroundProcess": {
         "generateTests": "Test Generation",

@@ -167,7 +167,7 @@ export async function getActiveJob(type: JobType): Promise<Job | null> {
 export async function getAllJobs(): Promise<Job[]> {
     const headers = await getAuthHeaders();
     
-    const response = await fetch(`${API_URL}/api/jobs`, {
+    const response = await fetch(`${API_URL}/api/jobs?size=100`, {
         method: "GET",
         headers,
         cache: "no-store",
