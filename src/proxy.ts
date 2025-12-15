@@ -18,6 +18,15 @@ export default async function proxy(request: NextRequest) {
         pathname === route || pathname.startsWith(route + "/")
     );
 
+    // If token refresh failed, force re-login
+    if (session?.error === "RefreshAccessTokenError" && !isPublicRoute) {
+        console.log("Token refresh failed, forcing re-login...");
+        // Clear session and redirect to login
+        const signOutUrl = new URL("/api/auth/signout", request.url);
+        signOutUrl.searchParams.set("callbackUrl", "/login");
+        return NextResponse.redirect(signOutUrl);
+    }
+
     // If route doesn't exist (and is not a public route like /api/auth)
     if (!isValidRoute && !isPublicRoute) {
         if (session) {

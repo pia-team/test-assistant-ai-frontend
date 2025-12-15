@@ -17,14 +17,20 @@ import {
     Search,
     ChevronLeft,
     ChevronRight,
+    Play,
+    Clock,
+    FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { useLocale } from "@/components/locale-context";
 
 interface TestDetailPanelProps {
     test?: TestCase;
 }
 
 export function TestDetailPanel({ test }: TestDetailPanelProps) {
+    const { dictionary } = useLocale();
     const [activeTab, setActiveTab] = useState("logs");
     const [logFilter, setLogFilter] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
@@ -67,7 +73,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
     if (!test) {
         return (
             <div className="h-full flex items-center justify-center text-muted-foreground">
-                Select a test case to view details
+                {dictionary.testDetail.selectTestCase}
             </div>
         );
     }
@@ -124,7 +130,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                 <CardHeader className="py-2 border-b flex flex-row items-center justify-between space-y-0">
                     <div className="flex items-center gap-2">
                         <Video className="w-4 h-4 text-primary" />
-                        <CardTitle className="text-sm">Execution Video</CardTitle>
+                        <CardTitle className="text-sm">{dictionary.testDetail.executionVideo}</CardTitle>
                     </div>
                     {activeVideos.length > 1 && (
                         <span className="text-xs text-muted-foreground">
@@ -142,7 +148,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                     className="w-full aspect-video h-auto rounded-md"
                                 >
                                     <source src={activeVideos[currentVideoIndex]} type="video/webm" />
-                                    Your browser does not support the video tag.
+                                    {dictionary.testDetail.browserNotSupported}
                                 </video>
 
                                 {/* Navigation Arrows */}
@@ -170,7 +176,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                         </>
                     ) : (
                         <div className="text-muted-foreground text-sm flex items-center h-[250px]">
-                            No video recording available
+                            {dictionary.testDetail.noVideoAvailable}
                         </div>
                     )}
                 </CardContent>
@@ -190,7 +196,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                         : "border-transparent text-muted-foreground"
                                 )}
                             >
-                                Errors
+                                {dictionary.testDetail.errors}
                                 {errors.length > 0 && (
                                     <Badge variant="destructive" className="ml-2 rounded-full">
                                         {errors.length}
@@ -206,7 +212,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                         : "border-transparent text-muted-foreground"
                                 )}
                             >
-                                Logs
+                                {dictionary.testDetail.logs}
                                 <Badge variant="secondary" className="ml-2 rounded-full">
                                     {steps.length}
                                 </Badge>
@@ -220,7 +226,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                         : "border-transparent text-muted-foreground"
                                 )}
                             >
-                                Attachments
+                                {dictionary.testDetail.attachments}
                             </TabsTrigger>
                         </TabsList>
                     </CardHeader>
@@ -246,7 +252,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                 ) : (
                                     <div className="text-center py-12 text-muted-foreground">
                                         <CheckCircle className="w-8 h-8 mx-auto mb-2 text-emerald-500" />
-                                        <p>No errors detected.</p>
+                                        <p>{dictionary.testDetail.noErrorsDetected}</p>
                                     </div>
                                 )}
                             </ScrollArea>
@@ -259,7 +265,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                 <div className="relative max-w-[300px]">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                     <Input
-                                        placeholder="Search logs..."
+                                        placeholder={dictionary.testDetail.searchLogs}
                                         className="pl-9"
                                         value={logFilter}
                                         onChange={(e) => setLogFilter(e.target.value)}
@@ -270,10 +276,10 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                         <SelectValue placeholder="Status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="ALL">All Status</SelectItem>
-                                        <SelectItem value="PASS">Pass</SelectItem>
-                                        <SelectItem value="FAIL">Fail</SelectItem>
-                                        <SelectItem value="INFO">Info</SelectItem>
+                                        <SelectItem value="ALL">{dictionary.testDetail.allStatus}</SelectItem>
+                                        <SelectItem value="PASS">{dictionary.testDetail.pass}</SelectItem>
+                                        <SelectItem value="FAIL">{dictionary.testDetail.fail}</SelectItem>
+                                        <SelectItem value="INFO">{dictionary.testDetail.info}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -287,10 +293,10 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                                 #
                                             </th>
                                             <th className="text-left p-3 text-xs text-muted-foreground font-normal">
-                                                Step Description
+                                                {dictionary.testDetail.stepDescription}
                                             </th>
                                             <th className="text-right p-3 text-xs text-muted-foreground font-normal w-24">
-                                                Status
+                                                {dictionary.testDetail.status}
                                             </th>
                                         </tr>
                                     </thead>
@@ -329,7 +335,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                         ) : (
                                             <tr>
                                                 <td colSpan={3} className="text-center py-12 text-muted-foreground">
-                                                    No logs match your filters.
+                                                    {dictionary.testDetail.noLogsMatch}
                                                 </td>
                                             </tr>
                                         )}
@@ -340,7 +346,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                             {/* Pagination */}
                             <div className="p-3 border-t flex flex-wrap gap-3 justify-between items-center bg-muted/30">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-sm text-muted-foreground">Rows per page:</span>
+                                    <span className="text-sm text-muted-foreground">{dictionary.testDetail.rowsPerPage}</span>
                                     <Select
                                         value={itemsPerPage.toString()}
                                         onValueChange={(v) => setItemsPerPage(Number(v))}
@@ -394,8 +400,8 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                         <TabsContent value="attachments" className="m-0 p-4 h-full">
                             <div className="text-center py-12 text-muted-foreground">
                                 <Paperclip className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                <h5 className="font-medium">No Attachments</h5>
-                                <p className="text-sm">Screenshots or extra files will appear here.</p>
+                                <h5 className="font-medium">{dictionary.testDetail.noAttachments}</h5>
+                                <p className="text-sm">{dictionary.testDetail.attachmentsDesc}</p>
                             </div>
                         </TabsContent>
                     </CardContent>

@@ -1,5 +1,6 @@
 import { Navbar } from "@/components/navbar";
 import { LocaleProvider } from "@/components/locale-context";
+import { SocketProvider } from "@/context/SocketContext";
 import { getDictionary, getLocale } from "@/lib/i18n";
 
 export default async function ProtectedLayout({
@@ -12,10 +13,12 @@ export default async function ProtectedLayout({
 
     return (
         <LocaleProvider initialLocale={locale} initialDictionary={dict}>
-            <div className="min-h-screen bg-transparent/5"> {/* Added slight tint for readability if needed, or just transparent */}
-                <Navbar />
-                <main className="container mx-auto px-4 py-8">{children}</main>
-            </div>
+            <SocketProvider>
+                <div className="min-h-screen bg-transparent/5"> {/* Added slight tint for readability if needed, or just transparent */}
+                    <Navbar />
+                    <main className="container mx-auto px-4 py-8">{children}</main>
+                </div>
+            </SocketProvider>
         </LocaleProvider>
     );
 }

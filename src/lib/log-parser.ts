@@ -47,7 +47,6 @@ export const parseLogsToDashboardData = (
             duration: "0s",
             browser: "Chrome",
             steps: [],
-            steps: [],
             video: null,
             videos: [],
             errors: [],

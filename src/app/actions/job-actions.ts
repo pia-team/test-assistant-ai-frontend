@@ -5,18 +5,30 @@ import { auth } from "@/lib/auth";
 export type JobType = "GENERATE_TESTS" | "RUN_TESTS" | "UPLOAD_JSON" | "OPEN_REPORT";
 export type JobStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "STOPPED";
 
+export interface JobUser {
+    id: string;
+    keycloakId?: string;
+    username?: string;
+    email?: string;
+    fullName?: string;
+}
+
 export interface Job {
     id: string;
     type: JobType;
     status: JobStatus;
-    request: unknown;
-    result: unknown;
-    error: string | null;
-    userId: string;
-    username: string;
-    cancelledBy?: string;
+    progress?: number;
+    progressMessage?: string;
+    request?: unknown;
+    result?: unknown;
+    error?: string | null;
+    userId?: string;
+    username?: string;
+    user?: JobUser;
+    cancelledBy?: string | JobUser;
     createdAt: string;
-    completedAt: string | null;
+    startedAt?: string | null;
+    completedAt?: string | null;
 }
 
 const API_URL = process.env.API_URL || "http://localhost:8093";
@@ -155,7 +167,7 @@ export async function getActiveJob(type: JobType): Promise<Job | null> {
 export async function getAllJobs(): Promise<Job[]> {
     const headers = await getAuthHeaders();
     
-    const response = await fetch(`${API_URL}/api/jobs`, {
+    const response = await fetch(`${API_URL}/api/jobs?size=100`, {
         method: "GET",
         headers,
         cache: "no-store",
@@ -165,7 +177,9 @@ export async function getAllJobs(): Promise<Job[]> {
         throw new Error(`Failed to get jobs: ${await response.text()}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    // Handle paginated response from backend
+    return data.content || data || [];
 }
 
 // Cancel job

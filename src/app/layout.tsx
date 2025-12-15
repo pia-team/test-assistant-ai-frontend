@@ -17,6 +17,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CoTesterAi",
   description: "AI-powered test automation platform",
+  icons: {
+    icon: "/cotesterai-logo.png",
+    shortcut: "/cotesterai-logo.png",
+    apple: "/cotesterai-logo.png",
+  },
 };
 
 export default function RootLayout({

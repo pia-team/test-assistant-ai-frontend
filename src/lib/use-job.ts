@@ -28,7 +28,7 @@ export function useActiveJob(type: JobType) {
     });
 }
 
-// Hook to poll job status - this one should poll while job is active
+// Hook to get job status - now relies on socket updates instead of polling
 export function useJobStatus(jobId: string | null | undefined) {
     const queryClient = useQueryClient();
     
@@ -36,23 +36,14 @@ export function useJobStatus(jobId: string | null | undefined) {
         queryKey: ["job", jobId],
         queryFn: async () => {
             const status = await getJobStatus(jobId!);
-            // When job completes, also update the activeJob cache with full result
             if (status.status === "COMPLETED" || status.status === "FAILED") {
                 queryClient.setQueryData(["activeJob", status.type], status);
             }
             return status;
         },
         enabled: !!jobId,
-        staleTime: 0, // Always refetch for polling
-        gcTime: Infinity, // Keep in cache
-        refetchInterval: (query) => {
-            const status = query.state.data?.status;
-            // Stop polling when completed or failed
-            if (status === "COMPLETED" || status === "FAILED") {
-                return false;
-            }
-            return 3000; // Poll every 3 seconds
-        },
+        staleTime: Infinity,
+        gcTime: Infinity,
         refetchOnWindowFocus: false,
     });
 }
@@ -132,12 +123,13 @@ export function useClearJob(type: JobType) {
     };
 }
 
-// Hook to get all jobs for dashboard
+// Hook to get all jobs for dashboard - now relies on socket updates
 export function useAllJobs() {
     return useQuery({
         queryKey: ["allJobs"],
         queryFn: () => getAllJobs(),
-        refetchInterval: 5000, // Poll every 5 seconds for dashboard
+        staleTime: 30000,
+        refetchOnWindowFocus: false,
     });
 }
 

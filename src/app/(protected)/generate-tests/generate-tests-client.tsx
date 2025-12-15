@@ -5,16 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
     Rocket,
     Globe,
-    Code,
     FileCode,
     Loader2,
     Download,
@@ -35,6 +32,7 @@ import {
     isJobComplete,
     isJobFailed,
 } from "@/lib/use-job";
+import { useSocket } from "@/context/SocketContext";
 
 interface GenerateTestsClientProps {
     dictionary: {
@@ -91,22 +89,50 @@ const downloadFile = (fileName: string, content: string) => {
     URL.revokeObjectURL(url);
 };
 
+// Swagger URL validation - accepts common Swagger/OpenAPI URL patterns
+const isValidSwaggerUrl = (url: string): boolean => {
+    if (!url.trim()) return false;
+    
+    try {
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname.toLowerCase();
+        const href = urlObj.href.toLowerCase();
+        
+        // Check for common Swagger/OpenAPI patterns
+        const swaggerPatterns = [
+            /swagger/i,
+            /openapi/i,
+            /api-docs/i,
+            /\.json$/i,
+            /\.yaml$/i,
+            /\.yml$/i,
+            /v2\/api-docs/i,
+            /v3\/api-docs/i,
+        ];
+        
+        return swaggerPatterns.some(pattern => pattern.test(pathname) || pattern.test(href));
+    } catch {
+        return false;
+    }
+};
+
 export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
     const [url, setUrl] = useState("");
-    const [jsonSchema, setJsonSchema] = useState("");
+    const [urlError, setUrlError] = useState<string | null>(null);
     const [hasFeatureFile, setHasFeatureFile] = useState(true);
     const [hasAPITests, setHasAPITests] = useState(true);
     const [hasTestPayload, setHasTestPayload] = useState(false);
     const [hasSwaggerTest, setHasSwaggerTest] = useState(false);
     const [copiedTab, setCopiedTab] = useState<string | null>(null);
 
-    // Job hooks
+    // Job hooks - socket updates the cache automatically
     const { data: activeJob } = useActiveJob("GENERATE_TESTS");
     const { data: jobStatus } = useJobStatus(activeJob?.id);
     const startJobMutation = useStartGenerateTestsJob();
     const clearJob = useClearJob("GENERATE_TESTS");
+    const { isConnected } = useSocket();
 
-    // Sync job status with active job
+    // Sync job status with active job - socket updates both caches
     const currentJob = jobStatus ?? activeJob;
     const isProcessing = isJobInProgress(currentJob);
     const isComplete = isJobComplete(currentJob);
@@ -134,11 +160,26 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
         }
     }, [isComplete, isFailed, currentJob?.id, currentJob?.error, dictionary]);
 
+    // Validate URL on change
+    const handleUrlChange = (value: string) => {
+        setUrl(value);
+        if (value.trim() && !isValidSwaggerUrl(value)) {
+            setUrlError("Lütfen geçerli bir Swagger/OpenAPI URL'si girin (örn: swagger.json, api-docs, openapi.yaml)");
+        } else {
+            setUrlError(null);
+        }
+    };
+
     const handleGenerate = () => {
+        if (!isValidSwaggerUrl(url)) {
+            setUrlError("Lütfen geçerli bir Swagger/OpenAPI URL'si girin");
+            return;
+        }
+
         startJobMutation.mutate(
             {
                 url,
-                jsonSchema,
+                jsonSchema: "",
                 hasFeatureFile,
                 hasAPITests,
                 hasTestPayload,
@@ -167,7 +208,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
         setTimeout(() => setCopiedTab(null), 2000);
     };
 
-    const canGenerate = (url.trim() || jsonSchema.trim()) && !isProcessing;
+    const canGenerate = url.trim() && isValidSwaggerUrl(url) && !isProcessing && !urlError;
 
     return (
         <div className="space-y-6">
@@ -193,17 +234,17 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                                 <div className="flex-1">
                                     <p className="font-medium text-blue-500">
-                                        {dictionary.generateTests.processingInBackground || "Arka planda işleniyor..."}
+                                        {currentJob?.progressMessage || dictionary.generateTests.processingInBackground || "Arka planda işleniyor..."}
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        {dictionary.generateTests.generating}
+                                        Adım: %{currentJob?.progress || 0} tamamlandı
                                     </p>
                                 </div>
-                                <Badge variant="outline" className="text-blue-500">
-                                    {currentJob?.status}
+                                <Badge variant="outline" className="text-blue-500 font-mono">
+                                    %{currentJob?.progress || 0}
                                 </Badge>
                             </div>
-                            <Progress className="mt-3" value={currentJob?.status === "RUNNING" ? 50 : 10} />
+                            <Progress className="mt-3" value={currentJob?.progress || 0} />
                         </CardContent>
                     </Card>
                 </motion.div>
@@ -244,34 +285,29 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-5">
-                        {/* Target URL */}
+                        {/* Target URL - Swagger Only */}
                         <div className="space-y-2">
                             <Label className="flex items-center gap-2 text-muted-foreground">
                                 <Globe className="w-4 h-4" />
                                 {dictionary.generateTests.targetUrl}
+                                <span className="text-xs text-muted-foreground/60">(Swagger/OpenAPI)</span>
                             </Label>
                             <Input
                                 placeholder={dictionary.generateTests.targetUrlPlaceholder}
                                 value={url}
-                                onChange={(e) => setUrl(e.target.value)}
+                                onChange={(e) => handleUrlChange(e.target.value)}
                                 disabled={isProcessing}
+                                className={urlError ? "border-red-500 focus-visible:ring-red-500" : ""}
                             />
-                        </div>
-
-                        {/* JSON Schema */}
-                        <div className="space-y-2">
-                            <Label className="flex items-center gap-2 text-muted-foreground">
-                                <Code className="w-4 h-4" />
-                                {dictionary.generateTests.jsonSchema}
-                            </Label>
-                            <Textarea
-                                placeholder={dictionary.generateTests.jsonSchemaPlaceholder}
-                                value={jsonSchema}
-                                onChange={(e) => setJsonSchema(e.target.value)}
-                                rows={5}
-                                className="font-mono text-sm"
-                                disabled={isProcessing}
-                            />
+                            {urlError && (
+                                <p className="text-xs text-red-500 flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3" />
+                                    {urlError}
+                                </p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                                Örnek: https://api.example.com/swagger.json, /v2/api-docs, /openapi.yaml
+                            </p>
                         </div>
 
                         {/* Output Options */}
