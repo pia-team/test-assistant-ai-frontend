@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { signIn } from "@/lib/auth";
 
 export default async function LoginPage({
     searchParams,
@@ -7,8 +7,20 @@ export default async function LoginPage({
 }) {
     const params = await searchParams;
     const callbackUrl = params.callbackUrl || "/home";
-    
-    // Automatically redirect to Keycloak login
-    const signInUrl = `/api/auth/signin/keycloak?callbackUrl=${encodeURIComponent(callbackUrl)}`;
-    redirect(signInUrl);
+
+    return (
+        <form
+            action={async () => {
+                "use server";
+                await signIn("keycloak", { redirectTo: callbackUrl });
+            }}
+        >
+            <button type="submit" style={{ display: "none" }} autoFocus />
+            <script
+                dangerouslySetInnerHTML={{
+                    __html: `document.forms[0].requestSubmit()`,
+                }}
+            />
+        </form>
+    );
 }

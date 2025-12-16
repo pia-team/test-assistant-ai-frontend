@@ -4,14 +4,15 @@ import Keycloak from "next-auth/providers/keycloak";
 const KEYCLOAK_ISSUER = "https://diam.dnext-pia.com/realms/orbitant-realm";
 const KEYCLOAK_CLIENT_ID = "orbitant-ui-client";
 
-// Refresh token function
-async function refreshAccessToken(token: {
+interface TokenWithRefresh {
     accessToken?: string;
     refreshToken?: string;
     expiresAt?: number;
     sub?: string;
     error?: string;
-}) {
+}
+
+async function refreshAccessToken(token: TokenWithRefresh) {
     try {
         const response = await fetch(`${KEYCLOAK_ISSUER}/protocol/openid-connect/token`, {
             method: "POST",
@@ -78,12 +79,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
             // Token is expired, try to refresh
             console.log("Token expired, attempting refresh...");
-            return await refreshAccessToken(token as {
-                accessToken?: string;
-                refreshToken?: string;
-                expiresAt?: number;
-                sub?: string;
-            });
+            return await refreshAccessToken(token as TokenWithRefresh);
         },
         async session({ session, token }) {
             session.accessToken = token.accessToken as string;
