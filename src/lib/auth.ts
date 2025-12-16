@@ -1,8 +1,8 @@
 import NextAuth from "next-auth";
 import Keycloak from "next-auth/providers/keycloak";
 
-const KEYCLOAK_ISSUER = "https://diam.dnext-pia.com/realms/orbitant-realm";
-const KEYCLOAK_CLIENT_ID = "orbitant-ui-client";
+const KEYCLOAK_ISSUER = process.env.KEYCLOAK_CLIENT_ISSUER!;
+const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID!;
 
 interface TokenWithRefresh {
     accessToken?: string;
