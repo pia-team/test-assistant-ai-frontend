@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { useKeycloak } from "@/providers/keycloak-provider";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -10,37 +10,33 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home, Upload, Play, LogOut, Moon, Sun, Languages } from "lucide-react";
+import { Home, Upload, Play, LogOut, Moon, Sun, Languages, Rocket, Activity } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { useLocale, type Locale } from "@/components/locale-context";
+import { LogoIcon } from "@/components/ui/logo";
+import { BackgroundProcessIndicator } from "@/components/background-process-indicator";
 
-interface NavbarProps {
-    dictionary: {
-        nav: {
-            home: string;
-            uploadJson: string;
-            testRun: string;
-            logout: string;
-            theme: string;
-            language: string;
-        };
-    };
-    currentLocale: string;
-}
-
-export function Navbar({ dictionary, currentLocale }: NavbarProps) {
+export function Navbar() {
     const pathname = usePathname();
     const { theme, setTheme } = useTheme();
+    const { locale, dictionary, setLocale } = useLocale();
 
     const navItems = [
-        { href: "/", label: dictionary.nav.home, icon: Home },
+        { href: "/home", label: dictionary.nav.home, icon: Home },
+        { href: "/generate-tests", label: dictionary.nav.generateTests, icon: Rocket },
         { href: "/upload-json", label: dictionary.nav.uploadJson, icon: Upload },
         { href: "/test-run", label: dictionary.nav.testRun, icon: Play },
     ];
 
-    const handleLocaleChange = async (locale: string) => {
-        document.cookie = `locale=${locale};path=/;max-age=31536000`;
-        window.location.reload();
+    const handleLocaleChange = (newLocale: Locale) => {
+        setLocale(newLocale);
+    };
+
+    const { logout } = useKeycloak();
+
+    const handleLogout = async () => {
+        logout();
     };
 
     return (
@@ -48,12 +44,10 @@ export function Navbar({ dictionary, currentLocale }: NavbarProps) {
             <div className="container mx-auto px-4">
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-                            <span className="text-primary-foreground font-bold text-sm">TA</span>
-                        </div>
+                    <Link href="/home" className="flex items-center gap-2">
+                        <LogoIcon />
                         <span className="font-semibold hidden sm:inline-block">
-                            Test Assistant AI
+                            CoTesterAi
                         </span>
                     </Link>
 
@@ -78,23 +72,26 @@ export function Navbar({ dictionary, currentLocale }: NavbarProps) {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
+                        {/* Background Process Indicator */}
+                        <BackgroundProcessIndicator />
+
                         {/* Language Switcher */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
+                                <Button variant="ghost" size="icon" suppressHydrationWarning>
                                     <Languages className="w-4 h-4" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem
                                     onClick={() => handleLocaleChange("tr")}
-                                    className={currentLocale === "tr" ? "bg-secondary" : ""}
+                                    className={locale === "tr" ? "bg-secondary" : ""}
                                 >
                                     🇹🇷 Türkçe
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     onClick={() => handleLocaleChange("en")}
-                                    className={currentLocale === "en" ? "bg-secondary" : ""}
+                                    className={locale === "en" ? "bg-secondary" : ""}
                                 >
                                     🇬🇧 English
                                 </DropdownMenuItem>
@@ -116,7 +113,7 @@ export function Navbar({ dictionary, currentLocale }: NavbarProps) {
                         <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => signOut({ callbackUrl: "/login" })}
+                            onClick={handleLogout}
                         >
                             <LogOut className="w-4 h-4" />
                         </Button>

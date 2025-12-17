@@ -17,14 +17,20 @@ import {
     Search,
     ChevronLeft,
     ChevronRight,
+    Play,
+    Clock,
+    FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { useLocale } from "@/components/locale-context";
 
 interface TestDetailPanelProps {
     test?: TestCase;
 }
 
 export function TestDetailPanel({ test }: TestDetailPanelProps) {
+    const { dictionary } = useLocale();
     const [activeTab, setActiveTab] = useState("logs");
     const [logFilter, setLogFilter] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
@@ -67,7 +73,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
     if (!test) {
         return (
             <div className="h-full flex items-center justify-center text-muted-foreground">
-                Select a test case to view details
+                {dictionary.testDetail.selectTestCase}
             </div>
         );
     }
@@ -89,6 +95,27 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
         return "bg-blue-500/20 text-blue-400 border-blue-500";
     };
 
+    const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+
+    // Reset video index when test changes
+    useEffect(() => {
+        setCurrentVideoIndex(0);
+    }, [test?.id]);
+
+    const activeVideos = test?.videos && test.videos.length > 0
+        ? test.videos
+        : test?.video
+            ? [test.video]
+            : [];
+
+    const handlePrevVideo = () => {
+        setCurrentVideoIndex((prev) => (prev > 0 ? prev - 1 : activeVideos.length - 1));
+    };
+
+    const handleNextVideo = () => {
+        setCurrentVideoIndex((prev) => (prev < activeVideos.length - 1 ? prev + 1 : 0));
+    };
+
     return (
         <div className="flex flex-col gap-4 h-full">
             {/* Test Title Header */}
@@ -100,20 +127,57 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
 
             {/* Video Section */}
             <Card>
-                <CardHeader className="py-2 border-b">
+                <CardHeader className="py-2 border-b flex flex-row items-center justify-between space-y-0">
                     <div className="flex items-center gap-2">
                         <Video className="w-4 h-4 text-primary" />
-                        <CardTitle className="text-sm">Execution Video</CardTitle>
+                        <CardTitle className="text-sm">{dictionary.testDetail.executionVideo}</CardTitle>
                     </div>
+                    {activeVideos.length > 1 && (
+                        <span className="text-xs text-muted-foreground">
+                            {currentVideoIndex + 1} / {activeVideos.length}
+                        </span>
+                    )}
                 </CardHeader>
-                <CardContent className="p-0 bg-black flex justify-center items-center min-h-[250px]">
-                    {test.video ? (
-                        <video controls className="w-full max-h-[350px]">
-                            <source src={test.video} type="video/webm" />
-                            Your browser does not support the video tag.
-                        </video>
+                <CardContent className="p-0 bg-black flex flex-col justify-center items-center min-h-[250px] relative group">
+                    {activeVideos.length > 0 ? (
+                        <>
+                            <div className="w-full relative">
+                                <video
+                                    key={activeVideos[currentVideoIndex]}
+                                    controls
+                                    className="w-full aspect-video h-auto rounded-md"
+                                >
+                                    <source src={activeVideos[currentVideoIndex]} type="video/webm" />
+                                    {dictionary.testDetail.browserNotSupported}
+                                </video>
+
+                                {/* Navigation Arrows */}
+                                {activeVideos.length > 1 && (
+                                    <>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={handlePrevVideo}
+                                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <ChevronLeft className="w-6 h-6" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={handleNextVideo}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <ChevronRight className="w-6 h-6" />
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+                        </>
                     ) : (
-                        <div className="text-muted-foreground text-sm">No video recording available</div>
+                        <div className="text-muted-foreground text-sm flex items-center h-[250px]">
+                            {dictionary.testDetail.noVideoAvailable}
+                        </div>
                     )}
                 </CardContent>
             </Card>
@@ -132,7 +196,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                         : "border-transparent text-muted-foreground"
                                 )}
                             >
-                                Errors
+                                {dictionary.testDetail.errors}
                                 {errors.length > 0 && (
                                     <Badge variant="destructive" className="ml-2 rounded-full">
                                         {errors.length}
@@ -148,7 +212,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                         : "border-transparent text-muted-foreground"
                                 )}
                             >
-                                Logs
+                                {dictionary.testDetail.logs}
                                 <Badge variant="secondary" className="ml-2 rounded-full">
                                     {steps.length}
                                 </Badge>
@@ -162,7 +226,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                         : "border-transparent text-muted-foreground"
                                 )}
                             >
-                                Attachments
+                                {dictionary.testDetail.attachments}
                             </TabsTrigger>
                         </TabsList>
                     </CardHeader>
@@ -188,7 +252,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                 ) : (
                                     <div className="text-center py-12 text-muted-foreground">
                                         <CheckCircle className="w-8 h-8 mx-auto mb-2 text-emerald-500" />
-                                        <p>No errors detected.</p>
+                                        <p>{dictionary.testDetail.noErrorsDetected}</p>
                                     </div>
                                 )}
                             </ScrollArea>
@@ -201,7 +265,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                 <div className="relative max-w-[300px]">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                     <Input
-                                        placeholder="Search logs..."
+                                        placeholder={dictionary.testDetail.searchLogs}
                                         className="pl-9"
                                         value={logFilter}
                                         onChange={(e) => setLogFilter(e.target.value)}
@@ -212,10 +276,10 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                         <SelectValue placeholder="Status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="ALL">All Status</SelectItem>
-                                        <SelectItem value="PASS">Pass</SelectItem>
-                                        <SelectItem value="FAIL">Fail</SelectItem>
-                                        <SelectItem value="INFO">Info</SelectItem>
+                                        <SelectItem value="ALL">{dictionary.testDetail.allStatus}</SelectItem>
+                                        <SelectItem value="PASS">{dictionary.testDetail.pass}</SelectItem>
+                                        <SelectItem value="FAIL">{dictionary.testDetail.fail}</SelectItem>
+                                        <SelectItem value="INFO">{dictionary.testDetail.info}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -229,10 +293,10 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                                 #
                                             </th>
                                             <th className="text-left p-3 text-xs text-muted-foreground font-normal">
-                                                Step Description
+                                                {dictionary.testDetail.stepDescription}
                                             </th>
                                             <th className="text-right p-3 text-xs text-muted-foreground font-normal w-24">
-                                                Status
+                                                {dictionary.testDetail.status}
                                             </th>
                                         </tr>
                                     </thead>
@@ -271,7 +335,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                                         ) : (
                                             <tr>
                                                 <td colSpan={3} className="text-center py-12 text-muted-foreground">
-                                                    No logs match your filters.
+                                                    {dictionary.testDetail.noLogsMatch}
                                                 </td>
                                             </tr>
                                         )}
@@ -282,7 +346,7 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                             {/* Pagination */}
                             <div className="p-3 border-t flex flex-wrap gap-3 justify-between items-center bg-muted/30">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-sm text-muted-foreground">Rows per page:</span>
+                                    <span className="text-sm text-muted-foreground">{dictionary.testDetail.rowsPerPage}</span>
                                     <Select
                                         value={itemsPerPage.toString()}
                                         onValueChange={(v) => setItemsPerPage(Number(v))}
@@ -336,8 +400,8 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
                         <TabsContent value="attachments" className="m-0 p-4 h-full">
                             <div className="text-center py-12 text-muted-foreground">
                                 <Paperclip className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                <h5 className="font-medium">No Attachments</h5>
-                                <p className="text-sm">Screenshots or extra files will appear here.</p>
+                                <h5 className="font-medium">{dictionary.testDetail.noAttachments}</h5>
+                                <p className="text-sm">{dictionary.testDetail.attachmentsDesc}</p>
                             </div>
                         </TabsContent>
                     </CardContent>

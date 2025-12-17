@@ -1,117 +1,106 @@
-# Test Assistant AI - Next.js Frontend
+# Test Assistant AI - Frontend Application
 
-Modern web application for automated test generation and execution.
+The frontend user interface for the Test Assistant AI system. A modern, responsive web application built with Next.js 16, designed to provide a seamless experience for managing and executing automated tests.
 
-## Tech Stack
+## 🛠 Tech Stack
 
-- **Framework**: Next.js 16 (App Router)
+- **Core Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
-- **Styling**: Tailwind CSS + shadcn/ui
-- **Auth**: NextAuth.js + Keycloak
-- **State**: TanStack Query (React Query)
-- **Icons**: Lucide React
-- **Toast**: Sonner
-- **i18n**: Cookie-based (TR/EN)
+- **Styling**: Tailwind CSS v4, shadcn/ui components
+- **Authentication**: NextAuth.js v5 (Beta) integrated with Keycloak
+- **State Management**: TanStack Query (React Query)
+- **UI Components**: Radix UI primitives, Lucide React icons, Sonner toasts
+- **Internationalization**: Custom cookie-based solution (TR/EN)
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 20+
-- npm or pnpm
-- Keycloak server configured
+- **Node.js 20** or higher
+- **npm** or **pnpm**
+- **Keycloak Server**: Must be running and configured for authentication.
+
+### Configuration (.env.local)
+
+Create a `.env.local` file in the root of the frontend directory with the following variables:
+
+```properties
+# Authentication (Keycloak)
+KEYCLOAK_CLIENT_ID=test-assistant-frontend
+KEYCLOAK_CLIENT_SECRET=your_client_secret_here
+KEYCLOAK_ISSUER=http://localhost:8080/realms/test-realm
+
+# NextAuth
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_generated_secret_key
+
+# Backend API
+NEXT_PUBLIC_API_URL=http://localhost:8093
+```
 
 ### Installation
 
+Install the dependencies:
+
 ```bash
-# Install dependencies
 npm install
-
-# Copy environment file
-cp .env.example .env.local
-
-# Edit .env.local with your values
 ```
 
-### Environment Variables
+### Running Development Server
 
-```env
-KEYCLOAK_CLIENT_SECRET=your-keycloak-client-secret
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-nextauth-secret-key
-API_URL=http://localhost:8093
-```
-
-### Development
+Start the application in development mode with TurboPack:
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Visit [http://localhost:3000](http://localhost:3000) to view the application.
 
-### Production Build
-
-```bash
-npm run build
-npm start
-```
-
-### Docker
-
-```bash
-# Build image
-docker build -t test-assistant-ai-nextjs .
-
-# Run container
-docker run -p 3000:3000 \
-  -e KEYCLOAK_CLIENT_SECRET=xxx \
-  -e NEXTAUTH_SECRET=xxx \
-  -e API_URL=http://backend:8093 \
-  test-assistant-ai-nextjs
-```
-
-## Project Structure
+## 🏗 Project Structure
 
 ```
 src/
-├── app/
-│   ├── (protected)/     # Auth-guarded routes
-│   │   ├── page.tsx           # Home
-│   │   ├── test-run/          # Test execution
-│   │   └── upload-json/       # JSON upload
-│   ├── login/            # Login page
-│   ├── api/auth/         # NextAuth handlers
-│   ├── actions/          # Server Actions
-│   └── layout.tsx        # Root layout
-├── components/
-│   ├── ui/              # shadcn components
-│   ├── navbar.tsx
-│   └── providers.tsx
-├── lib/
-│   ├── auth.ts          # NextAuth config
-│   ├── i18n.ts          # i18n helpers
-│   └── utils.ts
-├── locales/
-│   ├── tr.json
-│   └── en.json
-└── types/
+├── app/                  # Next.js App Router pages
+│   ├── (protected)/      # Routes requiring authentication
+│   ├── api/              # API Routes (NextAuth, etc.)
+│   ├── login/            # Public login page
+│   └── layout.tsx        # Root application layout
+├── components/           # React components
+│   ├── ui/               # Reusable UI components (buttons, inputs)
+│   └── ...               # Feature-specific components
+├── lib/                  # Utilities and configurations
+│   ├── auth.ts           # Authentication logic
+│   └── utils.ts          # Helper functions
+├── locales/              # Translation files (tr.json, en.json)
+└── types/                # TypeScript type definitions
 ```
 
-## Features
+## ✨ Key Features
 
-- 🔐 Keycloak SSO Authentication
-- 🌍 Multi-language support (TR/EN)
-- 🌙 Dark/Light theme
-- ⚡ Server-side rendering
-- 📦 React Query caching
-- 🐳 Docker ready
+- **Secure Authentication**: Protected routes and API calls using Keycloak and NextAuth.
+- **Dynamic Test Management**: Create, edit, and run test scenarios via an intuitive UI.
+- **Real-time Feedback**: Instant toasts and status updates using Sonner and React Query.
+- **Responsive Design**: Fully responsive layout optimized for desktop and tablet.
+- **Dark/Light Mode**: Built-in theme switching support.
+- **Multi-language**: Switch between English and Turkish dynamically.
 
-## Scripts
+## 📦 Docker Support
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Build for production |
-| `npm start` | Start production server |
-| `npm run lint` | Run ESLint |
+To build and run the frontend as a Docker container:
+
+```bash
+# Build
+docker build -t test-assistant-frontend .
+
+# Run
+docker run -p 3000:3000 test-assistant-frontend
+```
+
+## 📜 Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Starts the dev server with TurboPack |
+| `npm run build` | Builds the application for production |
+| `npm start` | Starts the production server |
+| `npm run lint` | Runs ESLint for code quality |

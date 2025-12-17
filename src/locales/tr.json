@@ -1,6 +1,6 @@
 {
     "common": {
-        "appName": "Test Assistant AI",
+        "appName": "CoTesterAi",
         "loading": "Yükleniyor...",
         "error": "Hata",
         "success": "Başarılı",
@@ -13,24 +13,29 @@
         "back": "Geri",
         "next": "İleri",
         "yes": "Evet",
-        "no": "Hayır"
+        "no": "Hayır",
+        "copy": "Kopyala",
+        "download": "İndir",
+        "copied": "Kopyalandı!"
     },
     "nav": {
         "home": "Ana Sayfa",
+        "generateTests": "Test Oluştur",
         "uploadJson": "JSON Yükle",
         "testRun": "Test Çalıştır",
+        "requests": "İstekler",
         "logout": "Çıkış Yap",
         "theme": "Tema",
         "language": "Dil"
     },
     "login": {
         "title": "Giriş Yap",
-        "subtitle": "Test Assistant AI'a hoş geldiniz",
+        "subtitle": "CoTesterAi'a hoş geldiniz",
         "signInWith": "ile giriş yap",
         "signingIn": "Giriş yapılıyor..."
     },
     "home": {
-        "title": "Test Assistant AI",
+        "title": "CoTesterAi",
         "subtitle": "Otomatik test oluşturma ve çalıştırma platformu",
         "uploadCard": {
             "title": "JSON Şema Yükle",
@@ -39,6 +44,10 @@
         "runCard": {
             "title": "Testleri Çalıştır",
             "description": "Cucumber testlerinizi çalıştırın ve sonuçları görüntüleyin"
+        },
+        "dashboardCard": {
+            "title": "Yapay Zeka Destekli Test Oluştur",
+            "description": "API dökümantasyonunuzdan otomatik olarak test paketi oluşturun"
         }
     },
     "uploadJson": {
@@ -46,7 +55,14 @@
         "subtitle": "API şemanızı yükleyin ve test senaryoları oluşturun",
         "dropzone": "Dosyayı buraya sürükleyin veya tıklayın",
         "generate": "Testleri Oluştur",
-        "generating": "Oluşturuluyor..."
+        "generating": "Oluşturuluyor...",
+        "selectedFile": "Dosya seçildi:",
+        "validJsonOnly": "Lütfen geçerli bir JSON/HAR dosyası seçin",
+        "uploadFailure": "Dosya yüklenirken hata oluştu",
+        "networkError": "Ağ hatası",
+        "noStepsReturned": "Adım oluşturulamadı",
+        "cardTitle": "JSON / HAR Dosyası",
+        "supportedFormats": "JSON veya HAR dosyaları desteklenir"
     },
     "testRun": {
         "title": "Testleri Çalıştır",
@@ -56,10 +72,128 @@
         "running": "Çalışıyor...",
         "tagsGuide": "Etiket Rehberi",
         "readyToExecute": "Çalıştırmaya hazır",
+        "readyToExecuteDesc": "Yukarıya etiket girin ve başlatmak için Testleri Çalıştır'a tıklayın",
         "environment": "Ortam",
         "parallelExecution": "Paralel Çalıştırma",
         "threadCount": "Thread Sayısı",
         "enabled": "Aktif",
-        "disabled": "Pasif"
+        "disabled": "Pasif",
+        "testConfiguration": "Test Yapılandırması"
+    },
+    "generateTests": {
+        "title": "Yapay Zeka Destekli Test Oluştur",
+        "subtitle": "API dökümantasyonunuzdan veya Swagger URL'nizden anında kapsamlı test paketleri oluşturun",
+        "configuration": "Yapılandırma",
+        "targetUrl": "Hedef URL",
+        "targetUrlPlaceholder": "https://api.example.com/swagger.json",
+        "jsonSchema": "JSON Şeması (Opsiyonel)",
+        "jsonSchemaPlaceholder": "{\"id\": \"int\", \"name\": \"string\"}",
+        "outputOptions": "Çıktı Seçenekleri",
+        "featureFile": "Feature Dosyası",
+        "apiTests": "API Testleri",
+        "testPayload": "Test Verisi",
+        "swaggerTests": "Swagger Testleri",
+        "generateTestSuite": "Test Paketi Oluştur",
+        "generating": "Oluşturuluyor...",
+        "readyToGenerate": "Oluşturmaya Hazır",
+        "readyToGenerateDesc": "Seçeneklerinizi yapılandırın ve yapay zeka destekli test paketleri oluşturmak için butona tıklayın",
+        "testsGeneratedSuccess": "Testler başarıyla oluşturuldu!",
+        "errorGeneratingTests": "Test oluşturma hatası",
+        "generatedResults": "Oluşturulan Sonuçlar"
+    },
+    "testDetail": {
+        "executionVideo": "Yürütme Videosu",
+        "noVideoAvailable": "Video kaydı mevcut değil",
+        "browserNotSupported": "Tarayıcınız video etiketini desteklemiyor.",
+        "errors": "Hatalar",
+        "logs": "Loglar",
+        "attachments": "Ekler",
+        "selectTestCase": "Detayları görüntülemek için bir test senaryosu seçin",
+        "noErrorsDetected": "Hata tespit edilmedi.",
+        "searchLogs": "Log ara...",
+        "allStatus": "Tüm Durumlar",
+        "pass": "Geçti",
+        "fail": "Başarısız",
+        "info": "Bilgi",
+        "rowsPerPage": "Sayfa başına satır:",
+        "noLogsMatch": "Filtrenize uygun log bulunamadı.",
+        "noAttachments": "Ek Yok",
+        "attachmentsDesc": "Ekran görüntüleri veya ek dosyalar burada görünecek.",
+        "stepDescription": "Adım Açıklaması",
+        "status": "Durum"
+    },
+    "testList": {
+        "all": "Tümü",
+        "passed": "Geçti",
+        "failed": "Başarısız",
+        "skipped": "Atlandı",
+        "noScenariosFound": "senaryo bulunamadı."
+    },
+    "report": {
+        "title": "Test Raporu",
+        "description": "Son test koşumlarına ait detaylı Allure raporunu oluşturun.",
+        "preparing": "Hazırlanıyor...",
+        "createReport": "Rapor Oluştur",
+        "view": "Görüntüle",
+        "error": "Hata:",
+        "reportStarted": "Rapor oluşturma işlemi başlatıldı",
+        "reportAlreadyRunning": "Rapor işlemi zaten çalışıyor",
+        "reportFailed": "Rapor başlatılamadı"
+    },
+    "jobDashboard": {
+        "title": "İşlem Geçmişi",
+        "pastOperations": "Geçmiş İşlemler",
+        "description": "Tüm aktif, tamamlanan ve hatalı işlemlerin listesi",
+        "loading": "Yükleniyor...",
+        "noJobs": "Henüz bir işlem bulunmuyor",
+        "noJobsToList": "Listelenecek işlem yok.",
+        "loadError": "Veriler yüklenirken bir hata oluştu",
+        "live": "Canlı",
+        "noConnection": "Bağlantı yok",
+        "status": "Durum",
+        "jobType": "İşlem Tipi",
+        "user": "Kullanıcı",
+        "startTime": "Başlangıç",
+        "duration": "Süre",
+        "result": "Sonuç",
+        "actions": "İşlemler",
+        "generateTests": "Test Üretimi",
+        "runTests": "Test Çalıştırma",
+        "uploadJson": "JSON Yükleme",
+        "openReport": "Rapor Açma",
+        "stopped": "Durduruldu",
+        "successful": "Başarılı",
+        "stop": "Durdur",
+        "completed": "tamamlandı",
+        "showing": "Gösterilen"
+    },
+    "backgroundProcess": {
+        "generateTests": "Test Üretimi",
+        "runTests": "Test Çalıştırma",
+        "uploadJson": "JSON Yükleme",
+        "pending": "Bekliyor...",
+        "running": "Çalışıyor...",
+        "completed": "Tamamlandı",
+        "failed": "Başarısız",
+        "realtimeActive": "Real-time bağlantısı aktif",
+        "connectionWaiting": "Bağlantı bekleniyor...",
+        "noActiveProcess": "Aktif işlem yok"
+    },
+    "requestLog": {
+        "title": "İstek Logları",
+        "refresh": "Yenile",
+        "loading": "Yükleniyor...",
+        "time": "Zaman",
+        "method": "Metod",
+        "path": "Yol",
+        "status": "Durum",
+        "duration": "Süre",
+        "ip": "IP",
+        "total": "Toplam: {count} istek",
+        "page": "Sayfa {current} / {total}"
+    },
+    "connection": {
+        "connected": "Bağlandı",
+        "disconnected": "Bağlantısı kesildi"
     }
 }

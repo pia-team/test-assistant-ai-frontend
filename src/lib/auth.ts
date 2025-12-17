@@ -1,29 +1,11 @@
-import NextAuth from "next-auth";
-import Keycloak from "next-auth/providers/keycloak";
+// Mock auth library to replace NextAuth during Keycloak migration
+// This allows existing server actions to compile, though they won't strictly validate tokens server-side
+// until a new verification method is implemented.
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-    providers: [
-        Keycloak({
-            clientId: "orbitant-ui-client",
-            clientSecret: process.env.KEYCLOAK_CLIENT_SECRET!,
-            issuer: "https://diam.dnext-pia.com/realms/orbitant-realm",
-        }),
-    ],
-    callbacks: {
-        async jwt({ token, account }) {
-            if (account) {
-                token.accessToken = account.access_token;
-                token.refreshToken = account.refresh_token;
-                token.expiresAt = account.expires_at;
-            }
-            return token;
-        },
-        async session({ session, token }) {
-            session.accessToken = token.accessToken as string;
-            return session;
-        },
-    },
-    pages: {
-        signIn: "/login",
-    },
+export const handlers = { GET: () => { }, POST: () => { } };
+export const auth = async () => ({
+    user: { id: "mock-user" },
+    accessToken: "mock-token-from-server-action-placeholder"
 });
+export const signIn = async () => { };
+export const signOut = async () => { };

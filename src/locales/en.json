@@ -1,6 +1,6 @@
 {
     "common": {
-        "appName": "Test Assistant AI",
+        "appName": "CoTesterAi",
         "loading": "Loading...",
         "error": "Error",
         "success": "Success",
@@ -13,24 +13,29 @@
         "back": "Back",
         "next": "Next",
         "yes": "Yes",
-        "no": "No"
+        "no": "No",
+        "copy": "Copy",
+        "download": "Download",
+        "copied": "Copied!"
     },
     "nav": {
         "home": "Home",
+        "generateTests": "Generate Tests",
         "uploadJson": "Upload JSON",
         "testRun": "Run Tests",
+        "requests": "Requests",
         "logout": "Logout",
         "theme": "Theme",
         "language": "Language"
     },
     "login": {
         "title": "Sign In",
-        "subtitle": "Welcome to Test Assistant AI",
+        "subtitle": "Welcome to CoTesterAi",
         "signInWith": "Sign in with",
         "signingIn": "Signing in..."
     },
     "home": {
-        "title": "Test Assistant AI",
+        "title": "CoTesterAi",
         "subtitle": "Automated test generation and execution platform",
         "uploadCard": {
             "title": "Upload JSON Schema",
@@ -39,6 +44,10 @@
         "runCard": {
             "title": "Run Tests",
             "description": "Execute your Cucumber tests and view results"
+        },
+        "dashboardCard": {
+            "title": "AI Powered Test Generation",
+            "description": "Automatically generate test suites from your API documentation"
         }
     },
     "uploadJson": {
@@ -46,7 +55,14 @@
         "subtitle": "Upload your API schema and generate test scenarios",
         "dropzone": "Drop file here or click to upload",
         "generate": "Generate Tests",
-        "generating": "Generating..."
+        "generating": "Generating...",
+        "selectedFile": "File selected:",
+        "validJsonOnly": "Please select a valid JSON/HAR file",
+        "uploadFailure": "Error uploading file",
+        "networkError": "Network error",
+        "noStepsReturned": "Could not generate steps",
+        "cardTitle": "JSON / HAR File",
+        "supportedFormats": "JSON or HAR files are supported"
     },
     "testRun": {
         "title": "Run Tests",
@@ -56,10 +72,128 @@
         "running": "Running...",
         "tagsGuide": "Tags Guide",
         "readyToExecute": "Ready to execute",
+        "readyToExecuteDesc": "Enter tags above and click Run Tests to start",
         "environment": "Environment",
         "parallelExecution": "Parallel Execution",
         "threadCount": "Thread Count",
         "enabled": "Enabled",
-        "disabled": "Disabled"
+        "disabled": "Disabled",
+        "testConfiguration": "Test Configuration"
+    },
+    "generateTests": {
+        "title": "AI Powered Test Generation",
+        "subtitle": "Instantly generate comprehensive test suites from your API documentation or Swagger URL",
+        "configuration": "Configuration",
+        "targetUrl": "Target URL",
+        "targetUrlPlaceholder": "https://api.example.com/swagger.json",
+        "jsonSchema": "JSON Schema (Optional)",
+        "jsonSchemaPlaceholder": "{\"id\": \"int\", \"name\": \"string\"}",
+        "outputOptions": "Output Options",
+        "featureFile": "Feature File",
+        "apiTests": "API Tests",
+        "testPayload": "Test Payload",
+        "swaggerTests": "Swagger Tests",
+        "generateTestSuite": "Generate Test Suite",
+        "generating": "Generating...",
+        "readyToGenerate": "Ready to Generate",
+        "readyToGenerateDesc": "Configure your options and click 'Generate' to create AI-powered test suites",
+        "testsGeneratedSuccess": "Tests generated successfully!",
+        "errorGeneratingTests": "Error generating tests",
+        "generatedResults": "Generated Results"
+    },
+    "testDetail": {
+        "executionVideo": "Execution Video",
+        "noVideoAvailable": "No video recording available",
+        "browserNotSupported": "Your browser does not support the video tag.",
+        "errors": "Errors",
+        "logs": "Logs",
+        "attachments": "Attachments",
+        "selectTestCase": "Select a test case to view details",
+        "noErrorsDetected": "No errors detected.",
+        "searchLogs": "Search logs...",
+        "allStatus": "All Status",
+        "pass": "Pass",
+        "fail": "Fail",
+        "info": "Info",
+        "rowsPerPage": "Rows per page:",
+        "noLogsMatch": "No logs match your filters.",
+        "noAttachments": "No Attachments",
+        "attachmentsDesc": "Screenshots or extra files will appear here.",
+        "stepDescription": "Step Description",
+        "status": "Status"
+    },
+    "testList": {
+        "all": "All",
+        "passed": "Passed",
+        "failed": "Failed",
+        "skipped": "Skipped",
+        "noScenariosFound": "scenarios found."
+    },
+    "report": {
+        "title": "Test Report",
+        "description": "Generate and view detailed Allure report for recent test runs.",
+        "preparing": "Preparing...",
+        "createReport": "Create Report",
+        "view": "View",
+        "error": "Error:",
+        "reportStarted": "Report generation started",
+        "reportAlreadyRunning": "Report is already being generated",
+        "reportFailed": "Failed to start report"
+    },
+    "jobDashboard": {
+        "title": "Job History",
+        "pastOperations": "Past Operations",
+        "description": "List of all active, completed and failed jobs",
+        "loading": "Loading...",
+        "noJobs": "No jobs found yet",
+        "noJobsToList": "No jobs to list.",
+        "loadError": "Error loading data",
+        "live": "Live",
+        "noConnection": "No connection",
+        "status": "Status",
+        "jobType": "Job Type",
+        "user": "User",
+        "startTime": "Start Time",
+        "duration": "Duration",
+        "result": "Result",
+        "actions": "Actions",
+        "generateTests": "Test Generation",
+        "runTests": "Test Execution",
+        "uploadJson": "JSON Upload",
+        "openReport": "Open Report",
+        "stopped": "Stopped",
+        "successful": "Successful",
+        "stop": "Stop",
+        "completed": "completed",
+        "showing": "Showing"
+    },
+    "backgroundProcess": {
+        "generateTests": "Test Generation",
+        "runTests": "Test Execution",
+        "uploadJson": "JSON Upload",
+        "pending": "Pending...",
+        "running": "Running...",
+        "completed": "Completed",
+        "failed": "Failed",
+        "realtimeActive": "Real-time connection active",
+        "connectionWaiting": "Waiting for connection...",
+        "noActiveProcess": "No active processes"
+    },
+    "requestLog": {
+        "title": "Request Logs",
+        "refresh": "Refresh",
+        "loading": "Loading...",
+        "time": "Time",
+        "method": "Method",
+        "path": "Path",
+        "status": "Status",
+        "duration": "Duration",
+        "ip": "IP",
+        "total": "Total: {count} requests",
+        "page": "Page {current} of {total}"
+    },
+    "connection": {
+        "connected": "Connected",
+        "disconnected": "Disconnected"
     }
 }
