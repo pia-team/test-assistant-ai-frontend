@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode, useRef } from 'react';
-import { useSession } from 'next-auth/react';
+import { useKeycloak } from '@/providers/keycloak-provider';
 import { useQueryClient } from '@tanstack/react-query';
 import { socketService, JobProgressPayload, JobCompletedPayload, JobFailedPayload, JobCreatedPayload } from '@/lib/socket';
 import { getKeycloakIdFromToken } from '@/lib/jwt-utils';
@@ -31,7 +31,7 @@ interface SocketProviderProps {
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
 export function SocketProvider({ children }: SocketProviderProps) {
-  const { data: session, status } = useSession();
+  const { token, authenticated } = useKeycloak();
   const queryClient = useQueryClient();
   const [isConnected, setIsConnected] = useState(false);
   const globalSubscriptionRef = useRef<boolean>(false);
@@ -89,68 +89,68 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     socketService.onJobStarted((data) => {
       console.log('[Socket] Job started:', data.id);
-      updateJobInCache(data.id, { 
-        status: 'RUNNING', 
-        startedAt: data.startedAt 
+      updateJobInCache(data.id, {
+        status: 'RUNNING',
+        startedAt: data.startedAt
       });
     });
 
     socketService.onJobProgress((data) => {
       console.log('[Socket] Job progress:', data.id, data.progress, data.message);
-      updateJobInCache(data.id, { 
+      updateJobInCache(data.id, {
         progress: data.progress,
-        progressMessage: data.message 
+        progressMessage: data.message
       });
     });
 
     socketService.onJobCompleted((data) => {
       console.log('[Socket] Job completed:', data.id);
-      updateJobInCache(data.id, { 
-        status: 'COMPLETED', 
+      updateJobInCache(data.id, {
+        status: 'COMPLETED',
         progress: 100,
         result: data.resultData,
-        completedAt: data.completedAt 
+        completedAt: data.completedAt
       });
       queryClient.invalidateQueries({ queryKey: ['allJobs'] });
     });
 
     socketService.onJobFailed((data) => {
       console.log('[Socket] Job failed:', data.id);
-      updateJobInCache(data.id, { 
-        status: 'FAILED', 
+      updateJobInCache(data.id, {
+        status: 'FAILED',
         error: data.errorMessage,
-        completedAt: data.completedAt 
+        completedAt: data.completedAt
       });
       queryClient.invalidateQueries({ queryKey: ['allJobs'] });
     });
 
     socketService.onJobStopped((data) => {
       console.log('[Socket] Job stopped:', data.id);
-      updateJobInCache(data.id, { 
+      updateJobInCache(data.id, {
         status: 'STOPPED',
         cancelledBy: data.cancelledBy,
-        completedAt: data.completedAt 
+        completedAt: data.completedAt
       });
       queryClient.invalidateQueries({ queryKey: ['allJobs'] });
     });
   }, [addJobToCache, updateJobInCache, queryClient]);
 
   const connect = useCallback(async () => {
-    if (!session?.accessToken) {
+    if (!token) {
       console.warn('[Socket] No access token available for socket connection');
       return;
     }
 
     try {
-      await socketService.connect(session.accessToken);
+      await socketService.connect(token);
       setIsConnected(true);
       console.log('[Socket] Connected successfully');
-      
+
       setupGlobalJobListeners();
-      
+
       // F006: Use keycloakId from JWT token instead of session.user.id
       // Backend emits to user:{keycloakId} room, so frontend must subscribe with same ID
-      const keycloakId = getKeycloakIdFromToken(session.accessToken);
+      const keycloakId = getKeycloakIdFromToken(token);
       if (keycloakId) {
         console.log('[Socket] Subscribing to user room:', `user:${keycloakId}`);
         socketService.subscribeToUserRoom(keycloakId);
@@ -161,7 +161,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
       console.error('[Socket] Failed to connect:', error);
       setIsConnected(false);
     }
-  }, [session?.accessToken, session?.user?.id, setupGlobalJobListeners]);
+  }, [token, setupGlobalJobListeners]);
 
   const disconnect = useCallback(() => {
     globalSubscriptionRef.current = false;
@@ -178,21 +178,21 @@ export function SocketProvider({ children }: SocketProviderProps) {
   }, []);
 
   useEffect(() => {
-    if (status === 'authenticated' && session?.accessToken) {
+    if (authenticated && token) {
       connect();
     }
 
     return () => {
       disconnect();
     };
-  }, [status, session?.accessToken, connect, disconnect]);
+  }, [authenticated, token, connect, disconnect]);
 
   useEffect(() => {
     const checkConnection = () => {
       const connected = socketService.isConnected();
       setIsConnected(connected);
-      
-      if (!connected && status === 'authenticated' && session?.accessToken) {
+
+      if (!connected && authenticated && token) {
         console.log('[Socket] Connection lost, attempting reconnect...');
         connect();
       }
@@ -200,7 +200,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     const interval = setInterval(checkConnection, 5000);
     return () => clearInterval(interval);
-  }, [status, session?.accessToken, connect]);
+  }, [authenticated, token, connect]);
 
   return (
     <SocketContext.Provider

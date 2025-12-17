@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/lib/auth";
+
 
 export type JobType = "GENERATE_TESTS" | "RUN_TESTS" | "UPLOAD_JSON" | "OPEN_REPORT";
 export type JobStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "STOPPED";
@@ -31,15 +31,20 @@ export interface Job {
     completedAt?: string | null;
 }
 
+// ... imports and types remain same
+
 const API_URL = process.env.API_URL || "http://localhost:8093";
 
-async function getAuthHeaders() {
-    const session = await auth();
-    if (!session) {
-        throw new Error("Unauthorized");
+// Helper to get auth headers from client token
+async function getAuthHeaders(token?: string) {
+    if (!token) {
+        console.error("SERVER ACTION ERROR: No token provided");
+        throw new Error("Unauthorized: No access token provided");
     }
+
+    // console.log("SERVER ACTION: Token provided (length: " + token.length + ")");
     return {
-        Authorization: `Bearer ${session.accessToken}`,
+        Authorization: `Bearer ${token}`,
     };
 }
 
@@ -51,9 +56,10 @@ export async function startGenerateTestsJob(params: {
     hasAPITests: boolean;
     hasTestPayload: boolean;
     hasSwaggerTest: boolean;
-}): Promise<Job> {
-    const headers = await getAuthHeaders();
-    
+}, token?: string): Promise<Job> {
+    const headers = await getAuthHeaders(token);
+
+    // ... rest of function using headers
     const response = await fetch(`${API_URL}/api/jobs/generate-tests`, {
         method: "POST",
         headers: {
@@ -81,9 +87,9 @@ export async function startRunTestsJob(params: {
     env: string;
     isParallel: boolean;
     threads: number | null;
-}): Promise<Job> {
-    const headers = await getAuthHeaders();
-    
+}, token?: string): Promise<Job> {
+    const headers = await getAuthHeaders(token);
+
     const response = await fetch(`${API_URL}/api/jobs/run-tests`, {
         method: "POST",
         headers: {
@@ -106,9 +112,9 @@ export async function startRunTestsJob(params: {
 }
 
 // Start upload-json job
-export async function startUploadJsonJob(formData: FormData): Promise<Job> {
-    const headers = await getAuthHeaders();
-    
+export async function startUploadJsonJob(formData: FormData, token?: string): Promise<Job> {
+    const headers = await getAuthHeaders(token);
+
     const response = await fetch(`${API_URL}/api/jobs/upload-json`, {
         method: "POST",
         headers,
@@ -128,9 +134,9 @@ export async function startUploadJsonJob(formData: FormData): Promise<Job> {
 }
 
 // Get job status
-export async function getJobStatus(jobId: string): Promise<Job> {
-    const headers = await getAuthHeaders();
-    
+export async function getJobStatus(jobId: string, token?: string): Promise<Job> {
+    const headers = await getAuthHeaders(token);
+
     const response = await fetch(`${API_URL}/api/jobs/${jobId}`, {
         method: "GET",
         headers,
@@ -144,13 +150,18 @@ export async function getJobStatus(jobId: string): Promise<Job> {
 }
 
 // Get active job by type
-export async function getActiveJob(type: JobType): Promise<Job | null> {
-    const headers = await getAuthHeaders();
-    
-    const response = await fetch(`${API_URL}/api/jobs/active/${type}`, {
+export async function getActiveJob(type: JobType, token?: string): Promise<Job | null> {
+    const headers = await getAuthHeaders(token);
+    const url = `${API_URL}/api/jobs/active/${type}`;
+
+    console.log("SERVER ACTION: getActiveJob calling", url);
+
+    const response = await fetch(url, {
         method: "GET",
         headers,
     });
+
+    console.log("SERVER ACTION: getActiveJob response status:", response.status);
 
     if (response.status === 204) {
         return null;
@@ -164,9 +175,9 @@ export async function getActiveJob(type: JobType): Promise<Job | null> {
 }
 
 // Get all jobs
-export async function getAllJobs(): Promise<Job[]> {
-    const headers = await getAuthHeaders();
-    
+export async function getAllJobs(token?: string): Promise<Job[]> {
+    const headers = await getAuthHeaders(token);
+
     const response = await fetch(`${API_URL}/api/jobs?size=100`, {
         method: "GET",
         headers,
@@ -183,9 +194,9 @@ export async function getAllJobs(): Promise<Job[]> {
 }
 
 // Cancel job
-export async function cancelJob(jobId: string): Promise<void> {
-    const headers = await getAuthHeaders();
-    
+export async function cancelJob(jobId: string, token?: string): Promise<void> {
+    const headers = await getAuthHeaders(token);
+
     const response = await fetch(`${API_URL}/api/jobs/${jobId}/cancel`, {
         method: "POST",
         headers,
@@ -197,9 +208,9 @@ export async function cancelJob(jobId: string): Promise<void> {
 }
 
 // Start open report job
-export async function startOpenReportJob(): Promise<Job> {
-    const headers = await getAuthHeaders();
-    
+export async function startOpenReportJob(token?: string): Promise<Job> {
+    const headers = await getAuthHeaders(token);
+
     const response = await fetch(`${API_URL}/api/jobs/report/open`, {
         method: "POST",
         headers,

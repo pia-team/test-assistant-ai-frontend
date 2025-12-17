@@ -1,56 +1,18 @@
-import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export default async function proxy(request: NextRequest) {
-    const session = await auth();
+export default async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
-    // Public routes (no auth required)
-    const publicRoutes = ["/login", "/api/auth"];
-    const isPublicRoute = publicRoutes.some((route) =>
-        pathname.startsWith(route)
-    );
+    // TODO: Re-implement server-side protection if needed (e.g. verifying JWT token from cookie if using that flow)
+    // For now, allow client-side to handle auth states.
 
-    // Valid application routes
-    const validRoutes = ["/", "/home", "/login", "/generate-tests", "/upload-json", "/test-run", "/auth/error", "/auth/signout"];
-    const isValidRoute = validRoutes.some((route) =>
-        pathname === route || pathname.startsWith(route + "/")
-    );
+    // Valid application routes (optional: keep this check if desired for 404s, but simplified)
+    // const validRoutes = ["/", "/home", "/login", "/generate-tests", "/upload-json", "/test-run", "/auth/error", "/auth/signout"];
+    // ...
 
-    // If token refresh failed, force re-login
-    if (session?.error === "RefreshAccessTokenError" && !isPublicRoute) {
-        console.log("Token refresh failed, forcing re-login...");
-        return NextResponse.redirect(new URL("/login", request.url));
-    }
-
-    // If route doesn't exist (and is not a public route like /api/auth)
-    if (!isValidRoute && !isPublicRoute) {
-        if (session) {
-            // Authenticated user with invalid route → redirect to home
-            return NextResponse.redirect(new URL("/home", request.url));
-        } else {
-            // Unauthenticated user with invalid route → redirect to login
-            return NextResponse.redirect(new URL("/login", request.url));
-        }
-    }
-
-    // Handle Root URL
+    // Handle Root URL redirect
     if (pathname === "/") {
-        if (session) {
-            return NextResponse.redirect(new URL("/home", request.url));
-        } else {
-            return NextResponse.redirect(new URL("/login", request.url));
-        }
-    }
-
-    // If not authenticated and trying to access protected route
-    if (!session && !isPublicRoute) {
-        return NextResponse.redirect(new URL("/login", request.url));
-    }
-
-    // If authenticated and trying to access login page
-    if (session && pathname === "/login") {
         return NextResponse.redirect(new URL("/home", request.url));
     }
 

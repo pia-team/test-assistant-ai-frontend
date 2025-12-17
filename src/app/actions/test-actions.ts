@@ -1,7 +1,3 @@
-"use server";
-
-import { auth } from "@/lib/auth";
-
 interface RunTestsParams {
     tags: string;
     env: string;
@@ -9,10 +5,9 @@ interface RunTestsParams {
     threads: number | null;
 }
 
-export async function runTestsAction(params: RunTestsParams) {
-    const session = await auth();
-    if (!session) {
-        throw new Error("Unauthorized");
+export async function runTestsAction(params: RunTestsParams, token?: string) {
+    if (!token) {
+        throw new Error("Unauthorized: No access token provided");
     }
 
     const response = await fetch(
@@ -21,7 +16,7 @@ export async function runTestsAction(params: RunTestsParams) {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${session.accessToken}`,
+                Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify(params),
         }
@@ -44,10 +39,9 @@ interface GenerateTestsParams {
     hasSwaggerTest: boolean;
 }
 
-export async function generateTestsAction(params: GenerateTestsParams) {
-    const session = await auth();
-    if (!session) {
-        throw new Error("Unauthorized");
+export async function generateTestsAction(params: GenerateTestsParams, token?: string) {
+    if (!token) {
+        throw new Error("Unauthorized: No access token provided");
     }
 
     const response = await fetch(
@@ -56,7 +50,7 @@ export async function generateTestsAction(params: GenerateTestsParams) {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${session.accessToken}`,
+                Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify(params),
         }

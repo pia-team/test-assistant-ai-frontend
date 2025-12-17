@@ -1,7 +1,5 @@
 "use server";
 
-import { auth } from "@/lib/auth";
-
 export interface FileContent {
     fileName: string;
     code: string;
@@ -15,10 +13,9 @@ export interface UploadJsonResponse {
     [key: string]: FileContent[] | undefined;
 }
 
-export async function uploadJsonAction(formData: FormData): Promise<UploadJsonResponse> {
-    const session = await auth();
-    if (!session) {
-        throw new Error("Unauthorized");
+export async function uploadJsonAction(formData: FormData, token?: string): Promise<UploadJsonResponse> {
+    if (!token) {
+        throw new Error("Unauthorized: No access token provided");
     }
 
     const file = formData.get("file") as File;
@@ -35,7 +32,7 @@ export async function uploadJsonAction(formData: FormData): Promise<UploadJsonRe
         {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${session.accessToken}`,
+                Authorization: `Bearer ${token}`,
             },
             body: backendFormData,
         }
