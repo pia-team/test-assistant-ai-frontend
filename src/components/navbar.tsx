@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { useKeycloak } from "@/providers/keycloak-provider";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -33,15 +33,10 @@ export function Navbar() {
         setLocale(newLocale);
     };
 
+    const { logout } = useKeycloak();
+
     const handleLogout = async () => {
-        // Keycloak logout URL with redirect back to signout page
-        const keycloakLogoutUrl = `https://diam.dnext-pia.com/realms/orbitant-realm/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin + '/auth/signout')}&client_id=orbitant-ui-client`;
-
-        // Sign out from NextAuth first (without redirect)
-        await signOut({ redirect: false });
-
-        // Redirect to Keycloak logout
-        window.location.href = keycloakLogoutUrl;
+        logout();
     };
 
     return (

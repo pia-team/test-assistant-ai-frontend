@@ -4,6 +4,7 @@ import { useQueries } from "@tanstack/react-query";
 import { getActiveJob, type JobType, type Job } from "@/app/actions/job-actions";
 import { isJobInProgress } from "@/lib/use-job";
 import { useSocket } from "@/context/SocketContext";
+import { useKeycloak } from "@/providers/keycloak-provider";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -25,7 +26,7 @@ const JOB_TYPES: { type: JobType; labelKey: "generateTests" | "runTests" | "uplo
 
 function getJobStatusIcon(job: Job | null) {
     if (!job) return null;
-    
+
     switch (job.status) {
         case "PENDING":
             return <Clock className="w-4 h-4 text-yellow-500" />;
@@ -48,7 +49,7 @@ export function BackgroundProcessIndicator() {
 
     const getJobStatusLabel = (job: Job | null) => {
         if (!job) return "";
-        
+
         switch (job.status) {
             case "PENDING":
                 return dictionary.backgroundProcess.pending;
@@ -63,11 +64,14 @@ export function BackgroundProcessIndicator() {
         }
     };
 
+    const { token } = useKeycloak();
+
     // Query all job types - data is updated by socket events in SocketContext
     const jobQueries = useQueries({
         queries: JOB_TYPES.map(({ type }) => ({
             queryKey: ["activeJob", type],
-            queryFn: () => getActiveJob(type),
+            queryFn: () => getActiveJob(type, token),
+            enabled: !!token,
             staleTime: Infinity,
             gcTime: Infinity,
             refetchOnWindowFocus: false,
@@ -121,11 +125,11 @@ export function BackgroundProcessIndicator() {
                             </motion.div>
                         )}
                     </AnimatePresence>
-                    
+
                     {/* Badge with count - only show if there are active jobs */}
                     {activeJobs.length > 0 && (
-                        <Badge 
-                            variant="secondary" 
+                        <Badge
+                            variant="secondary"
                             className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
                         >
                             {activeJobs.length}
@@ -133,7 +137,7 @@ export function BackgroundProcessIndicator() {
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            
+
             <DropdownMenuContent align="end" className="w-64">
                 {/* Socket connection status */}
                 <DropdownMenuItem className="flex items-center gap-2 cursor-default" disabled>
@@ -149,11 +153,11 @@ export function BackgroundProcessIndicator() {
                         </>
                     )}
                 </DropdownMenuItem>
-                
+
                 {activeJobs.length > 0 && (
                     <div className="border-t my-1" />
                 )}
-                
+
                 {activeJobs.map(({ type, labelKey, path, job }) => (
                     <DropdownMenuItem
                         key={type}
@@ -174,7 +178,7 @@ export function BackgroundProcessIndicator() {
                         </div>
                     </DropdownMenuItem>
                 ))}
-                
+
                 {activeJobs.length === 0 && (
                     <DropdownMenuItem className="text-center text-muted-foreground text-xs cursor-default" disabled>
                         {dictionary.backgroundProcess.noActiveProcess}

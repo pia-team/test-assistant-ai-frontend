@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useKeycloak } from "@/providers/keycloak-provider";
 import {
     startGenerateTestsJob,
     startRunTestsJob,
@@ -15,10 +16,12 @@ import {
 } from "@/app/actions/job-actions";
 
 // Hook to get active job by type - fetches from backend only on first mount if cache is empty
-export function useActiveJob(type: JobType) {    
+export function useActiveJob(type: JobType) {
+    const { token } = useKeycloak();
     return useQuery({
         queryKey: ["activeJob", type],
-        queryFn: () => getActiveJob(type),
+        queryFn: () => getActiveJob(type, token),
+        enabled: !!token, // Only fetch if authenticated
         staleTime: Infinity, // Never consider stale - we manage updates manually
         gcTime: Infinity, // Never garbage collect - keep in cache forever
         refetchOnWindowFocus: false,
@@ -31,17 +34,18 @@ export function useActiveJob(type: JobType) {
 // Hook to get job status - now relies on socket updates instead of polling
 export function useJobStatus(jobId: string | null | undefined) {
     const queryClient = useQueryClient();
-    
+    const { token } = useKeycloak();
+
     return useQuery({
         queryKey: ["job", jobId],
         queryFn: async () => {
-            const status = await getJobStatus(jobId!);
+            const status = await getJobStatus(jobId!, token);
             if (status.status === "COMPLETED" || status.status === "FAILED") {
                 queryClient.setQueryData(["activeJob", status.type], status);
             }
             return status;
         },
-        enabled: !!jobId,
+        enabled: !!jobId && !!token,
         staleTime: Infinity,
         gcTime: Infinity,
         refetchOnWindowFocus: false,
@@ -51,9 +55,10 @@ export function useJobStatus(jobId: string | null | undefined) {
 // Hook to start generate-tests job
 export function useStartGenerateTestsJob() {
     const queryClient = useQueryClient();
+    const { token } = useKeycloak();
 
     return useMutation({
-        mutationFn: startGenerateTestsJob,
+        mutationFn: (params: Parameters<typeof startGenerateTestsJob>[0]) => startGenerateTestsJob(params, token),
         onSuccess: (job) => {
             // Update active job cache
             queryClient.setQueryData(["activeJob", "GENERATE_TESTS"], job);
@@ -74,9 +79,10 @@ export function useStartGenerateTestsJob() {
 // Hook to start run-tests job
 export function useStartRunTestsJob() {
     const queryClient = useQueryClient();
+    const { token } = useKeycloak();
 
     return useMutation({
-        mutationFn: startRunTestsJob,
+        mutationFn: (params: Parameters<typeof startRunTestsJob>[0]) => startRunTestsJob(params, token),
         onSuccess: (job) => {
             queryClient.setQueryData(["activeJob", "RUN_TESTS"], job);
             queryClient.setQueryData(["job", job.id], job);
@@ -94,9 +100,10 @@ export function useStartRunTestsJob() {
 // Hook to start upload-json job
 export function useStartUploadJsonJob() {
     const queryClient = useQueryClient();
+    const { token } = useKeycloak();
 
     return useMutation({
-        mutationFn: startUploadJsonJob,
+        mutationFn: (formData: FormData) => startUploadJsonJob(formData, token),
         onSuccess: (job) => {
             queryClient.setQueryData(["activeJob", "UPLOAD_JSON"], job);
             queryClient.setQueryData(["job", job.id], job);
@@ -125,9 +132,11 @@ export function useClearJob(type: JobType) {
 
 // Hook to get all jobs for dashboard - now relies on socket updates
 export function useAllJobs() {
+    const { token } = useKeycloak();
     return useQuery({
         queryKey: ["allJobs"],
-        queryFn: () => getAllJobs(),
+        queryFn: () => getAllJobs(token),
+        enabled: !!token,
         staleTime: 30000,
         refetchOnWindowFocus: false,
     });
@@ -136,9 +145,10 @@ export function useAllJobs() {
 // Hook to cancel a job
 export function useCancelJob() {
     const queryClient = useQueryClient();
+    const { token } = useKeycloak();
 
     return useMutation({
-        mutationFn: cancelJob,
+        mutationFn: (jobId: string) => cancelJob(jobId, token),
         onSuccess: (_data, jobId) => {
             queryClient.invalidateQueries({ queryKey: ["allJobs"] });
             queryClient.invalidateQueries({ queryKey: ["job", jobId] });
@@ -171,8 +181,9 @@ export function isJobStopped(job: Job | null | undefined): boolean {
 
 export function useStartOpenReportJob() {
     const queryClient = useQueryClient();
+    const { token } = useKeycloak();
     return useMutation({
-        mutationFn: startOpenReportJob,
+        mutationFn: () => startOpenReportJob(token),
         onSuccess: (job) => {
             queryClient.invalidateQueries({ queryKey: ["activeJob"] });
             queryClient.setQueryData(["job", job.id], job);

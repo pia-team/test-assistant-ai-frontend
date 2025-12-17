@@ -1,26 +1,27 @@
-import { signIn } from "@/lib/auth";
+"use client";
 
-export default async function LoginPage({
-    searchParams,
-}: {
-    searchParams: Promise<{ callbackUrl?: string }>;
-}) {
-    const params = await searchParams;
-    const callbackUrl = params.callbackUrl || "/home";
+import { useEffect } from "react";
+import { useKeycloak } from "@/providers/keycloak-provider";
+import { useRouter } from "next/navigation";
+
+export default function LoginPage() {
+    const { login, authenticated } = useKeycloak();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (authenticated) {
+            router.push("/home");
+        } else {
+            // Auto login or show button? 
+            // Previous behavior was auto-submit form.
+            // Let's call login() automatically.
+            login();
+        }
+    }, [authenticated, login, router]);
 
     return (
-        <form
-            action={async () => {
-                "use server";
-                await signIn("keycloak", { redirectTo: callbackUrl });
-            }}
-        >
-            <button type="submit" style={{ display: "none" }} autoFocus />
-            <script
-                dangerouslySetInnerHTML={{
-                    __html: `document.forms[0].requestSubmit()`,
-                }}
-            />
-        </form>
+        <div className="flex h-screen items-center justify-center">
+            <p>Redirecting to login...</p>
+        </div>
     );
 }

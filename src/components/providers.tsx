@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { SessionProvider } from "next-auth/react";
+import { KeycloakProvider } from "@/providers/keycloak-provider";
 import { useState, type ReactNode } from "react";
 import { ThemeProvider } from "./theme-provider";
 import { Toaster } from "sonner";
@@ -23,7 +23,7 @@ export function Providers({ children }: { children: ReactNode }) {
     );
 
     return (
-        <SessionProvider>
+        <KeycloakProvider>
             <QueryClientProvider client={queryClient}>
                 <SocketProvider>
                     <ThemeProvider
@@ -37,6 +37,6 @@ export function Providers({ children }: { children: ReactNode }) {
                     </ThemeProvider>
                 </SocketProvider>
             </QueryClientProvider>
-        </SessionProvider>
+        </KeycloakProvider>
     );
 }
