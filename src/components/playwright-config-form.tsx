@@ -14,8 +14,10 @@ import {
     getAvailableEnvironments,
     type PlaywrightConfig 
 } from '@/app/actions/playwright-config-actions';
+import { useLocale } from '@/components/locale-context';
 
 export function PlaywrightConfigForm() {
+    const { dictionary } = useLocale();
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -53,7 +55,7 @@ export function PlaywrightConfigForm() {
             });
             setSelectedEnv(env);
         } catch (error: any) {
-            toast.error(error.message || 'Config yüklenemedi');
+            toast.error(error.message || dictionary.playwrightConfig.configLoadError);
         } finally {
             setLoading(false);
         }
@@ -61,7 +63,7 @@ export function PlaywrightConfigForm() {
 
     const handleSave = async () => {
         if (!config.baseLoginUrl || !config.username || !config.password) {
-            toast.error('URL, kullanıcı adı ve şifre zorunludur');
+            toast.error(dictionary.playwrightConfig.validationError);
             return;
         }
 
@@ -71,9 +73,9 @@ export function PlaywrightConfigForm() {
                 ...config,
                 environment: selectedEnv,
             });
-            toast.success(`${selectedEnv}.json config dosyası güncellendi`);
+            toast.success(dictionary.playwrightConfig.configUpdated.replace('{env}', selectedEnv));
         } catch (error: any) {
-            toast.error(error.message || 'Config güncellenemedi');
+            toast.error(error.message || dictionary.playwrightConfig.configUpdateError);
         } finally {
             setSaving(false);
         }
@@ -89,7 +91,7 @@ export function PlaywrightConfigForm() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Settings className="h-5 w-5" />
-                        <CardTitle>Playwright Test Ayarları</CardTitle>
+                        <CardTitle>{dictionary.playwrightConfig.title}</CardTitle>
                     </div>
                     <Select value={selectedEnv} onValueChange={handleEnvChange}>
                         <SelectTrigger className="w-32">
@@ -105,19 +107,19 @@ export function PlaywrightConfigForm() {
                     </Select>
                 </div>
                 <CardDescription>
-                    Test ortamı için login bilgilerini ve URL'leri yapılandırın
+                    {dictionary.playwrightConfig.description}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 {loading ? (
                     <div className="flex items-center justify-center py-8">
                         <RefreshCw className="h-6 w-6 animate-spin" />
-                        <span className="ml-2">Yükleniyor...</span>
+                        <span className="ml-2">{dictionary.playwrightConfig.loading}</span>
                     </div>
                 ) : (
                     <>
                         <div className="space-y-2">
-                            <Label htmlFor="baseLoginUrl">Login URL *</Label>
+                            <Label htmlFor="baseLoginUrl">{dictionary.playwrightConfig.loginUrl} *</Label>
                             <Input
                                 id="baseLoginUrl"
                                 type="url"
@@ -129,7 +131,7 @@ export function PlaywrightConfigForm() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="username">Kullanıcı Adı *</Label>
+                                <Label htmlFor="username">{dictionary.playwrightConfig.username} *</Label>
                                 <Input
                                     id="username"
                                     type="text"
@@ -140,7 +142,7 @@ export function PlaywrightConfigForm() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="password">Şifre *</Label>
+                                <Label htmlFor="password">{dictionary.playwrightConfig.password} *</Label>
                                 <div className="relative">
                                     <Input
                                         id="password"
@@ -170,12 +172,12 @@ export function PlaywrightConfigForm() {
                             {saving ? (
                                 <>
                                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                                    Kaydediliyor...
+                                    {dictionary.playwrightConfig.saving}
                                 </>
                             ) : (
                                 <>
                                     <Save className="mr-2 h-4 w-4" />
-                                    Kaydet
+                                    {dictionary.playwrightConfig.save}
                                 </>
                             )}
                         </Button>

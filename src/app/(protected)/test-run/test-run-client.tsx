@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useLocale } from "@/components/locale-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,6 +118,7 @@ const BROWSER_OPTIONS = [
 ];
 
 export function TestRunClient({ dictionary }: TestRunClientProps) {
+    const { dictionary: fullDict } = useLocale();
     const [tags, setTags] = useState("");
     const [env, setEnv] = useState("dev");
     const [isParallel, setIsParallel] = useState(true);
@@ -289,10 +291,14 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                     <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                                     <div className="flex-1">
                                         <p className="font-medium text-blue-500">
-                                            {currentJob?.progressMessage || dictionary.testRun.processingInBackground || "Testler çalıştırılıyor..."}
+                                            {currentJob?.stepKey 
+                                                ? (fullDict.progressSteps as Record<string, Record<string, string>>)?.runTests?.[currentJob.stepKey] || currentJob.stepKey
+                                                : dictionary.testRun.processingInBackground || "Testler çalıştırılıyor..."}
                                         </p>
                                         <p className="text-sm text-muted-foreground">
-                                            Adım: %{currentJob?.progress || 0} tamamlandı
+                                            {currentJob?.stepKey && currentJob?.currentStep && currentJob?.totalSteps
+                                                ? `Adım ${currentJob.currentStep}/${currentJob.totalSteps} - %${currentJob.progress || 0}`
+                                                : `%${currentJob?.progress || 0} tamamlandı`}
                                         </p>
                                     </div>
                                     <Badge variant="outline" className="text-blue-500 font-mono">

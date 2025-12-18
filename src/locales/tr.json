@@ -197,5 +197,81 @@
     "connection": {
         "connected": "Bağlandı",
         "disconnected": "Bağlantısı kesildi"
+    },
+    "injection": {
+        "title": "Kod Ekleme",
+        "inProgress": "Kodlar Projeye Ekleniyor...",
+        "completed": "Kod Ekleme Tamamlandı",
+        "progress": "İlerleme",
+        "filesCount": "{current} / {total} dosya",
+        "successMessage": "{count} dosya başarıyla projeye eklendi",
+        "close": "Kapat",
+        "addToProject": "Projeye Ekle",
+        "adding": "Ekleniyor...",
+        "added": "Eklendi!",
+        "noFilesToAdd": "Eklenecek dosya bulunamadı",
+        "errorAdding": "Dosyalar eklenirken hata oluştu",
+        "addAllToProject": "Tümünü Projeye Ekle",
+        "addGroupToProject": "Grubu Ekle",
+        "allFilesAdded": "Tüm dosyalar projeye eklendi!",
+        "file": "dosya",
+        "files": "dosya"
+    },
+    "conflict": {
+        "title": "Çakışma Tespit Edildi",
+        "description": "{count} dosya zaten mevcut. Üzerine yazmak ister misiniz?",
+        "badge": "Çakışma",
+        "existingContent": "Mevcut İçerik",
+        "newContent": "Yeni İçerik",
+        "cancel": "İptal",
+        "overwriteAll": "Tümünü Üzerine Yaz (Yedekle)"
+    },
+    "playwrightConfig": {
+        "title": "Playwright Test Ayarları",
+        "description": "Test ortamı için login bilgilerini ve URL'leri yapılandırın",
+        "loginUrl": "Login URL",
+        "username": "Kullanıcı Adı",
+        "password": "Şifre",
+        "required": "zorunludur",
+        "loading": "Yükleniyor...",
+        "saving": "Kaydediliyor...",
+        "save": "Kaydet",
+        "configUpdated": "{env}.json config dosyası güncellendi",
+        "configLoadError": "Config yüklenemedi",
+        "configUpdateError": "Config güncellenemedi",
+        "validationError": "URL, kullanıcı adı ve şifre zorunludur"
+    },
+    "progressSteps": {
+        "generateTests": {
+            "starting": "Test üretimi başlatılıyor...",
+            "navigatingToProject": "Playwright projesine gidiliyor...",
+            "analyzingSchema": "API şeması analiz ediliyor...",
+            "generatingWithAI": "Yapay zeka ile test senaryoları oluşturuluyor...",
+            "creatingFeatureFiles": "Feature dosyaları oluşturuluyor...",
+            "creatingStepDefinitions": "Step tanımları yazılıyor...",
+            "finalizingResults": "Sonuçlar tamamlanıyor...",
+            "completed": "Test üretimi tamamlandı!"
+        },
+        "runTests": {
+            "starting": "Test çalıştırma başlatılıyor...",
+            "preparingEnvironment": "Test ortamı hazırlanıyor...",
+            "executingTests": "Testler çalıştırılıyor...",
+            "collectingResults": "Test sonuçları toplanıyor...",
+            "generatingReport": "Rapor oluşturuluyor...",
+            "completed": "Test çalıştırma tamamlandı!"
+        },
+        "uploadJson": {
+            "starting": "JSON işleme başlatılıyor...",
+            "parsingJson": "JSON içeriği ayrıştırılıyor...",
+            "analyzingEndpoints": "API endpoint'leri analiz ediliyor...",
+            "generatingWithAI": "Yapay zeka ile kodlar oluşturuluyor...",
+            "creatingFiles": "Dosyalar oluşturuluyor...",
+            "completed": "JSON işleme tamamlandı!"
+        },
+        "openReport": {
+            "starting": "Rapor açılıyor...",
+            "generatingReport": "Allure raporu oluşturuluyor...",
+            "completed": "Rapor hazır!"
+        }
     }
 }

@@ -197,5 +197,81 @@
     "connection": {
         "connected": "Connected",
         "disconnected": "Disconnected"
+    },
+    "injection": {
+        "title": "Code Injection",
+        "inProgress": "Adding Code to Project...",
+        "completed": "Code Injection Completed",
+        "progress": "Progress",
+        "filesCount": "{current} / {total} files",
+        "successMessage": "{count} files successfully added to project",
+        "close": "Close",
+        "addToProject": "Add to Project",
+        "adding": "Adding...",
+        "added": "Added!",
+        "noFilesToAdd": "No files to add",
+        "errorAdding": "Error adding files",
+        "addAllToProject": "Add All to Project",
+        "addGroupToProject": "Add Group",
+        "allFilesAdded": "All files added to project!",
+        "file": "file",
+        "files": "files"
+    },
+    "conflict": {
+        "title": "Conflict Detected",
+        "description": "{count} files already exist. Do you want to overwrite?",
+        "badge": "Conflict",
+        "existingContent": "Existing Content",
+        "newContent": "New Content",
+        "cancel": "Cancel",
+        "overwriteAll": "Overwrite All (Backup)"
+    },
+    "playwrightConfig": {
+        "title": "Playwright Test Settings",
+        "description": "Configure login credentials and URLs for test environment",
+        "loginUrl": "Login URL",
+        "username": "Username",
+        "password": "Password",
+        "required": "required",
+        "loading": "Loading...",
+        "saving": "Saving...",
+        "save": "Save",
+        "configUpdated": "{env}.json config file updated",
+        "configLoadError": "Failed to load config",
+        "configUpdateError": "Failed to update config",
+        "validationError": "URL, username and password are required"
+    },
+    "progressSteps": {
+        "generateTests": {
+            "starting": "Starting test generation...",
+            "navigatingToProject": "Navigating to Playwright project...",
+            "analyzingSchema": "Analyzing API schema...",
+            "generatingWithAI": "Generating test scenarios with AI...",
+            "creatingFeatureFiles": "Creating feature files...",
+            "creatingStepDefinitions": "Writing step definitions...",
+            "finalizingResults": "Finalizing results...",
+            "completed": "Test generation completed!"
+        },
+        "runTests": {
+            "starting": "Starting test execution...",
+            "preparingEnvironment": "Preparing test environment...",
+            "executingTests": "Executing tests...",
+            "collectingResults": "Collecting test results...",
+            "generatingReport": "Generating report...",
+            "completed": "Test execution completed!"
+        },
+        "uploadJson": {
+            "starting": "Starting JSON processing...",
+            "parsingJson": "Parsing JSON content...",
+            "analyzingEndpoints": "Analyzing API endpoints...",
+            "generatingWithAI": "Generating code with AI...",
+            "creatingFiles": "Creating files...",
+            "completed": "JSON processing completed!"
+        },
+        "openReport": {
+            "starting": "Opening report...",
+            "generatingReport": "Generating Allure report...",
+            "completed": "Report ready!"
+        }
     }
 }

@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, FileCode, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocale } from "@/components/locale-context";
 
 interface ConflictInfo {
     fileName: string;
@@ -35,6 +36,7 @@ export function ConflictResolutionDialog({
     conflicts,
     onResolve,
 }: ConflictResolutionDialogProps) {
+    const { dictionary } = useLocale();
     const [expandedFile, setExpandedFile] = useState<string | null>(null);
     const [copiedFile, setCopiedFile] = useState<string | null>(null);
 
@@ -59,10 +61,10 @@ export function ConflictResolutionDialog({
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-amber-500">
                         <AlertTriangle className="w-5 h-5" />
-                        Çakışma Tespit Edildi
+                        {dictionary.conflict.title}
                     </DialogTitle>
                     <DialogDescription>
-                        {conflicts.length} dosya zaten mevcut. Üzerine yazmak ister misiniz?
+                        {dictionary.conflict.description.replace("{count}", String(conflicts.length))}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -92,7 +94,7 @@ export function ConflictResolutionDialog({
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Badge variant="outline" className="text-amber-500 border-amber-500">
-                                                Çakışma
+                                                {dictionary.conflict.badge}
                                             </Badge>
                                             {isExpanded ? (
                                                 <ChevronUp className="w-4 h-4" />
@@ -115,7 +117,7 @@ export function ConflictResolutionDialog({
                                                     <div>
                                                         <div className="flex items-center justify-between mb-2">
                                                             <span className="text-xs font-medium text-muted-foreground">
-                                                                Mevcut İçerik
+                                                                {dictionary.conflict.existingContent}
                                                             </span>
                                                             <Button
                                                                 variant="ghost"
@@ -141,7 +143,7 @@ export function ConflictResolutionDialog({
                                                     <div>
                                                         <div className="flex items-center justify-between mb-2">
                                                             <span className="text-xs font-medium text-muted-foreground">
-                                                                Yeni İçerik
+                                                                {dictionary.conflict.newContent}
                                                             </span>
                                                             <Button
                                                                 variant="ghost"
@@ -176,14 +178,14 @@ export function ConflictResolutionDialog({
 
                 <DialogFooter className="gap-2 sm:gap-0">
                     <Button variant="outline" onClick={handleCancel}>
-                        İptal
+                        {dictionary.conflict.cancel}
                     </Button>
                     <Button
                         variant="default"
                         className="bg-amber-500 hover:bg-amber-600"
                         onClick={handleOverwriteAll}
                     >
-                        Tümünü Üzerine Yaz (Yedekle)
+                        {dictionary.conflict.overwriteAll}
                     </Button>
                 </DialogFooter>
             </DialogContent>

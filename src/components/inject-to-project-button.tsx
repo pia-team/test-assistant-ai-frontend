@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useCodeInjection, FileContent, InjectionResult } from "@/hooks/useCodeInjection";
 import { InjectionProgressModal } from "./injection-progress-modal";
 import { ConflictResolutionDialog } from "./conflict-resolution-dialog";
+import { useLocale } from "@/components/locale-context";
 
 interface InjectToProjectButtonProps {
     files: FileContent[];
@@ -18,6 +19,7 @@ interface InjectToProjectButtonProps {
     disabled?: boolean;
     onSuccess?: (result: InjectionResult) => void;
     onError?: (error: Error) => void;
+    useDefaultLabel?: boolean;
 }
 
 export function InjectToProjectButton({
@@ -25,15 +27,19 @@ export function InjectToProjectButton({
     variant = "outline",
     size = "sm",
     className = "",
-    label = "Projeye Ekle",
+    label,
     showIcon = true,
     disabled = false,
     onSuccess,
     onError,
+    useDefaultLabel = true,
 }: InjectToProjectButtonProps) {
+    const { dictionary } = useLocale();
     const [showProgress, setShowProgress] = useState(false);
     const [showConflicts, setShowConflicts] = useState(false);
     const [injectionSuccess, setInjectionSuccess] = useState(false);
+    
+    const displayLabel = label || (useDefaultLabel ? dictionary.injection.addToProject : "");
 
     const {
         inject,
@@ -47,13 +53,13 @@ export function InjectToProjectButton({
         onSuccess: (result) => {
             setShowProgress(false);
             setInjectionSuccess(true);
-            toast.success(`${result.injectedFiles.length} dosya başarıyla eklendi`);
+            toast.success(dictionary.injection.successMessage.replace("{count}", String(result.injectedFiles.length)));
             onSuccess?.(result);
             setTimeout(() => setInjectionSuccess(false), 2000);
         },
         onError: (error) => {
             setShowProgress(false);
-            toast.error(error.message || "Dosyalar eklenirken hata oluştu");
+            toast.error(error.message || dictionary.injection.errorAdding);
             onError?.(error);
         },
         onConflict: () => {
@@ -64,7 +70,7 @@ export function InjectToProjectButton({
 
     const handleClick = () => {
         if (files.length === 0) {
-            toast.warning("Eklenecek dosya bulunamadı");
+            toast.warning(dictionary.injection.noFilesToAdd);
             return;
         }
         setShowProgress(true);
@@ -93,17 +99,17 @@ export function InjectToProjectButton({
                 {isInjecting ? (
                     <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Ekleniyor...
+                        {dictionary.injection.adding}
                     </>
                 ) : injectionSuccess ? (
                     <>
                         <Check className="w-4 h-4 text-green-500" />
-                        Eklendi!
+                        {dictionary.injection.added}
                     </>
                 ) : (
                     <>
                         {showIcon && <FolderInput className="w-4 h-4" />}
-                        {label}
+                        {displayLabel}
                     </>
                 )}
             </Button>

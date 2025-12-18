@@ -4,12 +4,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { FileCode, Loader2, CheckCircle, X } from "lucide-react";
+import { useLocale } from "@/components/locale-context";
 
 interface InjectionProgress {
     jobId: string;
@@ -32,6 +34,7 @@ export function InjectionProgressModal({
     progress,
     totalFiles,
 }: InjectionProgressModalProps) {
+    const { dictionary } = useLocale();
     const currentIndex = progress?.currentIndex ?? 0;
     const currentFile = progress?.currentFile ?? "";
     const progressPercent = progress?.progress ?? (currentIndex / totalFiles) * 100;
@@ -45,22 +48,25 @@ export function InjectionProgressModal({
                         {isComplete ? (
                             <>
                                 <CheckCircle className="w-5 h-5 text-green-500" />
-                                Kod Ekleme Tamamlandı
+                                {dictionary.injection.completed}
                             </>
                         ) : (
                             <>
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-                                Kodlar Projeye Ekleniyor...
+                                {dictionary.injection.inProgress}
                             </>
                         )}
                     </DialogTitle>
+                    <DialogDescription className="sr-only">
+                        {dictionary.injection.progress}
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
                     <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">İlerleme</span>
+                        <span className="text-muted-foreground">{dictionary.injection.progress}</span>
                         <span className="font-medium">
-                            {currentIndex} / {totalFiles} dosya
+                            {currentIndex} / {totalFiles} {dictionary.injection.files}
                         </span>
                     </div>
 
@@ -93,13 +99,13 @@ export function InjectionProgressModal({
                                 <CheckCircle className="w-8 h-8 text-green-500" />
                             </div>
                             <p className="text-center text-muted-foreground">
-                                {totalFiles} dosya başarıyla projeye eklendi
+                                {dictionary.injection.successMessage.replace("{count}", String(totalFiles))}
                             </p>
                             <Button
                                 variant="outline"
                                 onClick={() => onOpenChange(false)}
                             >
-                                Kapat
+                                {dictionary.injection.close}
                             </Button>
                         </motion.div>
                     )}

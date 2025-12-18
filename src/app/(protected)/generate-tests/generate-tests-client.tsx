@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useLocale } from "@/components/locale-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,6 +118,7 @@ const isValidSwaggerUrl = (url: string): boolean => {
 };
 
 export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
+    const { dictionary: fullDict } = useLocale();
     const [url, setUrl] = useState("");
     const [urlError, setUrlError] = useState<string | null>(null);
     const [hasFeatureFile, setHasFeatureFile] = useState(true);
@@ -234,10 +236,14 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                                 <div className="flex-1">
                                     <p className="font-medium text-blue-500">
-                                        {currentJob?.progressMessage || dictionary.generateTests.processingInBackground || "Arka planda işleniyor..."}
+                                        {currentJob?.stepKey 
+                                            ? (fullDict.progressSteps as Record<string, Record<string, string>>)?.generateTests?.[currentJob.stepKey] || currentJob.stepKey
+                                            : dictionary.generateTests.processingInBackground || "Arka planda işleniyor..."}
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        Adım: %{currentJob?.progress || 0} tamamlandı
+                                        {currentJob?.stepKey && currentJob?.currentStep && currentJob?.totalSteps
+                                            ? `Adım ${currentJob.currentStep}/${currentJob.totalSteps} - %${currentJob.progress || 0}`
+                                            : `%${currentJob?.progress || 0} tamamlandı`}
                                     </p>
                                 </div>
                                 <Badge variant="outline" className="text-blue-500 font-mono">

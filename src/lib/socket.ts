@@ -4,6 +4,9 @@ export interface JobProgressPayload {
   id: string;
   progress: number;
   message?: string;
+  stepKey?: string;
+  currentStep?: number;
+  totalSteps?: number;
 }
 
 export interface JobCompletedPayload {
@@ -77,9 +80,14 @@ class SocketService {
       });
 
       this.socket.on('connected', (data: ConnectedPayload) => {
-        console.log('Socket connected:', data.sessionId);
+        console.log('[Socket.ts] Socket connected:', data.sessionId);
         this.reconnectAttempts = 0;
         resolve();
+      });
+
+      // Debug: Log ALL incoming events
+      this.socket.onAny((eventName, ...args) => {
+        console.log('[Socket.ts] Received event:', eventName, JSON.stringify(args));
       });
 
       this.socket.on('error', (error: { code: string; message: string }) => {
@@ -193,6 +201,7 @@ class SocketService {
 
   subscribeToUserRoom(userId: string) {
     if (!this.socket) return;
+    console.log('[Socket.ts] Subscribing to user room:', `user:${userId}`);
     this.socket.emit('subscribe', { room: `user:${userId}` });
   }
 
@@ -210,7 +219,10 @@ class SocketService {
   }
 
   onJobProgress(callback: (data: JobProgressPayload) => void) {
-    this.socket?.on('job:progress', callback);
+    this.socket?.on('job:progress', (data) => {
+      console.log('[Socket.ts] RAW job:progress received:', JSON.stringify(data));
+      callback(data);
+    });
   }
 
   onJobCompleted(callback: (data: JobCompletedPayload) => void) {

@@ -19,6 +19,9 @@ export interface Job {
     status: JobStatus;
     progress?: number;
     progressMessage?: string;
+    stepKey?: string;
+    currentStep?: number;
+    totalSteps?: number;
     request?: unknown;
     result?: unknown;
     error?: string | null;

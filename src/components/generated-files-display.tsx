@@ -19,6 +19,7 @@ import type { FileContent, UploadJsonResponse } from "@/app/actions/upload-json-
 import SyntaxHighlighter from "react-syntax-highlighter";
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { InjectToProjectButton } from "./inject-to-project-button";
+import { useLocale } from "@/components/locale-context";
 
 interface GeneratedFilesDisplayProps {
     data: UploadJsonResponse;
@@ -64,6 +65,7 @@ const downloadFile = (fileName: string, content: string) => {
 };
 
 export function GeneratedFilesDisplay({ data, dictionary }: GeneratedFilesDisplayProps) {
+    const { dictionary: fullDict } = useLocale();
     const [expanded, setExpanded] = useState<string | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -95,8 +97,8 @@ export function GeneratedFilesDisplay({ data, dictionary }: GeneratedFilesDispla
                         files={allFiles}
                         variant="default"
                         size="default"
-                        label={`Tümünü Projeye Ekle (${allFiles.length} dosya)`}
-                        onSuccess={() => toast.success("Tüm dosyalar projeye eklendi!")}
+                        label={`${fullDict.injection.addAllToProject} (${allFiles.length} ${fullDict.injection.files})`}
+                        onSuccess={() => toast.success(fullDict.injection.allFilesAdded)}
                     />
                 </div>
             )}
@@ -116,7 +118,7 @@ export function GeneratedFilesDisplay({ data, dictionary }: GeneratedFilesDispla
                                 files={files}
                                 variant="outline"
                                 size="sm"
-                                label="Grubu Ekle"
+                                label={fullDict.injection.addGroupToProject}
                             />
                         </div>
                     </CardHeader>
