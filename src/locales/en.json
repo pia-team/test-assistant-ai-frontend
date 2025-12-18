@@ -120,7 +120,9 @@
         "noAttachments": "No Attachments",
         "attachmentsDesc": "Screenshots or extra files will appear here.",
         "stepDescription": "Step Description",
-        "status": "Status"
+        "status": "Status",
+        "screenshot": "Screenshot",
+        "videoThumbnails": "Images from video recordings:"
     },
     "testList": {
         "all": "All",

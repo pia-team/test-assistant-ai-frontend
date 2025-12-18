@@ -398,11 +398,66 @@ export function TestDetailPanel({ test }: TestDetailPanelProps) {
 
                         {/* ATTACHMENTS TAB */}
                         <TabsContent value="attachments" className="m-0 p-4 h-full">
-                            <div className="text-center py-12 text-muted-foreground">
-                                <Paperclip className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                <h5 className="font-medium">{dictionary.testDetail.noAttachments}</h5>
-                                <p className="text-sm">{dictionary.testDetail.attachmentsDesc}</p>
-                            </div>
+                            <ScrollArea className="h-full">
+                                {test.screenshots && test.screenshots.length > 0 ? (
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                        {test.screenshots.map((screenshot, idx) => (
+                                            <div
+                                                key={idx}
+                                                className="relative group rounded-lg overflow-hidden border bg-muted/30"
+                                            >
+                                                <img
+                                                    src={screenshot}
+                                                    alt={`Screenshot ${idx + 1}`}
+                                                    className="w-full h-auto aspect-video object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                                    onClick={() => window.open(screenshot, '_blank')}
+                                                />
+                                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    📸 {dictionary.testDetail.screenshot} {idx + 1}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : activeVideos.length > 0 ? (
+                                    <div className="space-y-4">
+                                        <p className="text-sm text-muted-foreground mb-4">
+                                            {dictionary.testDetail.videoThumbnails || "Video kayıtlarından alınan görüntüler:"}
+                                        </p>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                            {activeVideos.map((video, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className="relative group rounded-lg overflow-hidden border bg-black"
+                                                >
+                                                    <video
+                                                        src={video}
+                                                        className="w-full h-auto aspect-video object-cover"
+                                                        muted
+                                                        preload="metadata"
+                                                    />
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                                        onClick={() => {
+                                                            setActiveTab("logs");
+                                                            // Video section is above tabs
+                                                        }}
+                                                    >
+                                                        <Play className="w-8 h-8 text-white" />
+                                                    </div>
+                                                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2">
+                                                        🎥 Video {idx + 1}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-12 text-muted-foreground">
+                                        <Paperclip className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                        <h5 className="font-medium">{dictionary.testDetail.noAttachments}</h5>
+                                        <p className="text-sm">{dictionary.testDetail.attachmentsDesc}</p>
+                                    </div>
+                                )}
+                            </ScrollArea>
                         </TabsContent>
                     </CardContent>
                 </Tabs>

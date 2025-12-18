@@ -87,6 +87,8 @@ export async function startRunTestsJob(params: {
     env: string;
     isParallel: boolean;
     threads: number | null;
+    browser?: string;
+    headless?: boolean;
 }, token?: string): Promise<Job> {
     const headers = await getAuthHeaders(token);
 

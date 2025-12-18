@@ -235,6 +235,56 @@ class SocketService {
     this.socket.off('job:stopped');
   }
 
+  // Code Injection Events
+  onInjectionStart(callback: (data: { jobId: string; totalFiles: number }) => void) {
+    this.socket?.on('injection:start', callback);
+  }
+
+  onInjectionProgress(callback: (data: { 
+    jobId: string; 
+    currentFile: string; 
+    currentIndex: number; 
+    totalFiles: number;
+    progress: number;
+  }) => void) {
+    this.socket?.on('injection:progress', callback);
+  }
+
+  onInjectionConflict(callback: (data: { 
+    jobId: string; 
+    fileName: string; 
+    existingContent: string;
+  }) => void) {
+    this.socket?.on('injection:conflict', callback);
+  }
+
+  onInjectionCompleted(callback: (data: { 
+    jobId: string; 
+    injectedFiles: Array<{
+      fileName: string;
+      absolutePath: string;
+      bytesWritten: number;
+      created: boolean;
+      overwritten: boolean;
+    }>;
+    totalFiles: number;
+  }) => void) {
+    this.socket?.on('injection:completed', callback);
+  }
+
+  onInjectionFailed(callback: (data: { jobId: string; error: string }) => void) {
+    this.socket?.on('injection:failed', callback);
+  }
+
+  offAllInjectionEvents() {
+    if (!this.socket) return;
+    this.socket.off('injection:start');
+    this.socket.off('injection:progress');
+    this.socket.off('injection:conflict');
+    this.socket.off('injection:completed');
+    this.socket.off('injection:failed');
+  }
+
   disconnect() {
     if (this.socket) {
       this.offAllJobEvents();

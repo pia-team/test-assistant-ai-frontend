@@ -120,7 +120,9 @@
         "noAttachments": "Ek Yok",
         "attachmentsDesc": "Ekran görüntüleri veya ek dosyalar burada görünecek.",
         "stepDescription": "Adım Açıklaması",
-        "status": "Durum"
+        "status": "Durum",
+        "screenshot": "Ekran Görüntüsü",
+        "videoThumbnails": "Video kayıtlarından alınan görüntüler:"
     },
     "testList": {
         "all": "Tümü",
