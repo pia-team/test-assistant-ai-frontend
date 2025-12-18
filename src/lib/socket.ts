@@ -46,9 +46,28 @@ class SocketService {
     return new Promise((resolve, reject) => {
       const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:9092';
       
+      // Parse URL to extract base URL and path for socket.io
+      // e.g., "https://example.com/socket" -> baseUrl: "https://example.com", path: "/socket/socket.io"
+      let baseUrl = socketUrl;
+      let socketPath = '/socket.io';
+      
+      try {
+        const url = new URL(socketUrl);
+        if (url.pathname && url.pathname !== '/') {
+          // Extract the custom path and append /socket.io
+          socketPath = url.pathname.replace(/\/$/, '') + '/socket.io';
+          baseUrl = url.origin;
+        }
+      } catch (e) {
+        console.warn('[Socket] Failed to parse socket URL, using as-is:', socketUrl);
+      }
+      
+      console.log('[Socket] Connecting to:', baseUrl, 'with path:', socketPath);
+      
       // Send token as query parameter for netty-socketio compatibility
       // (netty-socketio doesn't support socket.io v4 auth object)
-      this.socket = io(socketUrl, {
+      this.socket = io(baseUrl, {
+        path: socketPath,
         query: { token },
         transports: ['websocket', 'polling'],
         reconnection: true,
