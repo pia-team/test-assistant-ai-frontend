@@ -198,6 +198,31 @@ export async function getAllJobs(token?: string): Promise<Job[]> {
     return data.content || data || [];
 }
 
+// Get jobs by type with pagination
+export async function getJobsByType(
+    type: JobType,
+    page: number = 0,
+    size: number = 10,
+    token?: string
+): Promise<{ content: Job[]; totalElements: number; totalPages: number; number: number }> {
+    const headers = await getAuthHeaders(token);
+
+    const response = await fetch(
+        `${API_URL}/api/jobs/type/${type}?page=${page}&size=${size}&sort=createdAt,desc`,
+        {
+            method: "GET",
+            headers,
+            cache: "no-store",
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error(`Failed to get jobs by type: ${await response.text()}`);
+    }
+
+    return response.json();
+}
+
 // Cancel job
 export async function cancelJob(jobId: string, token?: string): Promise<void> {
     const headers = await getAuthHeaders(token);

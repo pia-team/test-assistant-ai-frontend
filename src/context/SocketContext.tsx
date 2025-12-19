@@ -38,7 +38,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
   const updateJobInCache = useCallback((jobId: string, updates: Partial<Job>) => {
     console.log('[SocketContext] updateJobInCache called for:', jobId, 'with updates:', JSON.stringify(updates));
-    
+
     queryClient.setQueryData<Job | null>(['job', jobId], (old) => {
       if (!old) {
         console.log('[SocketContext] No existing job in [job, jobId] cache');
@@ -85,6 +85,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
       if (exists) return old;
       return [newJob, ...old];
     });
+
+    queryClient.invalidateQueries({ queryKey: ['testRuns'] });
   }, [queryClient]);
 
   const setupGlobalJobListeners = useCallback(() => {
@@ -127,6 +129,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
         completedAt: data.completedAt
       });
       queryClient.invalidateQueries({ queryKey: ['allJobs'] });
+      queryClient.invalidateQueries({ queryKey: ['testRuns'] });
     });
 
     socketService.onJobFailed((data) => {
@@ -137,6 +140,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
         completedAt: data.completedAt
       });
       queryClient.invalidateQueries({ queryKey: ['allJobs'] });
+      queryClient.invalidateQueries({ queryKey: ['testRuns'] });
     });
 
     socketService.onJobStopped((data) => {
@@ -147,6 +151,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
         completedAt: data.completedAt
       });
       queryClient.invalidateQueries({ queryKey: ['allJobs'] });
+      queryClient.invalidateQueries({ queryKey: ['testRuns'] });
     });
   }, [addJobToCache, updateJobInCache, queryClient]);
 

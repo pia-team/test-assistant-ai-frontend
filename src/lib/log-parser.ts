@@ -82,7 +82,7 @@ export const parseLogsToDashboardData = (
                 else if (browserName === "firefox") detectedBrowser = "Firefox";
                 else if (browserName === "webkit") detectedBrowser = "Safari";
                 else detectedBrowser = browserMatch[1];
-                
+
                 // Update current test's browser if it exists
                 if (currentTest) {
                     currentTest.browser = detectedBrowser;
@@ -99,15 +99,15 @@ export const parseLogsToDashboardData = (
             });
         }
         // Browser info from Backend logs (Browser: chromium)
-        else if (line.match(/^Browser:\s*\w+$/i)) {
-            const browserMatch = line.match(/Browser:\s*(\w+)/i);
+        else if (line.toLowerCase().includes("browser:")) {
+            const browserMatch = line.match(/browser:\s*(\w+)/i);
             if (browserMatch) {
                 const browserName = browserMatch[1].toLowerCase();
                 if (browserName === "chromium") detectedBrowser = "Chrome";
                 else if (browserName === "firefox") detectedBrowser = "Firefox";
                 else if (browserName === "webkit") detectedBrowser = "Safari";
                 else detectedBrowser = browserMatch[1];
-                
+
                 if (currentTest) {
                     currentTest.browser = detectedBrowser;
                 }

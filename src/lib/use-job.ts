@@ -9,6 +9,7 @@ import {
     getJobStatus,
     getActiveJob,
     getAllJobs,
+    getJobsByType,
     cancelJob,
     startOpenReportJob,
     type Job,
@@ -188,5 +189,17 @@ export function useStartOpenReportJob() {
             queryClient.invalidateQueries({ queryKey: ["activeJob"] });
             queryClient.setQueryData(["job", job.id], job);
         },
+    });
+}
+
+// Hook to get paginated test run jobs
+export function useTestRuns(page = 0, size = 10) {
+    const { token } = useKeycloak();
+    return useQuery({
+        queryKey: ["testRuns", page, size],
+        queryFn: () => getJobsByType("RUN_TESTS" as JobType, page, size, token),
+        enabled: !!token,
+        staleTime: 30000,
+        refetchOnWindowFocus: false,
     });
 }
