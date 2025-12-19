@@ -76,6 +76,7 @@ export function GeneratedFilesDisplay({ data, dictionary }: GeneratedFilesDispla
         setTimeout(() => setCopiedId(null), 2000);
     };
 
+    console.log("data", data);
     // Map and filter entries to handle both arrays and single objects
     const fileGroups = Object.entries(data)
         .filter(([key]) => !["message", "status", "id"].includes(key)) // Exclude common non-file fields
@@ -97,6 +98,7 @@ export function GeneratedFilesDisplay({ data, dictionary }: GeneratedFilesDispla
     // Flatten all files for "inject all" button
     const allFiles = fileGroups.flatMap(([, files]) => files);
 
+    console.log("allFiles", allFiles);
     return (
         <div className="space-y-6">
             {/* Inject All Button */}
