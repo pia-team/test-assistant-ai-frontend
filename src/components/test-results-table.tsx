@@ -51,6 +51,7 @@ export interface TestCreation {
     name: string;
     status: "completed" | "running" | "failed" | "pending";
     environment: string;
+    project?: string;
     createdAt: string;
     tests: TestItem[];
 }
@@ -193,6 +194,7 @@ export function TestResultsTable({
                                 <TableRow>
                                     <TableHead className="w-[40px]"></TableHead>
                                     <TableHead>Creation Name</TableHead>
+                                    <TableHead className="w-[120px]">Project</TableHead>
                                     <TableHead className="w-[120px]">Environment</TableHead>
                                     <TableHead className="w-[150px]">Status</TableHead>
                                     <TableHead className="w-[180px]">Created At</TableHead>
@@ -217,6 +219,11 @@ export function TestResultsTable({
                                             </TableCell>
                                             <TableCell className="font-medium">{creation.name}</TableCell>
                                             <TableCell>
+                                                <Badge variant="outline" className="text-[10px] truncate max-w-[100px]" title={creation.project}>
+                                                    {creation.project || "N/A"}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
                                                 <Badge variant="secondary" className="uppercase font-mono text-[10px]">
                                                     {creation.environment}
                                                 </Badge>
@@ -233,7 +240,7 @@ export function TestResultsTable({
                                         <AnimatePresence>
                                             {expandedRows.has(creation.id) && (
                                                 <TableRow key={`${creation.id}-detail`}>
-                                                    <TableCell colSpan={5} className="p-0 bg-muted/30">
+                                                    <TableCell colSpan={6} className="p-0 bg-muted/30">
                                                         <motion.div
                                                             initial={{ opacity: 0, height: 0 }}
                                                             animate={{ opacity: 1, height: "auto" }}

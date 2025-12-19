@@ -88,6 +88,7 @@ export async function startGenerateTestsJob(params: {
 export async function startRunTestsJob(params: {
     tags: string;
     env: string;
+    project?: string;
     isParallel: boolean;
     threads: number | null;
     browser?: string;

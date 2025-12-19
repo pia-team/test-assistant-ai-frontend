@@ -77,6 +77,17 @@ import {
     FormLabel,
     FormMessage,
 } from "@/components/ui/form";
+import {
+    getProjectsAction,
+    getTagsByProjectAction
+} from "@/app/actions/tag-actions";
+import {
+    Search,
+    ChevronDown,
+    Filter,
+    FolderClosed,
+    X
+} from "lucide-react";
 
 // Zod schema for test run form validation
 const testRunFormSchema = z.object({
@@ -158,6 +169,16 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const [activeTab, setActiveTab] = useState("run");
     const [currentPage, setCurrentPage] = useState(0);
 
+    // Tag management state
+    const [projects, setProjects] = useState<string[]>([]);
+    const [selectedProject, setSelectedProject] = useState<string>("");
+    const [availableTags, setAvailableTags] = useState<string[]>([]);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [tagLogic, setTagLogic] = useState<"and" | "or" | "custom">("and");
+    const [projectsLoading, setProjectsLoading] = useState(false);
+    const [tagsLoading, setTagsLoading] = useState(false);
+    const [tagSearch, setTagSearch] = useState("");
+
     // Fetch paginated test run jobs from backend
     const { data: testRunsData, isLoading: testRunsLoading } = useTestRuns(currentPage, 10);
 
@@ -196,6 +217,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                     name: jobTags ? (jobTags.startsWith('@') ? jobTags : `@${jobTags}`) : (request?.env?.toUpperCase() || 'Test Run'),
                     status: job.status.toLowerCase() as any,
                     environment: request?.env || "dev",
+                    project: request?.project || "N/A",
                     createdAt: job.createdAt ? new Date(job.createdAt).toLocaleString('tr-TR') : "N/A",
                     tests: tests,
                 };
@@ -235,6 +257,92 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const { data: activeJob } = useActiveJob("RUN_TESTS");
     const { isConnected, subscribeToJob, unsubscribeFromJob } = useSocket();
 
+    // Subscribe to job updates for real-time status updates
+    useEffect(() => {
+        if (!viewJobId) return;
+
+        subscribeToJob(viewJobId, {
+            onStarted: () => {
+                // Status updates are now handled by React Query cache invalidation
+            },
+            onProgress: (data) => {
+                console.log("[TestRun] Job progress:", data);
+            },
+            onCompleted: () => {
+                // Status updates are now handled by React Query cache invalidation
+            },
+        });
+    }, [viewJobId]);
+
+    // Fetch projects on mount
+    useEffect(() => {
+        const fetchProjects = async () => {
+            setProjectsLoading(true);
+            try {
+                const data = await getProjectsAction();
+                setProjects(data);
+                if (data.length > 0) {
+                    // Don't auto-select if we want user to see all tags maybe?
+                    // Or auto-select first one.
+                }
+            } catch (err: any) {
+                console.error("Failed to fetch projects:", err);
+                toast.error("Projeler yüklenemedi");
+            } finally {
+                setProjectsLoading(false);
+            }
+        };
+        fetchProjects();
+    }, []);
+
+    // Fetch tags when project changes
+    useEffect(() => {
+        const fetchTags = async () => {
+            if (!selectedProject) {
+                setAvailableTags([]);
+                return;
+            }
+            setTagsLoading(true);
+            try {
+                const data = await getTagsByProjectAction(selectedProject);
+                setAvailableTags(data);
+            } catch (err: any) {
+                console.error("Failed to fetch tags:", err);
+                toast.error("Etiketler yüklenemedi");
+            } finally {
+                setTagsLoading(false);
+            }
+        };
+        fetchTags();
+    }, [selectedProject]);
+
+    // Update form tags when selection or logic changes
+    useEffect(() => {
+        if (tagLogic === "custom") return;
+
+        if (selectedTags.length === 0) {
+            setValue("tags", "", { shouldValidate: true });
+            return;
+        }
+
+        const tagString = selectedTags.join(` ${tagLogic} `);
+        setValue("tags", tagString, { shouldValidate: true });
+    }, [selectedTags, tagLogic, setValue]);
+
+    const toggleTag = (tag: string) => {
+        setSelectedTags(prev =>
+            prev.includes(tag)
+                ? prev.filter(t => t !== tag)
+                : [...prev, tag]
+        );
+    };
+
+    const clearSelection = () => {
+        setSelectedTags([]);
+        if (tagLogic === "custom") {
+            setValue("tags", "", { shouldValidate: true });
+        }
+    };
     // Subscribe to job updates for real-time status updates
     useEffect(() => {
         if (!viewJobId) return;
@@ -364,6 +472,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
             {
                 tags: data.tags,
                 env: data.env,
+                project: selectedProject,
                 isParallel: data.isParallel,
                 threads: data.isParallel ? data.threads : null,
                 browser: data.browser,
@@ -378,6 +487,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                         name: `${data.env.toUpperCase()} - ${data.tags} - ${new Date().toLocaleString()}`,
                         status: "running",
                         environment: data.env,
+                        project: selectedProject,
                         createdAt: new Date().toISOString(),
                         tests: [],
                     };
@@ -523,61 +633,228 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                     <CardContent className="space-y-5">
                         <Form {...form}>
                             {/* Tags Input */}
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label className="flex items-center gap-2 text-muted-foreground">
-                                        <Tag className="w-4 h-4" />
-                                        {dictionary.testRun.enterTags}
-                                    </Label>
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground">
-                                                <Info className="w-3 h-3 mr-1" />
-                                                {dictionary.testRun.tagsGuide}
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader>
-                                                <DialogTitle>{dictionary.testRun.tagsGuide}</DialogTitle>
-                                                <DialogDescription>{dictionary.testRun.readyToExecuteDesc}</DialogDescription>
-                                            </DialogHeader>
-                                            <div className="space-y-3 mt-4">
-                                                <div className="p-3 bg-muted rounded-lg space-y-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <code className="px-2 py-1 bg-background rounded text-sm font-mono">@smoke</code>
-                                                        <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideSmoke || "Smoke testlerini çalıştır"}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <code className="px-2 py-1 bg-background rounded text-sm font-mono">@regression and not @slow</code>
-                                                        <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideComplex || "Karmaşık mantık"}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <code className="px-2 py-1 bg-background rounded text-sm font-mono">@login or @signup</code>
-                                                        <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideAny || "Eşleşen herhangi biri"}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </DialogContent>
-                                    </Dialog>
+                            {/* Project and Tags Input */}
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="flex items-center gap-2 text-muted-foreground">
+                                            <FolderClosed className="w-4 h-4" />
+                                            JSON Projesi (Feature Klasörü)
+                                        </Label>
+                                    </div>
+                                    <Select
+                                        value={selectedProject}
+                                        onValueChange={setSelectedProject}
+                                        disabled={isProcessing || projectsLoading}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Proje seçin" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {projects.map((p) => (
+                                                <SelectItem key={p} value={p}>{p}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                                <FormField<TestRunFormValues>
-                                    control={control}
-                                    name="tags"
-                                    render={({ field }: any) => (
-                                        <FormItem>
-                                            <FormControl>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="flex items-center gap-2 text-muted-foreground">
+                                            <Tag className="w-4 h-4" />
+                                            Cucumber Etiketleri
+                                        </Label>
+                                        {selectedTags.length > 0 && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={clearSelection}
+                                                className="h-6 px-2 text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
+                                            >
+                                                <X className="w-3 h-3 mr-1" />
+                                                Temizle
+                                            </Button>
+                                        )}
+                                    </div>
+
+                                    {/* Tag Selection UI */}
+                                    <div className="border rounded-lg bg-muted/30 p-3 space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="relative flex-1">
+                                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                                 <Input
-                                                    {...field}
-                                                    placeholder="@smoke, @regression, @api..."
-                                                    onKeyDown={(e) => e.key === "Enter" && !isProcessing && handleRun()}
-                                                    disabled={isProcessing}
-                                                    className="font-mono"
+                                                    placeholder="Etiket ara..."
+                                                    className="pl-8 h-9"
+                                                    value={tagSearch}
+                                                    onChange={(e) => setTagSearch(e.target.value)}
                                                 />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                            </div>
+                                            <div className="flex border rounded-md p-0.5 bg-background">
+                                                <Button
+                                                    type="button"
+                                                    variant={tagLogic === "and" ? "secondary" : "ghost"}
+                                                    size="sm"
+                                                    className="h-8 px-3 text-xs"
+                                                    onClick={() => setTagLogic("and")}
+                                                >
+                                                    AND
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant={tagLogic === "or" ? "secondary" : "ghost"}
+                                                    size="sm"
+                                                    className="h-8 px-3 text-xs"
+                                                    onClick={() => setTagLogic("or")}
+                                                >
+                                                    OR
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant={tagLogic === "custom" ? "secondary" : "ghost"}
+                                                    size="sm"
+                                                    className="h-8 px-3 text-xs"
+                                                    onClick={() => setTagLogic("custom")}
+                                                >
+                                                    CUSTOM
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {tagLogic !== "custom" ? (
+                                            <div className="max-h-[160px] overflow-y-auto pr-1 space-y-1 custom-scrollbar">
+                                                {tagsLoading ? (
+                                                    <div className="flex items-center justify-center py-8">
+                                                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                                                    </div>
+                                                ) : availableTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase())).length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1.5 pt-1">
+                                                        {availableTags
+                                                            .filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()))
+                                                            .map((tag) => (
+                                                                <Badge
+                                                                    key={tag}
+                                                                    variant={selectedTags.includes(tag) ? "default" : "outline"}
+                                                                    className={`cursor-pointer hover:border-primary transition-colors ${selectedTags.includes(tag)
+                                                                        ? "bg-primary text-primary-foreground"
+                                                                        : "bg-background hover:bg-muted"
+                                                                        }`}
+                                                                    onClick={() => toggleTag(tag)}
+                                                                >
+                                                                    {tag}
+                                                                </Badge>
+                                                            ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-center py-8 text-sm text-muted-foreground">
+                                                        {selectedProject ? "Bu projede etiket bulunamadı" : "Önce bir proje seçin"}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-2 py-2">
+                                                <Label className="text-xs text-muted-foreground">Manuel Etiket Girişi</Label>
+                                                <FormField<TestRunFormValues>
+                                                    control={control}
+                                                    name="tags"
+                                                    render={({ field }: any) => (
+                                                        <FormItem>
+                                                            <FormControl>
+                                                                <Input
+                                                                    {...field}
+                                                                    placeholder="@smoke and (not @slow)"
+                                                                    className="font-mono text-sm"
+                                                                    disabled={isProcessing}
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <p className="text-[10px] text-muted-foreground italic">
+                                                    * Custom modunda etiketleri, 'and', 'or', 'not' ve parantez kullanarak manuel olarak girebilirsiniz.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Preview of constructed tags */}
+                                    <div className="p-3 bg-muted rounded-lg border border-dashed border-muted-foreground/30">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className="text-[10px] font-medium uppercase text-muted-foreground">Oluşturulan Filtre</span>
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px] text-muted-foreground">
+                                                        <Info className="w-3 h-3 mr-1" />
+                                                        Rehber
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>{dictionary.testRun.tagsGuide}</DialogTitle>
+                                                        <DialogDescription>{dictionary.testRun.readyToExecuteDesc}</DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="space-y-3 mt-4">
+                                                        <div className="p-3 bg-muted rounded-lg space-y-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <code className="px-2 py-1 bg-background rounded text-sm font-mono">@smoke</code>
+                                                                <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideSmoke || "Smoke testlerini çalıştır"}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <code className="px-2 py-1 bg-background rounded text-sm font-mono">@regression and not @slow</code>
+                                                                <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideComplex || "Karmaşık mantık"}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <code className="px-2 py-1 bg-background rounded text-sm font-mono">@login or @signup</code>
+                                                                <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideAny || "Eşleşen herhangi biri"}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
+                                        </div>
+                                        <div className="min-h-[24px]">
+                                            <div className="flex flex-wrap gap-1.5 items-center">
+                                                {tagLogic === "custom" ? (
+                                                    <span className="font-mono text-sm text-primary break-all">
+                                                        {tags || <span className="text-muted-foreground italic text-xs">Henüz etiket girilmedi...</span>}
+                                                    </span>
+                                                ) : (
+                                                    <>
+                                                        {selectedTags.map((tag, index) => (
+                                                            <div key={tag} className="flex items-center gap-1.5">
+                                                                <Badge
+                                                                    variant="secondary"
+                                                                    className="h-6 gap-1 pr-1 pl-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors cursor-pointer group"
+                                                                    onClick={() => toggleTag(tag)}
+                                                                >
+                                                                    {tag}
+                                                                    <X className="w-3 h-3 text-muted-foreground group-hover:text-destructive" />
+                                                                </Badge>
+                                                                {index < selectedTags.length - 1 && (
+                                                                    <span className="text-[10px] font-bold text-muted-foreground/40 px-0.5">
+                                                                        {tagLogic.toUpperCase()}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                        {selectedTags.length === 0 && (
+                                                            <span className="text-muted-foreground italic text-xs">Henüz etiket seçilmedi...</span>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <FormField<TestRunFormValues>
+                                        control={control}
+                                        name="tags"
+                                        render={({ field }: any) => (
+                                            <FormItem>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
                             </div>
 
                             <Separator />
