@@ -57,7 +57,7 @@ export function ConflictResolutionDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl max-h-[80vh]">
+            <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-amber-500">
                         <AlertTriangle className="w-5 h-5" />
@@ -135,7 +135,7 @@ export function ConflictResolutionDialog({
                                                                 )}
                                                             </Button>
                                                         </div>
-                                                        <pre className="text-xs bg-red-500/10 p-2 rounded overflow-x-auto max-h-32">
+                                                        <pre className="text-xs bg-red-500/10 p-2 rounded overflow-x-auto max-h-32 whitespace-pre-wrap break-all">
                                                             {conflict.existingContent.slice(0, 500)}
                                                             {conflict.existingContent.length > 500 && "..."}
                                                         </pre>
@@ -161,7 +161,7 @@ export function ConflictResolutionDialog({
                                                                 )}
                                                             </Button>
                                                         </div>
-                                                        <pre className="text-xs bg-green-500/10 p-2 rounded overflow-x-auto max-h-32">
+                                                        <pre className="text-xs bg-green-500/10 p-2 rounded overflow-x-auto max-h-32 whitespace-pre-wrap break-all">
                                                             {conflict.newContent.slice(0, 500)}
                                                             {conflict.newContent.length > 500 && "..."}
                                                         </pre>
@@ -176,7 +176,7 @@ export function ConflictResolutionDialog({
                     </div>
                 </ScrollArea>
 
-                <DialogFooter className="gap-2 sm:gap-0">
+                <DialogFooter className="gap-2">
                     <Button variant="outline" onClick={handleCancel}>
                         {dictionary.conflict.cancel}
                     </Button>

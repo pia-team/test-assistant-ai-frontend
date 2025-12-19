@@ -36,9 +36,20 @@ export function InjectionProgressModal({
 }: InjectionProgressModalProps) {
     const { dictionary } = useLocale();
     const currentIndex = progress?.currentIndex ?? 0;
-    const currentFile = progress?.currentFile ?? "";
-    const progressPercent = progress?.progress ?? (currentIndex / totalFiles) * 100;
-    const isComplete = currentIndex >= totalFiles && totalFiles > 0;
+    const stepCount = progress?.totalFiles ?? 2;
+    const currentStepKey = progress?.currentFile ?? "";
+    const progressPercent = progress?.progress ?? 0;
+    const isComplete = progressPercent >= 100;
+
+    // Map step keys to localized labels
+    const getStepLabel = (stepKey: string) => {
+        const stepLabels: Record<string, string> = {
+            'preparingFiles': dictionary.injection.preparingFiles || 'Dosyalar hazırlanıyor...',
+            'writingFiles': dictionary.injection.writingFiles || 'Dosyalar yazılıyor...',
+            'completed': dictionary.injection.completed || 'Tamamlandı',
+        };
+        return stepLabels[stepKey] || stepKey;
+    };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -64,26 +75,26 @@ export function InjectionProgressModal({
 
                 <div className="space-y-4 py-4">
                     <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{dictionary.injection.progress}</span>
+                        <span className="text-muted-foreground">{dictionary.injection.step || 'Adım'}</span>
                         <span className="font-medium">
-                            {currentIndex} / {totalFiles} {dictionary.injection.files}
+                            {currentIndex} / {stepCount}
                         </span>
                     </div>
 
                     <Progress value={progressPercent} className="h-2" />
 
                     <AnimatePresence mode="wait">
-                        {currentFile && !isComplete && (
+                        {currentStepKey && !isComplete && (
                             <motion.div
-                                key={currentFile}
+                                key={currentStepKey}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
                                 className="flex items-center gap-2 p-3 rounded-lg bg-muted/50"
                             >
                                 <FileCode className="w-4 h-4 text-primary shrink-0" />
-                                <span className="text-sm font-mono truncate">
-                                    {currentFile}
+                                <span className="text-sm truncate">
+                                    {getStepLabel(currentStepKey)}
                                 </span>
                             </motion.div>
                         )}

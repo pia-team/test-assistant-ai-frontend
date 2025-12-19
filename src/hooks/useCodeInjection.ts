@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useKeycloak } from "@/providers/keycloak-provider";
 import { useSocket } from "@/context/SocketContext";
@@ -54,6 +54,64 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
     const { isConnected } = useSocket();
     const [progress, setProgress] = useState<InjectionProgress | null>(null);
     const [isInjecting, setIsInjecting] = useState(false);
+    const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const totalFilesRef = useRef<number>(0);
+
+    // Cleanup interval on unmount
+    useEffect(() => {
+        return () => {
+            if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
+            }
+        };
+    }, []);
+
+    const startProgressSimulation = useCallback((totalFiles: number) => {
+        totalFilesRef.current = totalFiles;
+        let currentStep = 0;
+        const steps = [
+            { step: 1, label: 'preparingFiles', progress: 30 },
+            { step: 2, label: 'writingFiles', progress: 70 },
+        ];
+
+        // Start with step 1
+        setProgress({
+            jobId: 'injection',
+            currentFile: steps[0].label,
+            currentIndex: 1,
+            totalFiles: steps.length,
+            progress: steps[0].progress,
+        });
+
+        progressIntervalRef.current = setInterval(() => {
+            currentStep++;
+            if (currentStep < steps.length) {
+                setProgress({
+                    jobId: 'injection',
+                    currentFile: steps[currentStep].label,
+                    currentIndex: currentStep + 1,
+                    totalFiles: steps.length,
+                    progress: steps[currentStep].progress,
+                });
+            }
+        }, 1000); // Minimum 1 second per step for visibility
+    }, []);
+
+    const stopProgressSimulation = useCallback((success: boolean) => {
+        if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+        }
+        if (success) {
+            setProgress({
+                jobId: 'injection',
+                currentFile: 'completed',
+                currentIndex: 2,
+                totalFiles: 2,
+                progress: 100,
+            });
+        }
+    }, []);
 
     const injectMutation = useMutation({
         mutationFn: async (params: {
@@ -66,20 +124,27 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
                 backupExisting: params.backupExisting ?? true,
             }, token);
         },
-        onMutate: () => {
+        onMutate: (variables) => {
             setIsInjecting(true);
-            setProgress(null);
+            startProgressSimulation(variables.files.length);
         },
         onSuccess: (result) => {
-            setIsInjecting(false);
-            if (result.conflicts && result.conflicts.length > 0) {
-                options.onConflict?.(result.conflicts);
-            } else {
-                options.onSuccess?.(result);
-            }
+            stopProgressSimulation(true);
+            // Small delay to show completion state
+            setTimeout(() => {
+                setIsInjecting(false);
+                setProgress(null);
+                if (result.conflicts && result.conflicts.length > 0) {
+                    options.onConflict?.(result.conflicts);
+                } else {
+                    options.onSuccess?.(result);
+                }
+            }, 300);
         },
         onError: (error: Error) => {
+            stopProgressSimulation(false);
             setIsInjecting(false);
+            setProgress(null);
             options.onError?.(error);
         },
     });

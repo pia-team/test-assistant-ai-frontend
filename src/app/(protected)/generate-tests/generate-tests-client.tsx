@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useLocale } from "@/components/locale-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +38,17 @@ import {
 } from "@/lib/use-job";
 import { useSocket } from "@/context/SocketContext";
 
+// Zod schema for generate tests form validation
+const generateTestsFormSchema = z.object({
+    url: z.string().min(1, "URL zorunludur").url("Geçerli bir URL giriniz"),
+    hasFeatureFile: z.boolean(),
+    hasAPITests: z.boolean(),
+    hasTestPayload: z.boolean(),
+    hasSwaggerTest: z.boolean(),
+});
+
+type GenerateTestsFormValues = z.infer<typeof generateTestsFormSchema>;
+
 interface GenerateTestsClientProps {
     dictionary: {
         generateTests: {
@@ -60,6 +74,8 @@ interface GenerateTestsClientProps {
             generatedResults?: string;
             processingInBackground?: string;
             jobAlreadyRunning?: string;
+            newGenerate?: string;
+            urlExample?: string;
         };
         common: {
             error: string;
@@ -119,13 +135,26 @@ const isValidSwaggerUrl = (url: string): boolean => {
 
 export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
     const { dictionary: fullDict } = useLocale();
-    const [url, setUrl] = useState("");
-    const [urlError, setUrlError] = useState<string | null>(null);
-    const [hasFeatureFile, setHasFeatureFile] = useState(true);
-    const [hasAPITests, setHasAPITests] = useState(true);
-    const [hasTestPayload, setHasTestPayload] = useState(false);
-    const [hasSwaggerTest, setHasSwaggerTest] = useState(false);
     const [copiedTab, setCopiedTab] = useState<string | null>(null);
+
+    // React Hook Form setup with Zod validation
+    const form = useForm<GenerateTestsFormValues>({
+        resolver: zodResolver(generateTestsFormSchema),
+        defaultValues: {
+            url: "",
+            hasFeatureFile: true,
+            hasAPITests: true,
+            hasTestPayload: false,
+            hasSwaggerTest: false,
+        },
+    });
+
+    const { watch, setValue, handleSubmit, formState: { errors } } = form;
+    const url = watch("url");
+    const hasFeatureFile = watch("hasFeatureFile");
+    const hasAPITests = watch("hasAPITests");
+    const hasTestPayload = watch("hasTestPayload");
+    const hasSwaggerTest = watch("hasSwaggerTest");
 
     // Job hooks - socket updates the cache automatically
     const { data: activeJob } = useActiveJob("GENERATE_TESTS");
@@ -162,30 +191,25 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
         }
     }, [isComplete, isFailed, currentJob?.id, currentJob?.error, dictionary]);
 
-    // Validate URL on change
+    // Handle URL change with validation
     const handleUrlChange = (value: string) => {
-        setUrl(value);
-        if (value.trim() && !isValidSwaggerUrl(value)) {
-            setUrlError("Lütfen geçerli bir Swagger/OpenAPI URL'si girin (örn: swagger.json, api-docs, openapi.yaml)");
-        } else {
-            setUrlError(null);
-        }
+        setValue("url", value);
     };
 
-    const handleGenerate = () => {
-        if (!isValidSwaggerUrl(url)) {
-            setUrlError("Lütfen geçerli bir Swagger/OpenAPI URL'si girin");
+    const onSubmit = (data: GenerateTestsFormValues) => {
+        if (!isValidSwaggerUrl(data.url)) {
+            form.setError("url", { message: "Lütfen geçerli bir Swagger/OpenAPI URL'si girin" });
             return;
         }
 
         startJobMutation.mutate(
             {
-                url,
+                url: data.url,
                 jsonSchema: "",
-                hasFeatureFile,
-                hasAPITests,
-                hasTestPayload,
-                hasSwaggerTest,
+                hasFeatureFile: data.hasFeatureFile,
+                hasAPITests: data.hasAPITests,
+                hasTestPayload: data.hasTestPayload,
+                hasSwaggerTest: data.hasSwaggerTest,
             },
             {
                 onError: (error) => {
@@ -199,6 +223,8 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
         );
     };
 
+    const handleGenerate = handleSubmit(onSubmit);
+
     const handleNewGeneration = () => {
         clearJob(currentJob?.id);
     };
@@ -210,7 +236,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
         setTimeout(() => setCopiedTab(null), 2000);
     };
 
-    const canGenerate = url.trim() && isValidSwaggerUrl(url) && !isProcessing && !urlError;
+    const canGenerate = url.trim() && isValidSwaggerUrl(url) && !isProcessing && !errors.url;
 
     return (
         <div className="space-y-6">
@@ -303,12 +329,12 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 value={url}
                                 onChange={(e) => handleUrlChange(e.target.value)}
                                 disabled={isProcessing}
-                                className={urlError ? "border-red-500 focus-visible:ring-red-500" : ""}
+                                className={errors.url ? "border-red-500 focus-visible:ring-red-500" : ""}
                             />
-                            {urlError && (
+                            {errors.url && (
                                 <p className="text-xs text-red-500 flex items-center gap-1">
                                     <AlertCircle className="w-3 h-3" />
-                                    {urlError}
+                                    {errors.url.message}
                                 </p>
                             )}
                             <p className="text-xs text-muted-foreground">
@@ -325,7 +351,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <div className="flex items-center gap-3">
                                     <Switch
                                         checked={hasFeatureFile}
-                                        onCheckedChange={setHasFeatureFile}
+                                        onCheckedChange={(v) => setValue("hasFeatureFile", v)}
                                         disabled={isProcessing}
                                     />
                                     <Label className="font-normal">{dictionary.generateTests.featureFile}</Label>
@@ -333,7 +359,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <div className="flex items-center gap-3">
                                     <Switch
                                         checked={hasAPITests}
-                                        onCheckedChange={setHasAPITests}
+                                        onCheckedChange={(v) => setValue("hasAPITests", v)}
                                         disabled={isProcessing}
                                     />
                                     <Label className="font-normal">{dictionary.generateTests.apiTests}</Label>
@@ -341,7 +367,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <div className="flex items-center gap-3">
                                     <Switch
                                         checked={hasTestPayload}
-                                        onCheckedChange={setHasTestPayload}
+                                        onCheckedChange={(v) => setValue("hasTestPayload", v)}
                                         disabled={isProcessing}
                                     />
                                     <Label className="font-normal">{dictionary.generateTests.testPayload}</Label>
@@ -349,7 +375,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <div className="flex items-center gap-3">
                                     <Switch
                                         checked={hasSwaggerTest}
-                                        onCheckedChange={setHasSwaggerTest}
+                                        onCheckedChange={(v) => setValue("hasSwaggerTest", v)}
                                         disabled={isProcessing}
                                     />
                                     <Label className="font-normal">{dictionary.generateTests.swaggerTests}</Label>
@@ -366,7 +392,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 variant="outline"
                             >
                                 <Rocket className="w-4 h-4" />
-                                Yeni Test Üret
+                                {dictionary.generateTests.newGenerate || "Yeni Test Üret"}
                             </Button>
                         ) : (
                             <Button

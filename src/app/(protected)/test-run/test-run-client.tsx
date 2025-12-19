@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useForm, ControllerRenderProps } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useLocale } from "@/components/locale-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -63,6 +66,29 @@ import {
     updatePlaywrightConfig,
     type PlaywrightConfig 
 } from "@/app/actions/playwright-config-actions";
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form";
+
+// Zod schema for test run form validation
+const testRunFormSchema = z.object({
+    tags: z.string().min(1, "En az bir tag girilmelidir"),
+    env: z.string().min(1, "Ortam seçilmelidir"),
+    browser: z.string().min(1, "Tarayıcı seçilmelidir"),
+    headless: z.boolean(),
+    isParallel: z.boolean(),
+    threads: z.number().min(0).max(10),
+    baseLoginUrl: z.string().url("Geçerli bir URL giriniz"),
+    username: z.string().min(1, "Kullanıcı adı zorunludur"),
+    password: z.string().min(1, "Şifre zorunludur"),
+});
+
+type TestRunFormValues = z.infer<typeof testRunFormSchema>;
 
 interface TestRunClientProps {
     dictionary: {
@@ -83,6 +109,9 @@ interface TestRunClientProps {
             testConfiguration?: string;
             processingInBackground?: string;
             jobAlreadyRunning?: string;
+            newTest?: string;
+            testResults?: string;
+            testResultsDesc?: string;
         };
         common: {
             error: string;
@@ -119,23 +148,34 @@ const BROWSER_OPTIONS = [
 
 export function TestRunClient({ dictionary }: TestRunClientProps) {
     const { dictionary: fullDict } = useLocale();
-    const [tags, setTags] = useState("");
-    const [env, setEnv] = useState("dev");
-    const [isParallel, setIsParallel] = useState(true);
-    const [threads, setThreads] = useState(5);
-    const [browser, setBrowser] = useState("chromium");
-    const [headless, setHeadless] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [viewJobId, setViewJobId] = useState<string | null>(null);
-    
-    // Config state
     const [showPassword, setShowPassword] = useState(false);
     const [configLoading, setConfigLoading] = useState(false);
-    const [config, setConfig] = useState<PlaywrightConfig>({
-        baseLoginUrl: '',
-        username: '',
-        password: '',
+
+    // React Hook Form setup with Zod validation
+    const form = useForm<TestRunFormValues>({
+        resolver: zodResolver(testRunFormSchema),
+        defaultValues: {
+            tags: "",
+            env: "dev",
+            browser: "chromium",
+            headless: true,
+            isParallel: true,
+            threads: 5,
+            baseLoginUrl: "",
+            username: "",
+            password: "",
+        },
     });
+
+    const { watch, setValue, handleSubmit, formState: { errors }, control, getValues } = form;
+    
+    // Only watch fields that need to trigger UI changes
+    const env = watch("env");
+    const isParallel = watch("isParallel");
+    const headless = watch("headless");
+    const tags = watch("tags"); // Need to watch for button disabled state
 
     // Job hooks - socket updates the cache automatically
     const { data: activeJob } = useActiveJob("RUN_TESTS");
@@ -154,24 +194,20 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
             setConfigLoading(true);
             try {
                 const data = await getPlaywrightConfig(env);
-                setConfig({
-                    baseLoginUrl: data.baseLoginUrl || '',
-                    username: data.username || '',
-                    password: data.password || '',
-                });
+                setValue("baseLoginUrl", data.baseLoginUrl || "");
+                setValue("username", data.username || "");
+                setValue("password", data.password || "");
             } catch (error) {
                 // Config doesn't exist yet, use empty values
-                setConfig({
-                    baseLoginUrl: '',
-                    username: '',
-                    password: '',
-                });
+                setValue("baseLoginUrl", "");
+                setValue("username", "");
+                setValue("password", "");
             } finally {
                 setConfigLoading(false);
             }
         };
         loadConfig();
-    }, [env]);
+    }, [env, setValue]);
 
     const { data: jobStatus } = useJobStatus(viewJobId);
     const startJobMutation = useStartRunTestsJob();
@@ -206,24 +242,18 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         }
     }, [isComplete, isFailed, currentJob?.id, currentJob?.error, dictionary]);
 
-    const handleRun = async () => {
-        if (!tags.trim()) return;
-        
-        // Validate config
-        if (!config.baseLoginUrl || !config.username || !config.password) {
-            toast.error("URL, kullanıcı adı ve şifre zorunludur");
-            return;
-        }
-
+    const onSubmit = async (data: TestRunFormValues) => {
         setError(null);
         
         // Save config first
         try {
             await updatePlaywrightConfig({
-                ...config,
-                environment: env,
+                baseLoginUrl: data.baseLoginUrl,
+                username: data.username,
+                password: data.password,
+                environment: data.env,
             });
-            toast.success(`${env}.json config kaydedildi`);
+            toast.success(`${data.env}.json config kaydedildi`);
         } catch (err: any) {
             toast.error(`Config kaydedilemedi: ${err.message}`);
             return;
@@ -231,12 +261,12 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
 
         startJobMutation.mutate(
             {
-                tags,
-                env,
-                isParallel,
-                threads: isParallel ? threads : null,
-                browser,
-                headless,
+                tags: data.tags,
+                env: data.env,
+                isParallel: data.isParallel,
+                threads: data.isParallel ? data.threads : null,
+                browser: data.browser,
+                headless: data.headless,
             },
             {
                 onSuccess: (job) => {
@@ -255,6 +285,8 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
             }
         );
     };
+    
+    const handleRun = handleSubmit(onSubmit);
 
     const handleNewRun = () => {
         clearJob(currentJob?.id);
@@ -323,12 +355,12 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                 <div className="flex items-center gap-3">
                                     <XCircle className="w-5 h-5 text-red-500" />
                                     <div className="flex-1">
-                                        <p className="font-medium text-red-500">Test Çalıştırma Başarısız</p>
+                                        <p className="font-medium text-red-500">{fullDict.testRun?.testFailed || "Test Çalıştırma Başarısız"}</p>
                                         <p className="text-sm text-muted-foreground">{error || currentJob?.error}</p>
                                     </div>
                                     <Button variant="outline" size="sm" onClick={handleNewRun} className="gap-2">
                                         <RefreshCw className="w-4 h-4" />
-                                        Yeniden Dene
+                                        {fullDict.testRun?.retry || "Yeniden Dene"}
                                     </Button>
                                 </div>
                             </CardContent>
@@ -348,12 +380,12 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                 <div className="flex items-center gap-3">
                                     <CheckCircle2 className="w-5 h-5 text-green-500" />
                                     <div className="flex-1">
-                                        <p className="font-medium text-green-500">Testler Tamamlandı</p>
-                                        <p className="text-sm text-muted-foreground">Test sonuçları aşağıda görüntüleniyor</p>
+                                        <p className="font-medium text-green-500">{fullDict.progressSteps?.runTests?.completed || "Testler Tamamlandı"}</p>
+                                        <p className="text-sm text-muted-foreground">{dictionary.testRun.testResultsDesc || "Test sonuçları aşağıda görüntüleniyor"}</p>
                                     </div>
                                     <Button variant="outline" size="sm" onClick={handleNewRun} className="gap-2">
                                         <Play className="w-4 h-4" />
-                                        Yeni Test
+                                        {dictionary.testRun.newTest || "Yeni Test"}
                                     </Button>
                                 </div>
                             </CardContent>
@@ -374,10 +406,11 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                             {dictionary.testRun.testConfiguration || "Test Yapılandırması"}
                         </CardTitle>
                         <CardDescription>
-                            Test çalıştırma parametrelerini yapılandırın
+                            {dictionary.testRun.subtitle}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-5">
+                        <Form {...form}>
                         {/* Tags Input */}
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
@@ -395,34 +428,44 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                     <DialogContent>
                                         <DialogHeader>
                                             <DialogTitle>{dictionary.testRun.tagsGuide}</DialogTitle>
-                                            <DialogDescription>Cucumber tag ifadelerini kullanarak testleri filtreleyin</DialogDescription>
+                                            <DialogDescription>{dictionary.testRun.readyToExecuteDesc}</DialogDescription>
                                         </DialogHeader>
                                         <div className="space-y-3 mt-4">
                                             <div className="p-3 bg-muted rounded-lg space-y-2">
                                                 <div className="flex items-center gap-2">
                                                     <code className="px-2 py-1 bg-background rounded text-sm font-mono">@smoke</code>
-                                                    <span className="text-sm text-muted-foreground">Smoke testlerini çalıştır</span>
+                                                    <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideSmoke || "Smoke testlerini çalıştır"}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <code className="px-2 py-1 bg-background rounded text-sm font-mono">@regression and not @slow</code>
-                                                    <span className="text-sm text-muted-foreground">Karmaşık mantık</span>
+                                                    <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideComplex || "Karmaşık mantık"}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <code className="px-2 py-1 bg-background rounded text-sm font-mono">@login or @signup</code>
-                                                    <span className="text-sm text-muted-foreground">Eşleşen herhangi biri</span>
+                                                    <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideAny || "Eşleşen herhangi biri"}</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </DialogContent>
                                 </Dialog>
                             </div>
-                            <Input
-                                placeholder="@smoke, @regression, @api..."
-                                value={tags}
-                                onChange={(e) => setTags(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && !isProcessing && handleRun()}
-                                disabled={isProcessing}
-                                className="font-mono"
+                            <FormField<TestRunFormValues>
+                                control={control}
+                                name="tags"
+                                render={({ field }: { field: ControllerRenderProps<TestRunFormValues, "tags"> }) => (
+                                    <FormItem>
+                                        <FormControl>
+                                            <Input
+                                                {...field}
+                                                placeholder="@smoke, @regression, @api..."
+                                                onKeyDown={(e) => e.key === "Enter" && !isProcessing && handleRun()}
+                                                disabled={isProcessing}
+                                                className="font-mono"
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
                             />
                         </div>
 
@@ -434,7 +477,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                 <Server className="w-4 h-4" />
                                 {dictionary.testRun.environment}
                             </Label>
-                            <Select value={env} onValueChange={setEnv} disabled={isProcessing}>
+                            <Select value={env} onValueChange={(v) => setValue("env", v)} disabled={isProcessing}>
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
@@ -460,59 +503,83 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                         <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">
                             <Label className="flex items-center gap-2 text-sm font-medium">
                                 <Globe className="w-4 h-4" />
-                                Test Ortamı Bilgileri
+                                {fullDict.testRun?.environmentInfo || "Test Ortamı Bilgileri"}
                             </Label>
                             
                             {configLoading ? (
                                 <div className="flex items-center justify-center py-4">
                                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                    <span className="text-sm text-muted-foreground">Yükleniyor...</span>
+                                    <span className="text-sm text-muted-foreground">{fullDict.common?.loading || "Yükleniyor..."}</span>
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    <div className="space-y-1">
-                                        <Label className="text-xs text-muted-foreground">Login URL</Label>
-                                        <Input
-                                            placeholder="https://example.com/login"
-                                            value={config.baseLoginUrl}
-                                            onChange={(e) => setConfig({ ...config, baseLoginUrl: e.target.value })}
-                                            disabled={isProcessing}
-                                            className="h-8 text-sm"
-                                        />
-                                    </div>
+                                    <FormField<TestRunFormValues>
+                                        control={control}
+                                        name="baseLoginUrl"
+                                        render={({ field }: { field: ControllerRenderProps<TestRunFormValues, "baseLoginUrl"> }) => (
+                                            <FormItem className="space-y-1">
+                                                <FormLabel className="text-xs text-muted-foreground">Login URL</FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        {...field}
+                                                        placeholder="https://example.com/login"
+                                                        disabled={isProcessing}
+                                                        className="h-8 text-sm"
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
                                     <div className="grid grid-cols-2 gap-2">
-                                        <div className="space-y-1">
-                                            <Label className="text-xs text-muted-foreground">Kullanıcı Adı</Label>
-                                            <Input
-                                                placeholder="username"
-                                                value={config.username}
-                                                onChange={(e) => setConfig({ ...config, username: e.target.value })}
-                                                disabled={isProcessing}
-                                                className="h-8 text-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-xs text-muted-foreground">Şifre</Label>
-                                            <div className="relative">
-                                                <Input
-                                                    type={showPassword ? 'text' : 'password'}
-                                                    placeholder="••••••••"
-                                                    value={config.password}
-                                                    onChange={(e) => setConfig({ ...config, password: e.target.value })}
-                                                    disabled={isProcessing}
-                                                    className="h-8 text-sm pr-8"
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="absolute right-0 top-0 h-8 w-8 px-2"
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                >
-                                                    {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                                                </Button>
-                                            </div>
-                                        </div>
+                                        <FormField<TestRunFormValues>
+                                            control={control}
+                                            name="username"
+                                            render={({ field }: { field: ControllerRenderProps<TestRunFormValues, "username"> }) => (
+                                                <FormItem className="space-y-1">
+                                                    <FormLabel className="text-xs text-muted-foreground">{fullDict.playwrightConfig?.username || "Kullanıcı Adı"}</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            {...field}
+                                                            placeholder="username"
+                                                            disabled={isProcessing}
+                                                            className="h-8 text-sm"
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField<TestRunFormValues>
+                                            control={control}
+                                            name="password"
+                                            render={({ field }: { field: ControllerRenderProps<TestRunFormValues, "password"> }) => (
+                                                <FormItem className="space-y-1">
+                                                    <FormLabel className="text-xs text-muted-foreground">{fullDict.playwrightConfig?.password || "Şifre"}</FormLabel>
+                                                    <div className="relative">
+                                                        <FormControl>
+                                                            <Input
+                                                                {...field}
+                                                                type={showPassword ? 'text' : 'password'}
+                                                                placeholder="••••••••"
+                                                                disabled={isProcessing}
+                                                                className="h-8 text-sm pr-8"
+                                                            />
+                                                        </FormControl>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="absolute right-0 top-0 h-8 w-8 px-2"
+                                                            onClick={() => setShowPassword(!showPassword)}
+                                                        >
+                                                            {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                                                        </Button>
+                                                    </div>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
                                     </div>
                                 </div>
                             )}
@@ -522,38 +589,44 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                         <div className="space-y-3">
                             <Label className="flex items-center gap-2 text-muted-foreground">
                                 <Globe className="w-4 h-4" />
-                                Tarayıcı
+                                {fullDict.testRun?.browser || "Tarayıcı"}
                             </Label>
-                            <Select value={browser} onValueChange={setBrowser} disabled={isProcessing}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {BROWSER_OPTIONS.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                            <div className="flex items-center gap-2">
-                                                <span>{opt.icon}</span>
-                                                {opt.label}
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <FormField<TestRunFormValues>
+                                control={control}
+                                name="browser"
+                                render={({ field }: { field: ControllerRenderProps<TestRunFormValues, "browser"> }) => (
+                                    <Select value={field.value} onValueChange={field.onChange} disabled={isProcessing}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {BROWSER_OPTIONS.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{opt.icon}</span>
+                                                        {opt.label}
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                            />
                             
                             {/* Headless Mode */}
                             <div className="flex items-center justify-between pt-2">
                                 <Label className="flex items-center gap-2 text-muted-foreground text-sm">
                                     <Eye className="w-4 h-4" />
-                                    Headless Mod
+                                    {fullDict.testRun?.headlessMode || "Headless Mod"}
                                 </Label>
                                 <div className="flex items-center gap-2">
                                     <Switch
                                         checked={headless}
-                                        onCheckedChange={setHeadless}
+                                        onCheckedChange={(v) => setValue("headless", v)}
                                         disabled={isProcessing}
                                     />
                                     <Badge variant={headless ? "secondary" : "default"} className="text-xs">
-                                        {headless ? "Arka Plan" : "Görünür"}
+                                        {headless ? (fullDict.testRun?.headlessBackground || "Arka Plan") : (fullDict.testRun?.headlessVisible || "Görünür")}
                                     </Badge>
                                 </div>
                             </div>
@@ -571,7 +644,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                 <div className="flex items-center gap-2">
                                     <Switch
                                         checked={isParallel}
-                                        onCheckedChange={setIsParallel}
+                                        onCheckedChange={(v) => setValue("isParallel", v)}
                                         disabled={isProcessing}
                                     />
                                     <Badge variant={isParallel ? "default" : "secondary"} className="text-xs">
@@ -591,22 +664,28 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                         <Cpu className="w-4 h-4" />
                                         {dictionary.testRun.threadCount}
                                     </Label>
-                                    <Select
-                                        value={threads.toString()}
-                                        onValueChange={(v) => setThreads(parseInt(v))}
-                                        disabled={isProcessing}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {THREAD_OPTIONS.map((opt) => (
-                                                <SelectItem key={opt.value} value={opt.value}>
-                                                    {opt.label} thread
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <FormField<TestRunFormValues>
+                                        control={control}
+                                        name="threads"
+                                        render={({ field }: { field: ControllerRenderProps<TestRunFormValues, "threads"> }) => (
+                                            <Select
+                                                value={field.value.toString()}
+                                                onValueChange={(v) => field.onChange(parseInt(v))}
+                                                disabled={isProcessing}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {THREAD_OPTIONS.map((opt) => (
+                                                        <SelectItem key={opt.value} value={opt.value}>
+                                                            {opt.label} thread
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
                                 </motion.div>
                             )}
                         </div>
@@ -629,7 +708,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                             ) : isComplete || isFailed ? (
                                 <>
                                     <RefreshCw className="w-4 h-4" />
-                                    Yeni Test Çalıştır
+                                    {fullDict.testRun?.newRun || "Yeni Test Çalıştır"}
                                 </>
                             ) : (
                                 <>
@@ -646,6 +725,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                 <ReportSection />
                             </>
                         )}
+                        </Form>
                     </CardContent>
                 </Card>
 
@@ -656,10 +736,10 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                             <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600">
                                 <Terminal className="w-4 h-4 text-white" />
                             </div>
-                            Test Sonuçları
+                            {fullDict.testRun?.testResults || "Test Sonuçları"}
                         </CardTitle>
                         <CardDescription>
-                            Test çalıştırma sonuçları ve raporlar
+                            {fullDict.testRun?.testResultsDesc || "Test çalıştırma sonuçları ve raporlar"}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -690,12 +770,12 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                 {isConnected ? (
                                     <Badge variant="outline" className="mt-4 text-green-500 border-green-500/50">
                                         <div className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse" />
-                                        Gerçek zamanlı bağlantı aktif
+                                        {fullDict.testRun?.realtimeActive || "Gerçek zamanlı bağlantı aktif"}
                                     </Badge>
                                 ) : (
                                     <Badge variant="outline" className="mt-4 text-yellow-500 border-yellow-500/50">
                                         <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2" />
-                                        Bağlantı bekleniyor...
+                                        {fullDict.testRun?.waitingConnection || "Bağlantı bekleniyor..."}
                                     </Badge>
                                 )}
                             </div>
