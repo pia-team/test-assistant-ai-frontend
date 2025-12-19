@@ -39,7 +39,7 @@ export interface TestItem {
     id: string;
     name: string;
     type: string;
-    status: "passed" | "failed" | "running" | "pending" | "skipped";
+    status: "passed" | "failed" | "running" | "pending" | "skipped" | "stopped" | "unknown";
     modifiedAt: string;
     createdBy: string;
     videoUrl?: string;
@@ -50,7 +50,7 @@ export interface TestItem {
 export interface TestCreation {
     id: string;
     name: string;
-    status: "completed" | "running" | "failed" | "pending";
+    status: "completed" | "running" | "failed" | "pending" | "stopped" | "unknown";
     environment: string;
     project?: string;
     reportUrl?: string;
@@ -75,6 +75,8 @@ const statusConfig: Record<string, { icon: typeof CheckCircle2; color: string; b
     pending: { icon: Clock, color: "text-yellow-500", bg: "bg-yellow-500/10", label: "Pending" },
     passed: { icon: CheckCircle2, color: "text-green-500", bg: "bg-green-500/10", label: "Passed" },
     skipped: { icon: Clock, color: "text-gray-500", bg: "bg-gray-500/10", label: "Skipped" },
+    stopped: { icon: XCircle, color: "text-orange-500", bg: "bg-orange-500/10", label: "Stopped" },
+    unknown: { icon: Clock, color: "text-gray-400", bg: "bg-gray-400/10", label: "Unknown" },
 };
 
 export function TestResultsTable({
@@ -126,8 +128,8 @@ export function TestResultsTable({
         }
     };
 
-    const StatusBadge = ({ status }: { status: keyof typeof statusConfig }) => {
-        const config = statusConfig[status];
+    const StatusBadge = ({ status }: { status: string }) => {
+        const config = statusConfig[status] || statusConfig.unknown;
         const Icon = config.icon;
         return (
             <Badge variant="outline" className={cn("gap-1", config.color, config.bg)}>
