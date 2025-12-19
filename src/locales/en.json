@@ -56,7 +56,10 @@
         "networkError": "Network error",
         "noStepsReturned": "Could not generate steps",
         "cardTitle": "JSON / HAR File",
-        "supportedFormats": "JSON or HAR files are supported"
+        "supportedFormats": "JSON or HAR files are supported",
+        "selectTags": "Select Test Tags",
+        "addCustomTag": "Add new tag...",
+        "tagsDescription": "Select the Cucumber tags you want to include in the generated tests (e.g. @regression, @smoke)"
     },
     "testRun": {
         "title": "Run Tests",

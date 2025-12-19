@@ -5,11 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileJson, Loader2, X, AlertCircle } from "lucide-react";
+import { Upload, FileJson, Loader2, X, AlertCircle, Plus, Tag as TagIcon } from "lucide-react";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { GeneratedFilesDisplay } from "@/components/generated-files-display";
 import { type UploadJsonResponse } from "@/app/actions/upload-json-action";
+import { getAllTagsAction } from "@/app/actions/tag-actions";
+import { Input } from "@/components/ui/input";
 import {
     useActiveJob,
     useJobStatus,
@@ -39,6 +41,9 @@ interface UploadJsonClientProps {
             supportedFormats?: string;
             processingInBackground?: string;
             jobAlreadyRunning?: string;
+            selectTags?: string;
+            addCustomTag?: string;
+            tagsDescription?: string;
         };
         common: {
             error: string;
@@ -55,6 +60,22 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [existingTags, setExistingTags] = useState<string[]>([]);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [customTag, setCustomTag] = useState("");
+
+    // Fetch existing tags
+    useEffect(() => {
+        const fetchTags = async () => {
+            try {
+                const tags = await getAllTagsAction();
+                setExistingTags(tags || []);
+            } catch (error) {
+                console.error("Failed to fetch tags:", error);
+            }
+        };
+        fetchTags();
+    }, []);
 
     // Job hooks - socket updates the cache automatically
     const { data: activeJob } = useActiveJob("UPLOAD_JSON");
@@ -80,7 +101,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
     // Show toast on completion (only once per job)
     useEffect(() => {
         if (!currentJob?.id) return;
-        
+
         if (isComplete && shownToastRef.current !== `complete-${currentJob.id}`) {
             shownToastRef.current = `complete-${currentJob.id}`;
             toast.success(dictionary.common.success);
@@ -136,6 +157,9 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
 
         const formData = new FormData();
         formData.append("file", file);
+        if (selectedTags.length > 0) {
+            formData.append("tags", selectedTags.join(", "));
+        }
 
         startJobMutation.mutate(formData, {
             onError: (error) => {
@@ -146,6 +170,33 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                 }
             },
         });
+    };
+
+    const toggleTag = (tag: string) => {
+        setSelectedTags(prev =>
+            prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+        );
+    };
+
+    const handleAddCustomTag = () => {
+        if (!customTag.trim()) return;
+
+        let tagToAdd = customTag.trim();
+        if (!tagToAdd.startsWith("@")) {
+            tagToAdd = "@" + tagToAdd;
+        }
+
+        if (!selectedTags.includes(tagToAdd)) {
+            setSelectedTags(prev => [...prev, tagToAdd]);
+        }
+        setCustomTag("");
+    };
+
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            handleAddCustomTag();
+        }
     };
 
     const handleClearFile = () => {
@@ -187,7 +238,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                                 <div className="flex-1">
                                     <p className="font-medium text-blue-500">
-                                        {currentJob?.stepKey 
+                                        {currentJob?.stepKey
                                             ? (fullDict.progressSteps as Record<string, Record<string, string>>)?.uploadJson?.[currentJob.stepKey] || currentJob.stepKey
                                             : dictionary.uploadJson.processingInBackground || "Arka planda işleniyor..."}
                                     </p>
@@ -294,6 +345,76 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                                 )}
                             </div>
                         </label>
+                    </div>
+
+                    {/* Tag Selection */}
+                    <div className="space-y-4 pt-4 border-t">
+                        <div className="flex flex-col gap-1">
+                            <h3 className="text-sm font-semibold flex items-center gap-2">
+                                <TagIcon className="w-4 h-4" />
+                                {dictionary.uploadJson.selectTags || "Test Etiketlerini Seçin"}
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                                {dictionary.uploadJson.tagsDescription || "Oluşturulacak testlere eklemek istediğiniz Cucumber etiketlerini seçin"}
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 min-h-[40px]">
+                            <AnimatePresence>
+                                {selectedTags.map(tag => (
+                                    <motion.div
+                                        key={tag}
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.8 }}
+                                    >
+                                        <Badge
+                                            variant="default"
+                                            className="px-3 py-1 gap-1 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                                            onClick={() => toggleTag(tag)}
+                                        >
+                                            {tag}
+                                            <X className="w-3 h-3 hover:text-red-300" />
+                                        </Badge>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Input
+                                value={customTag}
+                                onChange={(e) => setCustomTag(e.target.value)}
+                                onKeyDown={handleKeyPress}
+                                placeholder={dictionary.uploadJson.addCustomTag || "Yeni etiket ekle... (@smoke)"}
+                                className="max-w-[300px]"
+                                disabled={isProcessing}
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={handleAddCustomTag}
+                                disabled={isProcessing || !customTag.trim()}
+                            >
+                                <Plus className="w-4 h-4" />
+                            </Button>
+                        </div>
+
+                        {existingTags.length > 0 && (
+                            <div className="flex flex-wrap gap-2 pt-2">
+                                {existingTags.filter(tag => !selectedTags.includes(tag)).slice(0, 10).map(tag => (
+                                    <Badge
+                                        key={tag}
+                                        variant="outline"
+                                        className="cursor-pointer hover:bg-primary/10 hover:border-primary/50 transition-colors"
+                                        onClick={() => toggleTag(tag)}
+                                    >
+                                        {tag}
+                                    </Badge>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Generate Button */}

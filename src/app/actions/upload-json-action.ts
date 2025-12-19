@@ -6,11 +6,11 @@ export interface FileContent {
 }
 
 export interface UploadJsonResponse {
-    featureFiles?: FileContent[];
-    stepDefinitions?: FileContent[];
-    apiTests?: FileContent[];
-    testPayloads?: FileContent[];
-    [key: string]: FileContent[] | undefined;
+    featureFiles?: FileContent[] | FileContent;
+    stepDefinitions?: FileContent[] | FileContent;
+    apiTests?: FileContent[] | FileContent;
+    testPayloads?: FileContent[] | FileContent;
+    [key: string]: FileContent[] | FileContent | undefined;
 }
 
 export async function uploadJsonAction(formData: FormData, token?: string): Promise<UploadJsonResponse> {
@@ -23,9 +23,14 @@ export async function uploadJsonAction(formData: FormData, token?: string): Prom
         throw new Error("No file provided");
     }
 
+    const tags = formData.get("tags") as string;
+
     // Create a new FormData to send to backend
     const backendFormData = new FormData();
     backendFormData.append("file", file);
+    if (tags) {
+        backendFormData.append("tags", tags);
+    }
 
     const response = await fetch(
         `${process.env.API_URL || "http://localhost:8093"}/api/upload-json-ai`,

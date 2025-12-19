@@ -56,7 +56,10 @@
         "networkError": "Ağ hatası",
         "noStepsReturned": "Adım oluşturulamadı",
         "cardTitle": "JSON / HAR Dosyası",
-        "supportedFormats": "JSON veya HAR dosyaları desteklenir"
+        "supportedFormats": "JSON veya HAR dosyaları desteklenir",
+        "selectTags": "Test Etiketlerini Seçin",
+        "addCustomTag": "Yeni etiket ekle...",
+        "tagsDescription": "Oluşturulacak testlere eklemek istediğiniz Cucumber etiketlerini seçin (örn: @regression, @smoke)"
     },
     "testRun": {
         "title": "Testleri Çalıştır",

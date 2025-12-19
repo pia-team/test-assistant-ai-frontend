@@ -76,10 +76,19 @@ export function GeneratedFilesDisplay({ data, dictionary }: GeneratedFilesDispla
         setTimeout(() => setCopiedId(null), 2000);
     };
 
-    // Filter out non-array entries (like 'content' string)
-    const fileGroups = Object.entries(data).filter(
-        ([, files]) => Array.isArray(files) && files.length > 0
-    ) as [string, FileContent[]][];
+    // Map and filter entries to handle both arrays and single objects
+    const fileGroups = Object.entries(data)
+        .filter(([key]) => !["message", "status", "id"].includes(key)) // Exclude common non-file fields
+        .map(([key, value]) => {
+            if (Array.isArray(value)) {
+                return [key, value] as [string, FileContent[]];
+            }
+            if (value && typeof value === "object" && "fileName" in value && "code" in value) {
+                return [key, [value as FileContent]] as [string, FileContent[]];
+            }
+            return null;
+        })
+        .filter((group): group is [string, FileContent[]] => group !== null && group[1].length > 0);
 
     if (fileGroups.length === 0) {
         return null;
