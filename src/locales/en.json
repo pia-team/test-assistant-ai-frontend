@@ -19,7 +19,8 @@
         "copied": "Copied!"
     },
     "nav": {
-        "home": "Home",
+        "overview": "Overview",
+        "home": "Activity",
         "generateTests": "Generate Tests",
         "uploadJson": "Upload JSON",
         "testRun": "Run Tests",
@@ -34,21 +35,14 @@
         "signInWith": "Sign in with",
         "signingIn": "Signing in..."
     },
-    "home": {
-        "title": "CoTesterAi",
-        "subtitle": "Automated test generation and execution platform",
-        "uploadCard": {
-            "title": "Upload JSON Schema",
-            "description": "Upload your API schema and generate test scenarios"
-        },
-        "runCard": {
-            "title": "Run Tests",
-            "description": "Execute your Cucumber tests and view results"
-        },
-        "dashboardCard": {
-            "title": "AI Powered Test Generation",
-            "description": "Automatically generate test suites from your API documentation"
-        }
+    "activity": {
+        "title": "Test Activities",
+        "subtitle": "Real-time status and history of all test operations",
+        "liveStatus": "Live Status",
+        "quickActions": "Quick Actions",
+        "systemStatus": "System Status",
+        "connected": "Connected",
+        "disconnected": "Disconnected"
     },
     "uploadJson": {
         "title": "Upload JSON Schema",
@@ -270,6 +264,80 @@
         "configLoadError": "Failed to load config",
         "configUpdateError": "Failed to update config",
         "validationError": "URL, username and password are required"
+    },
+    "overview": {
+        "hero": {
+            "title": "Transform Test Writing with CoTesterAI",
+            "subtitle": "AI-Powered Test Automation",
+            "description": "Automatically generate Playwright test scenarios from your API documentation, run them with one click, and analyze with detailed reports.",
+            "descriptionStrong": "Forget manual test writing.",
+            "getStarted": "Get Started",
+            "learnMore": "How It Works?"
+        },
+        "stats": {
+            "fasterWriting": "Faster Test Writing",
+            "codeCoverage": "Code Coverage",
+            "autoTesting": "Automated Testing",
+            "compatibility": "Playwright Compatible"
+        },
+        "features": {
+            "badge": "Features",
+            "title": "The Future of Test Automation",
+            "subtitle": "CoTesterAI automates your entire test writing process and boosts your development efficiency.",
+            "explore": "Explore",
+            "aiGeneration": "AI-Powered Test Generation",
+            "aiGenerationDesc": "Automatically generate Gherkin test scenarios from Swagger/OpenAPI documentation.",
+            "jsonAnalysis": "JSON/HAR File Analysis",
+            "jsonAnalysisDesc": "Upload your API schemas or HAR files, and AI will automatically generate test code.",
+            "oneClickRun": "One-Click Test Execution",
+            "oneClickRunDesc": "Select your tests with Cucumber tags, run them in parallel or sequentially.",
+            "allureReports": "Detailed Allure Reports",
+            "allureReportsDesc": "Analyze your test results with visual reports, quickly identify failures.",
+            "multiBrowser": "Multi-Browser Support",
+            "multiBrowserDesc": "Run your tests in Chrome, Firefox, and Safari in headless or visible mode.",
+            "autoIntegration": "Auto Project Integration",
+            "autoIntegrationDesc": "Integrate generated test code into your Playwright project with one click."
+        },
+        "howItWorks": {
+            "badge": "How It Works?",
+            "title": "Test Automation in 5 Steps",
+            "subtitle": "Go from API documentation to working tests in minutes.",
+            "step": "Step",
+            "enterApi": "Enter API Documentation",
+            "enterApiDesc": "Enter your Swagger or OpenAPI URL. You can also upload JSON/HAR files.",
+            "aiGenerates": "AI Generates Test Scenarios",
+            "aiGeneratesDesc": "AI analyzes your API and creates comprehensive Gherkin test scenarios.",
+            "addCode": "Add Code to Your Project",
+            "addCodeDesc": "Integrate generated Feature files and Step Definitions into your project with one click.",
+            "runTests": "Run Tests",
+            "runTestsDesc": "Select your tests with Cucumber tags and run them in your preferred browser.",
+            "analyzeResults": "Analyze Results",
+            "analyzeResultsDesc": "Visualize test results with Allure reports and identify failures."
+        },
+        "outputs": {
+            "badge": "Outputs",
+            "title": "Generated Test Artifacts",
+            "subtitle": "AI analyzes your API and automatically generates the following formats.",
+            "featureFiles": "Feature Files",
+            "featureFilesDesc": "BDD scenarios in Gherkin format",
+            "stepDefinitions": "Step Definitions",
+            "stepDefinitionsDesc": "TypeScript test step definitions",
+            "apiTestData": "API Test Data",
+            "apiTestDataDesc": "Test data in JSON format",
+            "allureReports": "Allure Reports",
+            "allureReportsDesc": "Detailed visual test reports",
+            "generatedByAI": "Generated by AI"
+        },
+        "techStack": {
+            "badge": "Technology",
+            "title": "Powerful Technology Stack"
+        },
+        "cta": {
+            "title": "Start Test Automation Today",
+            "description": "Enter your API documentation and have working tests in minutes. Say goodbye to manual test writing.",
+            "button": "Start Generating Tests",
+            "goToActivity": "Go to Activity"
+        }
     },
     "progressSteps": {
         "generateTests": {

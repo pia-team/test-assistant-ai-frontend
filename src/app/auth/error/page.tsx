@@ -59,7 +59,7 @@ function ErrorContent() {
                         className="w-full"
                         size="sm"
                     >
-                        <NextLink href="/home">
+                        <NextLink href="/overview">
                             Go Home
                         </NextLink>
                     </Button>

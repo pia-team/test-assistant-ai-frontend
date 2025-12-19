@@ -10,7 +10,7 @@ export default function LoginPage() {
 
     useEffect(() => {
         if (authenticated) {
-            router.push("/home");
+            router.push("/overview");
         } else {
             // Auto login or show button? 
             // Previous behavior was auto-submit form.

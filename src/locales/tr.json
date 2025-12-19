@@ -19,7 +19,8 @@
         "copied": "Kopyalandı!"
     },
     "nav": {
-        "home": "Ana Sayfa",
+        "overview": "Genel Bakış",
+        "home": "Aktiviteler",
         "generateTests": "Test Oluştur",
         "uploadJson": "JSON Yükle",
         "testRun": "Test Çalıştır",
@@ -34,21 +35,14 @@
         "signInWith": "ile giriş yap",
         "signingIn": "Giriş yapılıyor..."
     },
-    "home": {
-        "title": "CoTesterAi",
-        "subtitle": "Otomatik test oluşturma ve çalıştırma platformu",
-        "uploadCard": {
-            "title": "JSON Şema Yükle",
-            "description": "API şemanızı yükleyin ve test senaryoları oluşturun"
-        },
-        "runCard": {
-            "title": "Testleri Çalıştır",
-            "description": "Cucumber testlerinizi çalıştırın ve sonuçları görüntüleyin"
-        },
-        "dashboardCard": {
-            "title": "Yapay Zeka Destekli Test Oluştur",
-            "description": "API dökümantasyonunuzdan otomatik olarak test paketi oluşturun"
-        }
+    "activity": {
+        "title": "Test Aktiviteleri",
+        "subtitle": "Tüm test işlemlerinin anlık durumu ve geçmişi",
+        "liveStatus": "Canlı Durum",
+        "quickActions": "Hızlı Aksiyonlar",
+        "systemStatus": "Sistem Durumu",
+        "connected": "Bağlı",
+        "disconnected": "Bağlantı Kesildi"
     },
     "uploadJson": {
         "title": "JSON Şema Yükle",
@@ -270,6 +264,80 @@
         "configLoadError": "Config yüklenemedi",
         "configUpdateError": "Config güncellenemedi",
         "validationError": "URL, kullanıcı adı ve şifre zorunludur"
+    },
+    "overview": {
+        "hero": {
+            "title": "CoTesterAI ile Test Yazımını Dönüştürün",
+            "subtitle": "Yapay Zeka Destekli Test Otomasyonu",
+            "description": "API dokümanlarınızdan otomatik olarak Playwright test senaryoları üretin, tek tıkla çalıştırın ve detaylı raporlarla analiz edin.",
+            "descriptionStrong": "Manuel test yazımını unutun.",
+            "getStarted": "Hemen Başla",
+            "learnMore": "Nasıl Çalışır?"
+        },
+        "stats": {
+            "fasterWriting": "Daha Hızlı Test Yazımı",
+            "codeCoverage": "Kod Kapsama Oranı",
+            "autoTesting": "Otomatik Test Çalıştırma",
+            "compatibility": "Playwright Uyumluluğu"
+        },
+        "features": {
+            "badge": "Özellikler",
+            "title": "Test Otomasyonunun Geleceği",
+            "subtitle": "CoTesterAI, test yazım sürecinizi uçtan uca otomatikleştirir ve geliştirme verimliliğinizi artırır.",
+            "explore": "Keşfet",
+            "aiGeneration": "Yapay Zeka Destekli Test Üretimi",
+            "aiGenerationDesc": "Swagger/OpenAPI dokümanlarından otomatik olarak Gherkin formatında test senaryoları oluşturun.",
+            "jsonAnalysis": "JSON/HAR Dosya Analizi",
+            "jsonAnalysisDesc": "API şemalarınızı veya HAR dosyalarınızı yükleyin, AI otomatik olarak test kodlarını üretsin.",
+            "oneClickRun": "Tek Tıkla Test Çalıştırma",
+            "oneClickRunDesc": "Cucumber etiketleri ile testlerinizi seçin, paralel veya sıralı olarak çalıştırın.",
+            "allureReports": "Detaylı Allure Raporları",
+            "allureReportsDesc": "Test sonuçlarınızı görsel raporlarla analiz edin, hataları hızlıca tespit edin.",
+            "multiBrowser": "Çoklu Tarayıcı Desteği",
+            "multiBrowserDesc": "Chrome, Firefox ve Safari tarayıcılarında testlerinizi headless veya görünür modda çalıştırın.",
+            "autoIntegration": "Projeye Otomatik Entegrasyon",
+            "autoIntegrationDesc": "Üretilen test kodlarını tek tıkla Playwright projenize entegre edin."
+        },
+        "howItWorks": {
+            "badge": "Nasıl Çalışır?",
+            "title": "5 Adımda Test Otomasyonu",
+            "subtitle": "API dokümanından çalışan testlere dakikalar içinde geçin.",
+            "step": "Adım",
+            "enterApi": "API Dokümanını Girin",
+            "enterApiDesc": "Swagger veya OpenAPI URL'nizi sisteme girin. JSON/HAR dosyası da yükleyebilirsiniz.",
+            "aiGenerates": "AI Test Senaryoları Üretir",
+            "aiGeneratesDesc": "Yapay zeka API'nizi analiz eder ve kapsamlı Gherkin test senaryoları oluşturur.",
+            "addCode": "Kodu Projenize Ekleyin",
+            "addCodeDesc": "Üretilen Feature dosyaları ve Step Definition'ları tek tıkla projenize entegre edin.",
+            "runTests": "Testleri Çalıştırın",
+            "runTestsDesc": "Cucumber etiketleri ile testlerinizi seçin ve istediğiniz tarayıcıda çalıştırın.",
+            "analyzeResults": "Sonuçları Analiz Edin",
+            "analyzeResultsDesc": "Allure raporları ile test sonuçlarını görselleştirin ve hataları tespit edin."
+        },
+        "outputs": {
+            "badge": "Çıktılar",
+            "title": "Üretilen Test Artefaktları",
+            "subtitle": "AI, API'nizi analiz ederek aşağıdaki formatları otomatik olarak üretir.",
+            "featureFiles": "Feature Dosyaları",
+            "featureFilesDesc": "Gherkin formatında BDD senaryoları",
+            "stepDefinitions": "Step Definitions",
+            "stepDefinitionsDesc": "TypeScript test adım tanımları",
+            "apiTestData": "API Test Dataları",
+            "apiTestDataDesc": "JSON formatında test verileri",
+            "allureReports": "Allure Raporları",
+            "allureReportsDesc": "Detaylı görsel test raporları",
+            "generatedByAI": "AI Tarafından Üretildi"
+        },
+        "techStack": {
+            "badge": "Teknoloji",
+            "title": "Güçlü Teknoloji Yığını"
+        },
+        "cta": {
+            "title": "Test Otomasyonuna Bugün Başlayın",
+            "description": "API dokümanınızı girin ve birkaç dakika içinde çalışan testlere sahip olun. Manuel test yazımına son verin.",
+            "button": "Test Üretmeye Başla",
+            "goToActivity": "Aktivitelere Git"
+        }
     },
     "progressSteps": {
         "generateTests": {

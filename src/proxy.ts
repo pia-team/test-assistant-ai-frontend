@@ -8,12 +8,12 @@ export default async function middleware(request: NextRequest) {
     // For now, allow client-side to handle auth states.
 
     // Valid application routes (optional: keep this check if desired for 404s, but simplified)
-    // const validRoutes = ["/", "/home", "/login", "/generate-tests", "/upload-json", "/test-run", "/auth/error", "/auth/signout"];
+    // const validRoutes = ["/", "/activities", "/login", "/generate-tests", "/upload-json", "/test-run", "/auth/error", "/auth/signout"];
     // ...
 
     // Handle Root URL redirect
     if (pathname === "/") {
-        return NextResponse.redirect(new URL("/home", request.url));
+        return NextResponse.redirect(new URL("/overview", request.url));
     }
 
     return NextResponse.next();
