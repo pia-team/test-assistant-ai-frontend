@@ -19,6 +19,9 @@ export interface Job {
     status: JobStatus;
     progress?: number;
     progressMessage?: string;
+    stepKey?: string;
+    currentStep?: number;
+    totalSteps?: number;
     request?: unknown;
     result?: unknown;
     error?: string | null;
@@ -87,6 +90,8 @@ export async function startRunTestsJob(params: {
     env: string;
     isParallel: boolean;
     threads: number | null;
+    browser?: string;
+    headless?: boolean;
 }, token?: string): Promise<Job> {
     const headers = await getAuthHeaders(token);
 

@@ -37,9 +37,16 @@ export function SocketProvider({ children }: SocketProviderProps) {
   const globalSubscriptionRef = useRef<boolean>(false);
 
   const updateJobInCache = useCallback((jobId: string, updates: Partial<Job>) => {
+    console.log('[SocketContext] updateJobInCache called for:', jobId, 'with updates:', JSON.stringify(updates));
+    
     queryClient.setQueryData<Job | null>(['job', jobId], (old) => {
-      if (!old) return old;
-      return { ...old, ...updates };
+      if (!old) {
+        console.log('[SocketContext] No existing job in [job, jobId] cache');
+        return old;
+      }
+      const updated = { ...old, ...updates };
+      console.log('[SocketContext] Updated [job, jobId] cache:', JSON.stringify({ progress: updated.progress, stepKey: updated.stepKey }));
+      return updated;
     });
 
     queryClient.setQueryData<Job[]>(['allJobs'], (old) => {
@@ -51,7 +58,9 @@ export function SocketProvider({ children }: SocketProviderProps) {
     jobTypes.forEach(type => {
       queryClient.setQueryData<Job | null>(['activeJob', type], (old) => {
         if (!old || old.id !== jobId) return old;
-        return { ...old, ...updates };
+        const updated = { ...old, ...updates };
+        console.log(`[SocketContext] Updated [activeJob, ${type}] cache:`, JSON.stringify({ progress: updated.progress, stepKey: updated.stepKey }));
+        return updated;
       });
     });
   }, [queryClient]);
@@ -96,11 +105,17 @@ export function SocketProvider({ children }: SocketProviderProps) {
     });
 
     socketService.onJobProgress((data) => {
-      console.log('[Socket] Job progress:', data.id, data.progress, data.message);
-      updateJobInCache(data.id, {
+      console.log('[SocketContext] Job progress received:', JSON.stringify(data));
+      console.log('[SocketContext] Updating cache for job:', data.id);
+      const updates = {
         progress: data.progress,
-        progressMessage: data.message
-      });
+        progressMessage: data.message,
+        stepKey: data.stepKey,
+        currentStep: data.currentStep,
+        totalSteps: data.totalSteps
+      };
+      console.log('[SocketContext] Cache updates:', JSON.stringify(updates));
+      updateJobInCache(data.id, updates);
     });
 
     socketService.onJobCompleted((data) => {

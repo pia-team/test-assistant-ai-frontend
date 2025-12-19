@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useLocale } from "@/components/locale-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,12 @@ import {
     isJobStopped,
 } from "@/lib/use-job";
 import { useSocket } from "@/context/SocketContext";
+import { Eye, EyeOff, Globe } from "lucide-react";
+import { 
+    getPlaywrightConfig, 
+    updatePlaywrightConfig,
+    type PlaywrightConfig 
+} from "@/app/actions/playwright-config-actions";
 
 interface TestRunClientProps {
     dictionary: {
@@ -104,13 +111,31 @@ const THREAD_OPTIONS = Array.from({ length: 11 }, (_, i) => ({
     label: i.toString(),
 }));
 
+const BROWSER_OPTIONS = [
+    { value: "chromium", label: "Chrome", icon: "🌐" },
+    { value: "firefox", label: "Firefox", icon: "🦊" },
+    { value: "webkit", label: "Safari (WebKit)", icon: "🧭" },
+];
+
 export function TestRunClient({ dictionary }: TestRunClientProps) {
+    const { dictionary: fullDict } = useLocale();
     const [tags, setTags] = useState("");
-    const [env, setEnv] = useState("uat");
+    const [env, setEnv] = useState("dev");
     const [isParallel, setIsParallel] = useState(true);
     const [threads, setThreads] = useState(5);
+    const [browser, setBrowser] = useState("chromium");
+    const [headless, setHeadless] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [viewJobId, setViewJobId] = useState<string | null>(null);
+    
+    // Config state
+    const [showPassword, setShowPassword] = useState(false);
+    const [configLoading, setConfigLoading] = useState(false);
+    const [config, setConfig] = useState<PlaywrightConfig>({
+        baseLoginUrl: '',
+        username: '',
+        password: '',
+    });
 
     // Job hooks - socket updates the cache automatically
     const { data: activeJob } = useActiveJob("RUN_TESTS");
@@ -122,6 +147,31 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
             setViewJobId(activeJob.id);
         }
     }, [activeJob, viewJobId]);
+
+    // Load config when environment changes
+    useEffect(() => {
+        const loadConfig = async () => {
+            setConfigLoading(true);
+            try {
+                const data = await getPlaywrightConfig(env);
+                setConfig({
+                    baseLoginUrl: data.baseLoginUrl || '',
+                    username: data.username || '',
+                    password: data.password || '',
+                });
+            } catch (error) {
+                // Config doesn't exist yet, use empty values
+                setConfig({
+                    baseLoginUrl: '',
+                    username: '',
+                    password: '',
+                });
+            } finally {
+                setConfigLoading(false);
+            }
+        };
+        loadConfig();
+    }, [env]);
 
     const { data: jobStatus } = useJobStatus(viewJobId);
     const startJobMutation = useStartRunTestsJob();
@@ -156,16 +206,37 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         }
     }, [isComplete, isFailed, currentJob?.id, currentJob?.error, dictionary]);
 
-    const handleRun = () => {
+    const handleRun = async () => {
         if (!tags.trim()) return;
+        
+        // Validate config
+        if (!config.baseLoginUrl || !config.username || !config.password) {
+            toast.error("URL, kullanıcı adı ve şifre zorunludur");
+            return;
+        }
 
         setError(null);
+        
+        // Save config first
+        try {
+            await updatePlaywrightConfig({
+                ...config,
+                environment: env,
+            });
+            toast.success(`${env}.json config kaydedildi`);
+        } catch (err: any) {
+            toast.error(`Config kaydedilemedi: ${err.message}`);
+            return;
+        }
+
         startJobMutation.mutate(
             {
                 tags,
                 env,
                 isParallel,
                 threads: isParallel ? threads : null,
+                browser,
+                headless,
             },
             {
                 onSuccess: (job) => {
@@ -220,10 +291,14 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                     <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                                     <div className="flex-1">
                                         <p className="font-medium text-blue-500">
-                                            {currentJob?.progressMessage || dictionary.testRun.processingInBackground || "Testler çalıştırılıyor..."}
+                                            {currentJob?.stepKey 
+                                                ? (fullDict.progressSteps as Record<string, Record<string, string>>)?.runTests?.[currentJob.stepKey] || currentJob.stepKey
+                                                : dictionary.testRun.processingInBackground || "Testler çalıştırılıyor..."}
                                         </p>
                                         <p className="text-sm text-muted-foreground">
-                                            Adım: %{currentJob?.progress || 0} tamamlandı
+                                            {currentJob?.stepKey && currentJob?.currentStep && currentJob?.totalSteps
+                                                ? `Adım ${currentJob.currentStep}/${currentJob.totalSteps} - %${currentJob.progress || 0}`
+                                                : `%${currentJob?.progress || 0} tamamlandı`}
                                         </p>
                                     </div>
                                     <Badge variant="outline" className="text-blue-500 font-mono">
@@ -381,6 +456,111 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                             </Select>
                         </div>
 
+                        {/* Environment Config */}
+                        <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">
+                            <Label className="flex items-center gap-2 text-sm font-medium">
+                                <Globe className="w-4 h-4" />
+                                Test Ortamı Bilgileri
+                            </Label>
+                            
+                            {configLoading ? (
+                                <div className="flex items-center justify-center py-4">
+                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    <span className="text-sm text-muted-foreground">Yükleniyor...</span>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Login URL</Label>
+                                        <Input
+                                            placeholder="https://example.com/login"
+                                            value={config.baseLoginUrl}
+                                            onChange={(e) => setConfig({ ...config, baseLoginUrl: e.target.value })}
+                                            disabled={isProcessing}
+                                            className="h-8 text-sm"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-muted-foreground">Kullanıcı Adı</Label>
+                                            <Input
+                                                placeholder="username"
+                                                value={config.username}
+                                                onChange={(e) => setConfig({ ...config, username: e.target.value })}
+                                                disabled={isProcessing}
+                                                className="h-8 text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-muted-foreground">Şifre</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    type={showPassword ? 'text' : 'password'}
+                                                    placeholder="••••••••"
+                                                    value={config.password}
+                                                    onChange={(e) => setConfig({ ...config, password: e.target.value })}
+                                                    disabled={isProcessing}
+                                                    className="h-8 text-sm pr-8"
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="absolute right-0 top-0 h-8 w-8 px-2"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                >
+                                                    {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Browser Selection */}
+                        <div className="space-y-3">
+                            <Label className="flex items-center gap-2 text-muted-foreground">
+                                <Globe className="w-4 h-4" />
+                                Tarayıcı
+                            </Label>
+                            <Select value={browser} onValueChange={setBrowser} disabled={isProcessing}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {BROWSER_OPTIONS.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                            <div className="flex items-center gap-2">
+                                                <span>{opt.icon}</span>
+                                                {opt.label}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            
+                            {/* Headless Mode */}
+                            <div className="flex items-center justify-between pt-2">
+                                <Label className="flex items-center gap-2 text-muted-foreground text-sm">
+                                    <Eye className="w-4 h-4" />
+                                    Headless Mod
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                    <Switch
+                                        checked={headless}
+                                        onCheckedChange={setHeadless}
+                                        disabled={isProcessing}
+                                    />
+                                    <Badge variant={headless ? "secondary" : "default"} className="text-xs">
+                                        {headless ? "Arka Plan" : "Görünür"}
+                                    </Badge>
+                                </div>
+                            </div>
+                        </div>
+
+                        <Separator />
+
                         {/* Parallel Execution */}
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
@@ -459,10 +639,13 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                             )}
                         </Button>
 
-                        <Separator />
-
-                        {/* Test Report Section - Integrated */}
-                        <ReportSection />
+                        {/* Test Report Section - Only show after successful test completion */}
+                        {isComplete && result && (
+                            <>
+                                <Separator />
+                                <ReportSection />
+                            </>
+                        )}
                     </CardContent>
                 </Card>
 

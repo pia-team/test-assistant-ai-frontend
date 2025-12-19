@@ -204,8 +204,10 @@ export function JobDashboard() {
                                             {isJobInProgress(job) ? (
                                                 <div className="flex flex-col gap-1 min-w-[150px]">
                                                     <Progress value={job.progress || 0} className="h-2" />
-                                                    <span className="text-xs text-blue-500 truncate" title={job.progressMessage}>
-                                                        {job.progressMessage || `%${job.progress || 0} ${dictionary.jobDashboard.completed}`}
+                                                    <span className="text-xs text-blue-500 truncate" title={job.stepKey || job.progressMessage}>
+                                                        {job.stepKey 
+                                                            ? `${(dictionary.progressSteps as Record<string, Record<string, string>>)?.[job.type === 'GENERATE_TESTS' ? 'generateTests' : job.type === 'RUN_TESTS' ? 'runTests' : job.type === 'UPLOAD_JSON' ? 'uploadJson' : 'openReport']?.[job.stepKey] || job.stepKey} (${job.currentStep}/${job.totalSteps})`
+                                                            : job.progressMessage || `%${job.progress || 0}`}
                                                     </span>
                                                 </div>
                                             ) : (

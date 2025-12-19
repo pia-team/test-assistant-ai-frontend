@@ -11,12 +11,15 @@ import {
     Download,
     FileCode,
     CheckCircle,
-    Check
+    Check,
+    FolderInput
 } from "lucide-react";
 import { toast } from "sonner";
 import type { FileContent, UploadJsonResponse } from "@/app/actions/upload-json-action";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import { InjectToProjectButton } from "./inject-to-project-button";
+import { useLocale } from "@/components/locale-context";
 
 interface GeneratedFilesDisplayProps {
     data: UploadJsonResponse;
@@ -62,6 +65,7 @@ const downloadFile = (fileName: string, content: string) => {
 };
 
 export function GeneratedFilesDisplay({ data, dictionary }: GeneratedFilesDisplayProps) {
+    const { dictionary: fullDict } = useLocale();
     const [expanded, setExpanded] = useState<string | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -81,18 +85,42 @@ export function GeneratedFilesDisplay({ data, dictionary }: GeneratedFilesDispla
         return null;
     }
 
+    // Flatten all files for "inject all" button
+    const allFiles = fileGroups.flatMap(([, files]) => files);
+
     return (
         <div className="space-y-6">
+            {/* Inject All Button */}
+            {allFiles.length > 0 && (
+                <div className="flex justify-end">
+                    <InjectToProjectButton
+                        files={allFiles}
+                        variant="default"
+                        size="default"
+                        label={`${fullDict.injection.addAllToProject} (${allFiles.length} ${fullDict.injection.files})`}
+                        onSuccess={() => toast.success(fullDict.injection.allFilesAdded)}
+                    />
+                </div>
+            )}
+
             {fileGroups.map(([groupName, files]) => (
                 <Card key={groupName}>
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-lg flex items-center gap-2 capitalize">
-                            <CheckCircle className="w-5 h-5 text-green-500" />
-                            {groupName.replace(/([A-Z])/g, " $1").trim()}
-                            <span className="text-sm font-normal text-muted-foreground">
-                                ({files.length} {files.length === 1 ? "file" : "files"})
-                            </span>
-                        </CardTitle>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg flex items-center gap-2 capitalize">
+                                <CheckCircle className="w-5 h-5 text-green-500" />
+                                {groupName.replace(/([A-Z])/g, " $1").trim()}
+                                <span className="text-sm font-normal text-muted-foreground">
+                                    ({files.length} {files.length === 1 ? "file" : "files"})
+                                </span>
+                            </CardTitle>
+                            <InjectToProjectButton
+                                files={files}
+                                variant="outline"
+                                size="sm"
+                                label={fullDict.injection.addGroupToProject}
+                            />
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {files.map((file, index) => {

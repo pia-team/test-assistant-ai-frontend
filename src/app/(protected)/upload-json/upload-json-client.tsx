@@ -20,6 +20,7 @@ import {
     isJobFailed,
 } from "@/lib/use-job";
 import { useSocket } from "@/context/SocketContext";
+import { useLocale } from "@/components/locale-context";
 
 interface UploadJsonClientProps {
     dictionary: {
@@ -50,6 +51,7 @@ interface UploadJsonClientProps {
 }
 
 export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
+    const { dictionary: fullDict } = useLocale();
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -185,17 +187,21 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                                 <div className="flex-1">
                                     <p className="font-medium text-blue-500">
-                                        {dictionary.uploadJson.processingInBackground || "Arka planda işleniyor..."}
+                                        {currentJob?.stepKey 
+                                            ? (fullDict.progressSteps as Record<string, Record<string, string>>)?.uploadJson?.[currentJob.stepKey] || currentJob.stepKey
+                                            : dictionary.uploadJson.processingInBackground || "Arka planda işleniyor..."}
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        {dictionary.uploadJson.generating}
+                                        {currentJob?.stepKey && currentJob?.currentStep && currentJob?.totalSteps
+                                            ? `Adım ${currentJob.currentStep}/${currentJob.totalSteps} - %${currentJob.progress || 0}`
+                                            : dictionary.uploadJson.generating}
                                     </p>
                                 </div>
                                 <Badge variant="outline" className="text-blue-500">
-                                    {currentJob?.status}
+                                    %{currentJob?.progress || 0}
                                 </Badge>
                             </div>
-                            <Progress className="mt-3" value={currentJob?.status === "RUNNING" ? 50 : 10} />
+                            <Progress className="mt-3" value={currentJob?.progress || 0} />
                         </CardContent>
                     </Card>
                 </motion.div>
