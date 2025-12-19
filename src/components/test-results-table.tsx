@@ -29,6 +29,7 @@ import {
     Eye,
     Terminal,
     Video,
+    BarChart2,
 } from "lucide-react";
 import { useLocale } from "@/components/locale-context";
 import { useSocket } from "@/context/SocketContext";
@@ -52,6 +53,7 @@ export interface TestCreation {
     status: "completed" | "running" | "failed" | "pending";
     environment: string;
     project?: string;
+    reportUrl?: string;
     createdAt: string;
     tests: TestItem[];
 }
@@ -198,6 +200,7 @@ export function TestResultsTable({
                                     <TableHead className="w-[120px]">Environment</TableHead>
                                     <TableHead className="w-[150px]">Status</TableHead>
                                     <TableHead className="w-[180px]">Created At</TableHead>
+                                    <TableHead className="w-[100px] text-right">Action</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -234,13 +237,42 @@ export function TestResultsTable({
                                             <TableCell className="text-sm text-muted-foreground font-mono">
                                                 {creation.createdAt}
                                             </TableCell>
+                                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                                {creation.reportUrl && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0"
+                                                        title="Raporu Aç"
+                                                        onClick={() => {
+                                                            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8093';
+                                                            const rawUrl = creation.reportUrl || "";
+
+                                                            let url = "";
+                                                            if (rawUrl.startsWith('http')) {
+                                                                url = rawUrl;
+                                                            } else if (rawUrl.startsWith('file://')) {
+                                                                // If it's a file URL, we can't open it from browser, 
+                                                                // but we should at least not prepend the baseUrl to it
+                                                                url = rawUrl;
+                                                            } else {
+                                                                url = `${baseUrl}${rawUrl}`;
+                                                            }
+
+                                                            window.open(url, '_blank');
+                                                        }}
+                                                    >
+                                                        <BarChart2 className="w-4 h-4 text-primary" />
+                                                    </Button>
+                                                )}
+                                            </TableCell>
                                         </TableRow>
 
                                         {/* Expanded Detail Row */}
                                         <AnimatePresence>
                                             {expandedRows.has(creation.id) && (
                                                 <TableRow key={`${creation.id}-detail`}>
-                                                    <TableCell colSpan={6} className="p-0 bg-muted/30">
+                                                    <TableCell colSpan={7} className="p-0 bg-muted/30">
                                                         <motion.div
                                                             initial={{ opacity: 0, height: 0 }}
                                                             animate={{ opacity: 1, height: "auto" }}

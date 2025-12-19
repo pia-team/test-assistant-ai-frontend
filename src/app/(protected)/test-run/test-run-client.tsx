@@ -42,7 +42,9 @@ import {
     XCircle,
     RefreshCw,
     Tag,
-    Cpu
+    Cpu,
+    BarChart2,
+    ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -218,6 +220,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                     status: job.status.toLowerCase() as any,
                     environment: request?.env || "dev",
                     project: request?.project || "N/A",
+                    reportUrl: result?.reportUrl,
                     createdAt: job.createdAt ? new Date(job.createdAt).toLocaleString('tr-TR') : "N/A",
                     tests: tests,
                 };
@@ -1109,7 +1112,35 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                             {isComplete && result && (
                                 <>
                                     <Separator />
-                                    <ReportSection />
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <BarChart2 className="w-4 h-4 text-blue-500" />
+                                            <span className="font-medium text-sm">Test Raporu Hazır</span>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="gap-2 border-primary text-primary hover:bg-primary/10"
+                                                onClick={() => {
+                                                    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8093';
+                                                    const rawUrl = result.reportUrl || "";
+                                                    let url = "";
+                                                    if (rawUrl.startsWith('http')) {
+                                                        url = rawUrl;
+                                                    } else if (rawUrl.startsWith('file://')) {
+                                                        url = rawUrl;
+                                                    } else {
+                                                        url = `${baseUrl}${rawUrl}`;
+                                                    }
+                                                    window.open(url, '_blank');
+                                                }}
+                                            >
+                                                <ExternalLink className="w-3 h-3" />
+                                                Raporu Görüntüle
+                                            </Button>
+                                        </div>
+                                    </div>
                                 </>
                             )}
                         </Form>
