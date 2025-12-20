@@ -15,8 +15,8 @@ WORKDIR /app
 # Build arguments for Next.js public environment variables
 # These get inlined at build time into the JavaScript bundle
 # Override these with --build-arg when building for production:
-#   docker build --build-arg NEXT_PUBLIC_SOCKET_URL=https://your-domain.com/socket ...
-ARG NEXT_PUBLIC_SOCKET_URL=http://localhost:9092
+#   docker build --build-arg NEXT_PUBLIC_SOCKET_URL=https://your-domain.com ...
+ARG NEXT_PUBLIC_SOCKET_URL=https://test-asistant-ai-be.dnext-pia.com
 ARG NEXT_PUBLIC_KEYCLOAK_URL=https://diam.dnext-pia.com
 ARG NEXT_PUBLIC_KEYCLOAK_REALM=orbitant-realm
 ARG NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=orbitant-ui-client
