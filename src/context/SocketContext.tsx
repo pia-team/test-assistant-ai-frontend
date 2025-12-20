@@ -13,6 +13,11 @@ interface SocketContextType {
   disconnect: () => void;
   subscribeToJob: (jobId: string, callbacks: JobCallbacks) => void;
   unsubscribeFromJob: (jobId: string) => void;
+  // Injection listeners
+  onInjectionStart: (callback: (data: { jobId: string; totalFiles: number }) => void) => void;
+  onInjectionProgress: (callback: (data: { jobId: string; currentFile: string; currentIndex: number; totalFiles: number; progress: number }) => void) => void;
+  onInjectionCompleted: (callback: (data: { jobId: string; totalFiles: number }) => void) => void;
+  onInjectionFailed: (callback: (data: { jobId: string; error: string }) => void) => void;
 }
 
 interface JobCallbacks {
@@ -39,34 +44,73 @@ export function SocketProvider({ children }: SocketProviderProps) {
   const updateJobInCache = useCallback((jobId: string, updates: Partial<Job>) => {
     console.log('[SocketContext] updateJobInCache called for:', jobId, 'with updates:', JSON.stringify(updates));
 
+    let resolvedType: string | undefined;
+
+    // 1. Update the main job cache [job, jobId]
     queryClient.setQueryData<Job | null>(['job', jobId], (old) => {
+      // If we don't have the job in cache yet, create a initial one but merge with updates
       if (!old) {
-        console.log('[SocketContext] No existing job in [job, jobId] cache');
-        return old;
+        console.log('[SocketContext] Cache entry missing for job:', jobId, '- creating initial entry with updates');
+        const initialJob = {
+          id: jobId,
+          status: 'RUNNING',
+          progress: 0,
+          ...updates
+        } as Job;
+        resolvedType = initialJob.type;
+        return initialJob;
       }
+
+      // Merge existing data with new updates. 
+      // CRITICAL: Ensure we don't downgrade progress or revert status from final to active
+      if ((old.progress ?? 0) > (updates.progress ?? 0) && updates.status !== 'COMPLETED') {
+        // Only ignore progress downgrade if we aren't completing the job
+        // (sometimes completed comes with 100 which is good)
+      }
+
       const updated = { ...old, ...updates };
-      console.log('[SocketContext] Updated [job, jobId] cache:', JSON.stringify({ progress: updated.progress, stepKey: updated.stepKey }));
+      resolvedType = updated.type;
+      console.log('[SocketContext] Updated [job, jobId] cache. New progress:', updated.progress);
       return updated;
     });
 
+    // 2. Synchronize the corresponding activeJob cache
+    // We try to find the type from the merged job data
+    if (resolvedType) {
+      queryClient.setQueryData<Job | null>(['activeJob', resolvedType], (old) => {
+        // If there's no active job of this type, or it's the SAME job, update it
+        if (!old || old.id === jobId) {
+          console.log(`[SocketContext] Syncing [activeJob, ${resolvedType}] for job:`, jobId);
+          return queryClient.getQueryData<Job>(['job', jobId]) || null;
+        }
+        return old;
+      });
+    } else {
+      // Fallback: search all activeJob slots if we don't know the type yet
+      const jobTypes = ['GENERATE_TESTS', 'RUN_TESTS', 'UPLOAD_JSON', 'OPEN_REPORT'];
+      jobTypes.forEach(type => {
+        queryClient.setQueryData<Job | null>(['activeJob', type], (old) => {
+          if (old && old.id === jobId) {
+            console.log(`[SocketContext] Found and updated job in [activeJob, ${type}]`);
+            const merged = { ...old, ...updates };
+            resolvedType = type; // Found it!
+            return merged;
+          }
+          return old;
+        });
+      });
+    }
+
+    // 3. Update allJobs list
     queryClient.setQueryData<Job[]>(['allJobs'], (old) => {
       if (!old) return old;
       return old.map(job => job.id === jobId ? { ...job, ...updates } : job);
     });
-
-    const jobTypes = ['GENERATE_TESTS', 'RUN_TESTS', 'UPLOAD_JSON', 'OPEN_REPORT'];
-    jobTypes.forEach(type => {
-      queryClient.setQueryData<Job | null>(['activeJob', type], (old) => {
-        if (!old || old.id !== jobId) return old;
-        const updated = { ...old, ...updates };
-        console.log(`[SocketContext] Updated [activeJob, ${type}] cache:`, JSON.stringify({ progress: updated.progress, stepKey: updated.stepKey }));
-        return updated;
-      });
-    });
   }, [queryClient]);
 
   const addJobToCache = useCallback((jobData: JobCreatedPayload) => {
-    const newJob: Job = {
+    console.log('[SocketContext] addJobToCache (job:created) for:', jobData.id);
+    const updates: Partial<Job> = {
       id: jobData.id,
       type: jobData.type as Job['type'],
       status: 'PENDING',
@@ -76,18 +120,19 @@ export function SocketProvider({ children }: SocketProviderProps) {
       username: jobData.username,
     };
 
-    queryClient.setQueryData<Job | null>(['activeJob', jobData.type], newJob);
-    queryClient.setQueryData<Job | null>(['job', jobData.id], newJob);
+    // Use the unified merge logic
+    updateJobInCache(jobData.id, updates);
 
+    // Specifically for job created, we want to ensure it's in allJobs
     queryClient.setQueryData<Job[]>(['allJobs'], (old) => {
-      if (!old) return [newJob];
+      if (!old) return [queryClient.getQueryData<Job>(['job', jobData.id])!];
       const exists = old.some(j => j.id === jobData.id);
       if (exists) return old;
-      return [newJob, ...old];
+      return [queryClient.getQueryData<Job>(['job', jobData.id])!, ...old];
     });
 
     queryClient.invalidateQueries({ queryKey: ['testRuns'] });
-  }, [queryClient]);
+  }, [queryClient, updateJobInCache]);
 
   const setupGlobalJobListeners = useCallback(() => {
     if (globalSubscriptionRef.current) return;
@@ -230,6 +275,10 @@ export function SocketProvider({ children }: SocketProviderProps) {
         disconnect,
         subscribeToJob,
         unsubscribeFromJob,
+        onInjectionStart: (callback) => socketService.onInjectionStart(callback),
+        onInjectionProgress: (callback) => socketService.onInjectionProgress(callback),
+        onInjectionCompleted: (callback) => socketService.onInjectionCompleted(callback),
+        onInjectionFailed: (callback) => socketService.onInjectionFailed(callback),
       }}
     >
       {children}

@@ -51,67 +51,54 @@ export interface UseCodeInjectionOptions {
 
 export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
     const { token } = useKeycloak();
-    const { isConnected } = useSocket();
+    const {
+        isConnected,
+        onInjectionStart,
+        onInjectionProgress,
+        onInjectionCompleted,
+        onInjectionFailed
+    } = useSocket();
     const [progress, setProgress] = useState<InjectionProgress | null>(null);
     const [isInjecting, setIsInjecting] = useState(false);
-    const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const totalFilesRef = useRef<number>(0);
 
-    // Cleanup interval on unmount
+    // Subscribe to socket events for the injection process
     useEffect(() => {
-        return () => {
-            if (progressIntervalRef.current) {
-                clearInterval(progressIntervalRef.current);
-            }
-        };
-    }, []);
+        if (!isInjecting) return;
 
-    const startProgressSimulation = useCallback((totalFiles: number) => {
-        totalFilesRef.current = totalFiles;
-        let currentStep = 0;
-        const steps = [
-            { step: 1, label: 'preparingFiles', progress: 30 },
-            { step: 2, label: 'writingFiles', progress: 70 },
-        ];
-
-        // Start with step 1
-        setProgress({
-            jobId: 'injection',
-            currentFile: steps[0].label,
-            currentIndex: 1,
-            totalFiles: steps.length,
-            progress: steps[0].progress,
+        onInjectionStart((data) => {
+            console.log('[useCodeInjection] Injection started:', data);
+            totalFilesRef.current = data.totalFiles;
         });
 
-        progressIntervalRef.current = setInterval(() => {
-            currentStep++;
-            if (currentStep < steps.length) {
-                setProgress({
-                    jobId: 'injection',
-                    currentFile: steps[currentStep].label,
-                    currentIndex: currentStep + 1,
-                    totalFiles: steps.length,
-                    progress: steps[currentStep].progress,
-                });
-            }
-        }, 1000); // Minimum 1 second per step for visibility
-    }, []);
-
-    const stopProgressSimulation = useCallback((success: boolean) => {
-        if (progressIntervalRef.current) {
-            clearInterval(progressIntervalRef.current);
-            progressIntervalRef.current = null;
-        }
-        if (success) {
+        onInjectionProgress((data) => {
+            console.log('[useCodeInjection] Injection progress:', data);
             setProgress({
-                jobId: 'injection',
+                jobId: data.jobId,
+                currentFile: data.currentFile,
+                currentIndex: data.currentIndex,
+                totalFiles: data.totalFiles,
+                progress: data.progress,
+            });
+        });
+
+        onInjectionCompleted((data) => {
+            console.log('[useCodeInjection] Injection completed:', data);
+            setProgress({
+                jobId: data.jobId,
                 currentFile: 'completed',
-                currentIndex: 2,
-                totalFiles: 2,
+                currentIndex: data.totalFiles,
+                totalFiles: data.totalFiles,
                 progress: 100,
             });
-        }
-    }, []);
+        });
+
+        onInjectionFailed((data) => {
+            console.error('[useCodeInjection] Injection failed:', data);
+            setIsInjecting(false);
+            setProgress(null);
+        });
+    }, [isInjecting, onInjectionStart, onInjectionProgress, onInjectionCompleted, onInjectionFailed]);
 
     const injectMutation = useMutation({
         mutationFn: async (params: {
@@ -126,23 +113,37 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
         },
         onMutate: (variables) => {
             setIsInjecting(true);
-            startProgressSimulation(variables.files.length);
+            totalFilesRef.current = variables.files.length;
+            // Set initial progress
+            setProgress({
+                jobId: 'injection',
+                currentFile: 'preparingFiles',
+                currentIndex: 0,
+                totalFiles: variables.files.length,
+                progress: 5,
+            });
         },
         onSuccess: (result) => {
-            stopProgressSimulation(true);
-            // Small delay to show completion state
-            setTimeout(() => {
+            // Success handler
+            if (result.conflicts && result.conflicts.length > 0) {
                 setIsInjecting(false);
                 setProgress(null);
-                if (result.conflicts && result.conflicts.length > 0) {
-                    options.onConflict?.(result.conflicts);
-                } else {
+                options.onConflict?.(result.conflicts);
+            } else {
+                // If no conflicts, wait for socket completed event or close if already 100
+                if (progress?.progress === 100) {
+                    setIsInjecting(false);
                     options.onSuccess?.(result);
+                } else {
+                    // Small fallback in case socket is slow
+                    setTimeout(() => {
+                        setIsInjecting(false);
+                        options.onSuccess?.(result);
+                    }, 500);
                 }
-            }, 300);
+            }
         },
         onError: (error: Error) => {
-            stopProgressSimulation(false);
             setIsInjecting(false);
             setProgress(null);
             options.onError?.(error);
@@ -160,6 +161,7 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
         overwriteExisting = false,
         backupExisting = true
     ) => {
+        injectMutation.reset();
         injectMutation.mutate({ files, overwriteExisting, backupExisting });
     }, [injectMutation]);
 

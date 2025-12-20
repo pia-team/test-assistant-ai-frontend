@@ -260,23 +260,6 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const { data: activeJob } = useActiveJob("RUN_TESTS");
     const { isConnected, subscribeToJob, unsubscribeFromJob } = useSocket();
 
-    // Subscribe to job updates for real-time status updates
-    useEffect(() => {
-        if (!viewJobId) return;
-
-        subscribeToJob(viewJobId, {
-            onStarted: () => {
-                // Status updates are now handled by React Query cache invalidation
-            },
-            onProgress: (data) => {
-                console.log("[TestRun] Job progress:", data);
-            },
-            onCompleted: () => {
-                // Status updates are now handled by React Query cache invalidation
-            },
-        });
-    }, [viewJobId]);
-
     // Fetch projects on mount
     useEffect(() => {
         const fetchProjects = async () => {
@@ -318,6 +301,31 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         };
         fetchTags();
     }, [selectedProject]);
+
+    // Handle project change with state reset
+    const handleProjectChange = (project: string) => {
+        setSelectedProject(project);
+        setSelectedTags([]);
+        setTagSearch("");
+        setTagLogic("and");
+
+        // Reset form fields to default values
+        setValue("tags", "", { shouldValidate: true });
+        setValue("env", "dev", { shouldValidate: true });
+        setValue("browser", "chromium", { shouldValidate: true });
+        setValue("headless", true, { shouldValidate: true });
+        setValue("isParallel", true, { shouldValidate: true });
+        setValue("threads", 5, { shouldValidate: true });
+    };
+
+    // Filter out the project-specific tag from the selection list
+    const filteredTags = useMemo(() => {
+        return availableTags.filter(tag => {
+            const projectTag = `@${selectedProject.toLowerCase()}`;
+            const normalizedTag = tag.toLowerCase();
+            return normalizedTag !== projectTag && normalizedTag !== selectedProject.toLowerCase();
+        });
+    }, [availableTags, selectedProject]);
 
     // Update form tags when selection or logic changes
     useEffect(() => {
@@ -454,6 +462,34 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         // Test data updates are now handled by React Query cache invalidation
     }, [result?.logs, viewJobId, tags]);
 
+    // Stuck detection logic
+    const [isStuck, setIsStuck] = useState(false);
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (isProcessing && currentJob?.progress === 0) {
+            timer = setTimeout(() => {
+                setIsStuck(true);
+            }, 30000); // 30 seconds
+        } else {
+            setIsStuck(false);
+        }
+        return () => clearTimeout(timer);
+    }, [isProcessing, currentJob?.progress]);
+
+    const parseErrorMessage = (msg: string) => {
+        if (!msg) return "";
+        try {
+            // Check if it's a JSON string from backend
+            if (msg.trim().startsWith('{')) {
+                const parsed = JSON.parse(msg);
+                return parsed.message || parsed.error || "Sunucu hatası oluştu";
+            }
+        } catch (e) {
+            // Fallback to original message
+        }
+        return msg;
+    };
+
     const onSubmit = async (data: TestRunFormValues) => {
         setError(null);
 
@@ -470,6 +506,9 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
             toast.error(`Config kaydedilemedi: ${err.message}`);
             return;
         }
+
+        // Clear previous job state before starting a new one to prevent UI sticking
+        clearJob(currentJob?.id);
 
         startJobMutation.mutate(
             {
@@ -502,8 +541,9 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                         setViewJobId(activeJobData.id);
                         toast.warning(dictionary.testRun.jobAlreadyRunning || "Bu işlem zaten çalışıyor");
                     } else {
-                        setError(err.message);
-                        toast.error(err.message);
+                        const friendlyError = parseErrorMessage(err.message);
+                        setError(friendlyError);
+                        toast.error(friendlyError);
                     }
                 },
             }
@@ -566,6 +606,47 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                         </Card>
                     </motion.div>
                 )}
+                {isStuck && !error && !isFailed && !isComplete && (
+                    <motion.div
+                        key="stuck-warning"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                    >
+                        <Card className="border-orange-500/50 bg-orange-500/10 mb-6">
+                            <CardContent className="py-4">
+                                <div className="flex items-start gap-3">
+                                    <AlertCircle className="w-5 h-5 text-orange-500 mt-1" />
+                                    <div className="flex-1">
+                                        <p className="font-medium text-orange-500">İşlem beklenenden uzun sürüyor</p>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            Süreç %0'da takılmış olabilir. Lütfen sayfayı yenilemeyi veya işlemi tekrar başlatmayı deneyin.
+                                        </p>
+                                        <div className="flex gap-2 mt-3">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/30 text-orange-600"
+                                                onClick={() => window.location.reload()}
+                                            >
+                                                <RefreshCw className="w-3.5 h-3.5 mr-2" />
+                                                Sayfayı Yenile
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8"
+                                                onClick={handleNewRun}
+                                            >
+                                                Farklı Test Başlat
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                )}
 
                 {(error || isFailed) && (
                     <motion.div
@@ -580,7 +661,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                     <XCircle className="w-5 h-5 text-red-500" />
                                     <div className="flex-1">
                                         <p className="font-medium text-red-500">{fullDict.testRun?.testFailed || "Test Çalıştırma Başarısız"}</p>
-                                        <p className="text-sm text-muted-foreground">{error || currentJob?.error}</p>
+                                        <p className="text-sm text-muted-foreground">{parseErrorMessage(error || currentJob?.error || "")}</p>
                                     </div>
                                     <Button variant="outline" size="sm" onClick={handleNewRun} className="gap-2">
                                         <RefreshCw className="w-4 h-4" />
@@ -647,7 +728,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                     </div>
                                     <Select
                                         value={selectedProject}
-                                        onValueChange={setSelectedProject}
+                                        onValueChange={handleProjectChange}
                                         disabled={isProcessing || projectsLoading}
                                     >
                                         <SelectTrigger>
@@ -729,9 +810,9 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                                     <div className="flex items-center justify-center py-8">
                                                         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                                                     </div>
-                                                ) : availableTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase())).length > 0 ? (
+                                                ) : filteredTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase())).length > 0 ? (
                                                     <div className="flex flex-wrap gap-1.5 pt-1">
-                                                        {availableTags
+                                                        {filteredTags
                                                             .filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()))
                                                             .map((tag) => (
                                                                 <Badge

@@ -109,12 +109,12 @@ const downloadFile = (fileName: string, content: string) => {
 // Swagger URL validation - accepts common Swagger/OpenAPI URL patterns
 const isValidSwaggerUrl = (url: string): boolean => {
     if (!url.trim()) return false;
-    
+
     try {
         const urlObj = new URL(url);
         const pathname = urlObj.pathname.toLowerCase();
         const href = urlObj.href.toLowerCase();
-        
+
         // Check for common Swagger/OpenAPI patterns
         const swaggerPatterns = [
             /swagger/i,
@@ -126,7 +126,7 @@ const isValidSwaggerUrl = (url: string): boolean => {
             /v2\/api-docs/i,
             /v3\/api-docs/i,
         ];
-        
+
         return swaggerPatterns.some(pattern => pattern.test(pathname) || pattern.test(href));
     } catch {
         return false;
@@ -163,6 +163,8 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
     const clearJob = useClearJob("GENERATE_TESTS");
     const { isConnected } = useSocket();
 
+
+
     // Sync job status with active job - socket updates both caches
     const currentJob = jobStatus ?? activeJob;
     const isProcessing = isJobInProgress(currentJob);
@@ -174,20 +176,45 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
         ? (currentJob.result as GeneratedResult)
         : null;
 
+    // Stuck detection logic
+    const [isStuck, setIsStuck] = useState(false);
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (isProcessing && currentJob?.progress === 0) {
+            timer = setTimeout(() => {
+                setIsStuck(true);
+            }, 30000); // 30 seconds
+        } else {
+            setIsStuck(false);
+        }
+        return () => clearTimeout(timer);
+    }, [isProcessing, currentJob?.progress]);
+
+    const parseErrorMessage = (msg: string) => {
+        if (!msg) return "";
+        try {
+            if (msg.trim().startsWith('{')) {
+                const parsed = JSON.parse(msg);
+                return parsed.message || parsed.error || "Sunucu hatası oluştu";
+            }
+        } catch (e) { }
+        return msg;
+    };
+
     // Track shown toasts to prevent duplicates
     const shownToastRef = useRef<string | null>(null);
 
     // Show toast on completion (only once per job)
     useEffect(() => {
         if (!currentJob?.id) return;
-        
+
         if (isComplete && shownToastRef.current !== `complete-${currentJob.id}`) {
             shownToastRef.current = `complete-${currentJob.id}`;
             toast.success(dictionary.generateTests.testsGeneratedSuccess || dictionary.common.success);
         }
         if (isFailed && shownToastRef.current !== `failed-${currentJob.id}`) {
             shownToastRef.current = `failed-${currentJob.id}`;
-            toast.error(currentJob.error || dictionary.generateTests.errorGeneratingTests || dictionary.common.error);
+            toast.error(parseErrorMessage(currentJob.error || "") || dictionary.generateTests.errorGeneratingTests || dictionary.common.error);
         }
     }, [isComplete, isFailed, currentJob?.id, currentJob?.error, dictionary]);
 
@@ -201,6 +228,9 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
             form.setError("url", { message: "Lütfen geçerli bir Swagger/OpenAPI URL'si girin" });
             return;
         }
+
+        // Clear previous job state before starting a new one to prevent UI sticking
+        clearJob(currentJob?.id);
 
         startJobMutation.mutate(
             {
@@ -216,7 +246,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                     if (error.message.startsWith("JOB_ALREADY_RUNNING:")) {
                         toast.warning(dictionary.generateTests.jobAlreadyRunning || "Bu işlem zaten çalışıyor");
                     } else {
-                        toast.error(error.message);
+                        toast.error(parseErrorMessage(error.message));
                     }
                 },
             }
@@ -262,7 +292,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                                 <div className="flex-1">
                                     <p className="font-medium text-blue-500">
-                                        {currentJob?.stepKey 
+                                        {currentJob?.stepKey
                                             ? (fullDict.progressSteps as Record<string, Record<string, string>>)?.generateTests?.[currentJob.stepKey] || currentJob.stepKey
                                             : dictionary.generateTests.processingInBackground || "Arka planda işleniyor..."}
                                     </p>
@@ -282,6 +312,46 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                 </motion.div>
             )}
 
+            {isStuck && !isFailed && !isComplete && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                >
+                    <Card className="border-orange-500/50 bg-orange-500/10 mb-6">
+                        <CardContent className="py-4">
+                            <div className="flex items-start gap-4">
+                                <div className="p-2 rounded-lg bg-orange-500/20">
+                                    <AlertCircle className="w-5 h-5 text-orange-500" />
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-semibold text-orange-500">İşlem beklenenden uzun sürüyor</h4>
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                        Süreç %0'da takılmış olabilir. Lütfen sayfayı yenilemeyi veya işlemi tekrar başlatmayı deneyin.
+                                    </p>
+                                    <div className="flex gap-3 mt-4">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/30 text-orange-600"
+                                            onClick={() => window.location.reload()}
+                                        >
+                                            Sayfayı Yenile
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleNewGeneration}
+                                        >
+                                            Yeniden Başlat
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
+
             {/* Error Banner */}
             {isFailed && (
                 <motion.div
@@ -294,7 +364,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <AlertCircle className="w-5 h-5 text-red-500" />
                                 <div className="flex-1">
                                     <p className="font-medium text-red-500">İşlem Başarısız</p>
-                                    <p className="text-sm text-muted-foreground">{currentJob?.error}</p>
+                                    <p className="text-sm text-muted-foreground">{parseErrorMessage(currentJob?.error || "")}</p>
                                 </div>
                                 <Button variant="outline" size="sm" onClick={handleNewGeneration}>
                                     Yeniden Dene

@@ -64,6 +64,17 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [customTag, setCustomTag] = useState("");
 
+    const parseErrorMessage = (msg: string) => {
+        if (!msg) return "";
+        try {
+            if (msg.trim().startsWith('{')) {
+                const parsed = JSON.parse(msg);
+                return parsed.message || parsed.error || "Sunucu hatası oluştu";
+            }
+        } catch (e) { }
+        return msg;
+    };
+
     // Fetch existing tags
     useEffect(() => {
         const fetchTags = async () => {
@@ -95,6 +106,20 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
         ? (currentJob.result as UploadJsonResponse)
         : null;
 
+    // Stuck detection logic
+    const [isStuck, setIsStuck] = useState(false);
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (isProcessing && currentJob?.progress === 0) {
+            timer = setTimeout(() => {
+                setIsStuck(true);
+            }, 30000); // 30 seconds
+        } else {
+            setIsStuck(false);
+        }
+        return () => clearTimeout(timer);
+    }, [isProcessing, currentJob?.progress]);
+
     // Track shown toasts to prevent duplicates
     const shownToastRef = useRef<string | null>(null);
 
@@ -108,7 +133,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
         }
         if (isFailed && shownToastRef.current !== `failed-${currentJob.id}`) {
             shownToastRef.current = `failed-${currentJob.id}`;
-            toast.error(currentJob.error || dictionary.uploadJson.uploadFailure || "Upload failed");
+            toast.error(parseErrorMessage(currentJob.error || "") || dictionary.uploadJson.uploadFailure || "Upload failed");
         }
     }, [isComplete, isFailed, currentJob?.id, currentJob?.error, dictionary]);
 
@@ -155,6 +180,9 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
     const handleUpload = () => {
         if (!file) return;
 
+        // Clear previous job state before starting a new one to prevent UI sticking
+        clearJob(currentJob?.id);
+
         const formData = new FormData();
         formData.append("file", file);
         if (selectedTags.length > 0) {
@@ -166,7 +194,8 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                 if (error.message.startsWith("JOB_ALREADY_RUNNING:")) {
                     toast.warning(dictionary.uploadJson.jobAlreadyRunning || "Bu işlem zaten çalışıyor");
                 } else {
-                    toast.error(error.message || dictionary.uploadJson.uploadFailure || "Upload failed");
+                    const friendlyError = parseErrorMessage(error.message);
+                    toast.error(friendlyError || dictionary.uploadJson.uploadFailure || "Upload failed");
                 }
             },
         });
@@ -214,6 +243,12 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
         }
     };
 
+    const handleSuccessAll = () => {
+        handleNewUpload();
+        setSelectedTags([]);
+        setCustomTag("");
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -258,6 +293,46 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                 </motion.div>
             )}
 
+            {isStuck && !isFailed && !isComplete && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                >
+                    <Card className="border-orange-500/50 bg-orange-500/10 mb-6">
+                        <CardContent className="py-4">
+                            <div className="flex items-start gap-4">
+                                <div className="p-2 rounded-lg bg-orange-500/20">
+                                    <AlertCircle className="w-5 h-5 text-orange-500" />
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-semibold text-orange-500">İşlem beklenenden uzun sürüyor</h4>
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                        Süreç %0'da takılmış olabilir. Lütfen sayfayı yenilemeyi veya işlemi tekrar başlatmayı deneyin.
+                                    </p>
+                                    <div className="flex gap-3 mt-4">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/30 text-orange-600"
+                                            onClick={() => window.location.reload()}
+                                        >
+                                            Sayfayı Yenile
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleNewUpload}
+                                        >
+                                            Yeniden Başlat
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
+
             {/* Error Banner */}
             {isFailed && (
                 <motion.div
@@ -270,7 +345,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                                 <AlertCircle className="w-5 h-5 text-red-500" />
                                 <div className="flex-1">
                                     <p className="font-medium text-red-500">İşlem Başarısız</p>
-                                    <p className="text-sm text-muted-foreground">{currentJob?.error}</p>
+                                    <p className="text-sm text-muted-foreground">{parseErrorMessage(currentJob?.error || "")}</p>
                                 </div>
                                 <Button variant="outline" size="sm" onClick={handleNewUpload}>
                                     Yeniden Dene
@@ -457,7 +532,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                 >
-                    <GeneratedFilesDisplay data={result} dictionary={dictionary} />
+                    <GeneratedFilesDisplay data={result} dictionary={dictionary} onSuccessAll={handleSuccessAll} />
                 </motion.div>
             )}
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { FolderInput, Loader2, Check, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -38,7 +38,9 @@ export function InjectToProjectButton({
     const [showProgress, setShowProgress] = useState(false);
     const [showConflicts, setShowConflicts] = useState(false);
     const [injectionSuccess, setInjectionSuccess] = useState(false);
-    
+    const [hasCompleted, setHasCompleted] = useState(false);
+    const lastResultRef = useRef<InjectionResult | null>(null);
+
     const displayLabel = label || (useDefaultLabel ? dictionary.injection.addToProject : "");
 
     const {
@@ -51,10 +53,13 @@ export function InjectToProjectButton({
         result,
     } = useCodeInjection({
         onSuccess: (result) => {
-            setShowProgress(false);
+            // Track completion but do NOT close or notify parent yet
             setInjectionSuccess(true);
+            lastResultRef.current = result;
+            setHasCompleted(true);
             toast.success(dictionary.injection.successMessage.replace("{count}", String(result.injectedFiles.length)));
-            onSuccess?.(result);
+
+            // Just for the button icon state
             setTimeout(() => setInjectionSuccess(false), 2000);
         },
         onError: (error) => {
@@ -73,6 +78,8 @@ export function InjectToProjectButton({
             toast.warning(dictionary.injection.noFilesToAdd);
             return;
         }
+        setHasCompleted(false);
+        lastResultRef.current = null;
         setShowProgress(true);
         inject(files);
     };
@@ -82,6 +89,16 @@ export function InjectToProjectButton({
         if (overwrite) {
             setShowProgress(true);
             injectWithOverwrite(files);
+        }
+    };
+
+    const handleModalOpenChange = (open: boolean) => {
+        setShowProgress(open);
+        // If the modal is being closed manually AFTER a successful injection
+        if (!open && hasCompleted && lastResultRef.current) {
+            console.log('[InjectToProjectButton] Modal closed after success, triggering parent onSuccess');
+            onSuccess?.(lastResultRef.current);
+            setHasCompleted(false);
         }
     };
 
@@ -116,7 +133,7 @@ export function InjectToProjectButton({
 
             <InjectionProgressModal
                 open={showProgress}
-                onOpenChange={setShowProgress}
+                onOpenChange={handleModalOpenChange}
                 progress={progress}
                 totalFiles={files.length}
             />

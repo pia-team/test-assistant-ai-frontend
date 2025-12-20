@@ -75,13 +75,15 @@ export function InjectionProgressModal({
 
                 <div className="space-y-4 py-4">
                     <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{dictionary.injection.step || 'Adım'}</span>
-                        <span className="font-medium">
-                            {currentIndex} / {stepCount}
+                        <span className="text-muted-foreground">
+                            {isComplete ? dictionary.injection.completed : (currentIndex > 0 ? `${dictionary.injection.step || 'Adım'} ${currentIndex}` : dictionary.injection.preparingFiles)}
+                        </span>
+                        <span className="font-bold text-primary">
+                            %{progressPercent}
                         </span>
                     </div>
 
-                    <Progress value={progressPercent} className="h-2" />
+                    <Progress value={progressPercent} className="h-3 shadow-inner" />
 
                     <AnimatePresence mode="wait">
                         {currentStepKey && !isComplete && (
@@ -90,12 +92,17 @@ export function InjectionProgressModal({
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
-                                className="flex items-center gap-2 p-3 rounded-lg bg-muted/50"
+                                className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10"
                             >
-                                <FileCode className="w-4 h-4 text-primary shrink-0" />
-                                <span className="text-sm truncate">
-                                    {getStepLabel(currentStepKey)}
-                                </span>
+                                <div className="p-2 rounded-md bg-primary/10">
+                                    <FileCode className="w-4 h-4 text-primary shrink-0" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">İşleniyor</p>
+                                    <p className="text-sm font-medium truncate">
+                                        {getStepLabel(currentStepKey)}
+                                    </p>
+                                </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -104,16 +111,20 @@ export function InjectionProgressModal({
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="flex flex-col items-center gap-3 py-4"
+                            className="flex flex-col items-center gap-4 py-6 px-4 rounded-xl bg-green-500/5 border border-green-500/10"
                         >
-                            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center">
-                                <CheckCircle className="w-8 h-8 text-green-500" />
+                            <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center shadow-lg shadow-green-500/20">
+                                <CheckCircle className="w-10 h-10 text-green-500" />
                             </div>
-                            <p className="text-center text-muted-foreground">
-                                {dictionary.injection.successMessage.replace("{count}", String(totalFiles))}
-                            </p>
+                            <div className="text-center space-y-1">
+                                <h3 className="font-bold text-lg text-green-700">İşlem Başarılı!</h3>
+                                <p className="text-sm text-muted-foreground max-w-[240px]">
+                                    {dictionary.injection.successMessage.replace("{count}", String(totalFiles))}
+                                </p>
+                            </div>
                             <Button
-                                variant="outline"
+                                variant="default"
+                                className="w-full bg-green-600 hover:bg-green-700 font-bold"
                                 onClick={() => onOpenChange(false)}
                             >
                                 {dictionary.injection.close}

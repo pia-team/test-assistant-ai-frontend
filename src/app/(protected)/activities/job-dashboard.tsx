@@ -75,6 +75,17 @@ export function JobDashboard() {
         }
     };
 
+    const parseErrorMessage = (msg: string) => {
+        if (!msg) return "";
+        try {
+            if (msg.trim().startsWith('{')) {
+                const parsed = JSON.parse(msg);
+                return parsed.message || parsed.error || "Sunucu hatası oluştu";
+            }
+        } catch (e) { }
+        return msg;
+    };
+
     if (isLoading) {
         return (
             <Card>
@@ -205,7 +216,7 @@ export function JobDashboard() {
                                                 <div className="flex flex-col gap-1 min-w-[150px]">
                                                     <Progress value={job.progress || 0} className="h-2" />
                                                     <span className="text-xs text-blue-500 truncate" title={job.stepKey || job.progressMessage}>
-                                                        {job.stepKey 
+                                                        {job.stepKey
                                                             ? `${(dictionary.progressSteps as Record<string, Record<string, string>>)?.[job.type === 'GENERATE_TESTS' ? 'generateTests' : job.type === 'RUN_TESTS' ? 'runTests' : job.type === 'UPLOAD_JSON' ? 'uploadJson' : 'openReport']?.[job.stepKey] || job.stepKey} (${job.currentStep}/${job.totalSteps})`
                                                             : job.progressMessage || `%${job.progress || 0}`}
                                                     </span>
@@ -217,7 +228,7 @@ export function JobDashboard() {
                                         <TableCell>
                                             {isJobFailed(job) ? (
                                                 <span className="text-red-500 text-sm max-w-[200px] truncate block" title={job.error || ""}>
-                                                    {job.error}
+                                                    {parseErrorMessage(job.error || "")}
                                                 </span>
                                             ) : isJobStopped(job) ? (
                                                 <span className="text-gray-500 text-sm">{dictionary.jobDashboard.stopped}</span>

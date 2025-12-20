@@ -53,6 +53,22 @@ export function useJobStatus(jobId: string | null | undefined) {
     });
 }
 
+// Helper to update job cache safely (preventing older data from overwriting newer socket updates)
+function updateJobCacheSafely(queryClient: any, queryKey: any[], incomingJob: Job) {
+    queryClient.setQueryData(queryKey, (old: Job | null | undefined) => {
+        if (!old || old.id !== incomingJob.id) return incomingJob;
+
+        // Don't overwrite if existing job has more progress or a final status
+        const isCurrentlyActive = old.status === "PENDING" || old.status === "RUNNING";
+        const incomingIsActive = incomingJob.status === "PENDING" || incomingJob.status === "RUNNING";
+
+        if (!isCurrentlyActive && incomingIsActive) return old; // Don't move back from completed to active
+        if ((old.progress ?? 0) > (incomingJob.progress ?? 0)) return old; // Don't move back progress
+
+        return { ...old, ...incomingJob };
+    });
+}
+
 // Hook to start generate-tests job
 export function useStartGenerateTestsJob() {
     const queryClient = useQueryClient();
@@ -61,17 +77,14 @@ export function useStartGenerateTestsJob() {
     return useMutation({
         mutationFn: (params: Parameters<typeof startGenerateTestsJob>[0]) => startGenerateTestsJob(params, token),
         onSuccess: (job) => {
-            // Update active job cache
-            queryClient.setQueryData(["activeJob", "GENERATE_TESTS"], job);
-            // Set initial job data
-            queryClient.setQueryData(["job", job.id], job);
+            updateJobCacheSafely(queryClient, ["activeJob", "GENERATE_TESTS"], job);
+            updateJobCacheSafely(queryClient, ["job", job.id], job);
         },
         onError: (error: Error) => {
-            // If job already running, parse the active job from error
             if (error.message.startsWith("JOB_ALREADY_RUNNING:")) {
                 const activeJob = JSON.parse(error.message.replace("JOB_ALREADY_RUNNING:", ""));
-                queryClient.setQueryData(["activeJob", "GENERATE_TESTS"], activeJob);
-                queryClient.setQueryData(["job", activeJob.id], activeJob);
+                updateJobCacheSafely(queryClient, ["activeJob", "GENERATE_TESTS"], activeJob);
+                updateJobCacheSafely(queryClient, ["job", activeJob.id], activeJob);
             }
         },
     });
@@ -85,14 +98,14 @@ export function useStartRunTestsJob() {
     return useMutation({
         mutationFn: (params: Parameters<typeof startRunTestsJob>[0]) => startRunTestsJob(params, token),
         onSuccess: (job) => {
-            queryClient.setQueryData(["activeJob", "RUN_TESTS"], job);
-            queryClient.setQueryData(["job", job.id], job);
+            updateJobCacheSafely(queryClient, ["activeJob", "RUN_TESTS"], job);
+            updateJobCacheSafely(queryClient, ["job", job.id], job);
         },
         onError: (error: Error) => {
             if (error.message.startsWith("JOB_ALREADY_RUNNING:")) {
                 const activeJob = JSON.parse(error.message.replace("JOB_ALREADY_RUNNING:", ""));
-                queryClient.setQueryData(["activeJob", "RUN_TESTS"], activeJob);
-                queryClient.setQueryData(["job", activeJob.id], activeJob);
+                updateJobCacheSafely(queryClient, ["activeJob", "RUN_TESTS"], activeJob);
+                updateJobCacheSafely(queryClient, ["job", activeJob.id], activeJob);
             }
         },
     });
@@ -106,14 +119,14 @@ export function useStartUploadJsonJob() {
     return useMutation({
         mutationFn: (formData: FormData) => startUploadJsonJob(formData, token),
         onSuccess: (job) => {
-            queryClient.setQueryData(["activeJob", "UPLOAD_JSON"], job);
-            queryClient.setQueryData(["job", job.id], job);
+            updateJobCacheSafely(queryClient, ["activeJob", "UPLOAD_JSON"], job);
+            updateJobCacheSafely(queryClient, ["job", job.id], job);
         },
         onError: (error: Error) => {
             if (error.message.startsWith("JOB_ALREADY_RUNNING:")) {
                 const activeJob = JSON.parse(error.message.replace("JOB_ALREADY_RUNNING:", ""));
-                queryClient.setQueryData(["activeJob", "UPLOAD_JSON"], activeJob);
-                queryClient.setQueryData(["job", activeJob.id], activeJob);
+                updateJobCacheSafely(queryClient, ["activeJob", "UPLOAD_JSON"], activeJob);
+                updateJobCacheSafely(queryClient, ["job", activeJob.id], activeJob);
             }
         },
     });

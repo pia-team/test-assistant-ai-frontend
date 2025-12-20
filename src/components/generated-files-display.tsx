@@ -30,6 +30,7 @@ interface GeneratedFilesDisplayProps {
             copied?: string;
         };
     };
+    onSuccessAll?: () => void;
 }
 
 const getLanguageFromFileName = (fileName: string): string => {
@@ -64,7 +65,7 @@ const downloadFile = (fileName: string, content: string) => {
     URL.revokeObjectURL(url);
 };
 
-export function GeneratedFilesDisplay({ data, dictionary }: GeneratedFilesDisplayProps) {
+export function GeneratedFilesDisplay({ data, dictionary, onSuccessAll }: GeneratedFilesDisplayProps) {
     const { dictionary: fullDict } = useLocale();
     const [expanded, setExpanded] = useState<string | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -109,7 +110,10 @@ export function GeneratedFilesDisplay({ data, dictionary }: GeneratedFilesDispla
                         variant="default"
                         size="default"
                         label={`${fullDict.injection.addAllToProject} (${allFiles.length} ${fullDict.injection.files})`}
-                        onSuccess={() => toast.success(fullDict.injection.allFilesAdded)}
+                        onSuccess={() => {
+                            toast.success(fullDict.injection.allFilesAdded);
+                            onSuccessAll?.();
+                        }}
                     />
                 </div>
             )}
