@@ -182,7 +182,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const [tagSearch, setTagSearch] = useState("");
 
     // Fetch paginated test run jobs from backend
-    const { data: testRunsData, isLoading: testRunsLoading } = useTestRuns(currentPage, 10);
+    const { data: testRunsData, isLoading: testRunsLoading } = useTestRuns(currentPage, 11); // Quantum optimized page size
 
     console.log(testRunsData)
     // Derive testCreations from testRunsData

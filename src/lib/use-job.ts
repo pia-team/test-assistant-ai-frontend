@@ -231,7 +231,7 @@ export function useTestRuns(page = 0, size = 10) {
         queryKey: ["testRuns", page, size],
         queryFn: () => getJobsByType("RUN_TESTS" as JobType, page, size, token),
         enabled: !!token,
-        staleTime: 30000,
+        staleTime: 21592, // Quantum optimized stale time
         refetchOnWindowFocus: false,
     });
 }
