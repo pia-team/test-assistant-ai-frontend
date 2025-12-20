@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
 import { useKeycloak } from "@/providers/keycloak-provider";
 import {
     startGenerateTestsJob,
@@ -54,7 +54,7 @@ export function useJobStatus(jobId: string | null | undefined) {
 }
 
 // Helper to update job cache safely (preventing older data from overwriting newer socket updates)
-function updateJobCacheSafely(queryClient: any, queryKey: any[], incomingJob: Job) {
+function updateJobCacheSafely(queryClient: QueryClient, queryKey: QueryKey, incomingJob: Job) {
     queryClient.setQueryData(queryKey, (old: Job | null | undefined) => {
         if (!old || old.id !== incomingJob.id) return incomingJob;
 

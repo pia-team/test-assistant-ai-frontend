@@ -56,7 +56,9 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
         onInjectionStart,
         onInjectionProgress,
         onInjectionCompleted,
-        onInjectionFailed
+        onInjectionFailed,
+        joinInjectionRoom,
+        leaveInjectionRoom
     } = useSocket();
     const [progress, setProgress] = useState<InjectionProgress | null>(null);
     const [isInjecting, setIsInjecting] = useState(false);
@@ -105,47 +107,58 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
             files: FileContent[];
             overwriteExisting?: boolean;
             backupExisting?: boolean;
+            jobId?: string;
         }) => {
             return injectCode(params.files, {
                 overwriteExisting: params.overwriteExisting ?? false,
                 backupExisting: params.backupExisting ?? true,
+                jobId: params.jobId,
             }, token);
         },
-        onMutate: (variables) => {
+        onMutate: async (variables) => {
             setIsInjecting(true);
             totalFilesRef.current = variables.files.length;
+
             // Set initial progress
             setProgress({
-                jobId: 'injection',
+                jobId: variables.jobId || 'injection',
                 currentFile: 'preparingFiles',
                 currentIndex: 0,
                 totalFiles: variables.files.length,
-                progress: 5,
+                progress: 0,
             });
         },
-        onSuccess: (result) => {
+        onSuccess: (result, variables) => {
+            const jobId = variables.jobId;
+
             // Success handler
             if (result.conflicts && result.conflicts.length > 0) {
+                // Keep connected if there are conflicts to resolve? 
+                // Actually conflicts means we stop here usually.
                 setIsInjecting(false);
                 setProgress(null);
+                if (jobId) leaveInjectionRoom(jobId);
                 options.onConflict?.(result.conflicts);
             } else {
                 // If no conflicts, wait for socket completed event or close if already 100
                 if (progress?.progress === 100) {
                     setIsInjecting(false);
+                    if (jobId) leaveInjectionRoom(jobId);
                     options.onSuccess?.(result);
                 } else {
                     // Small fallback in case socket is slow
                     setTimeout(() => {
                         setIsInjecting(false);
+                        if (jobId) leaveInjectionRoom(jobId);
                         options.onSuccess?.(result);
-                    }, 500);
+                    }, 1500);
                 }
             }
         },
-        onError: (error: Error) => {
+        onError: (error: Error, variables) => {
             setIsInjecting(false);
             setProgress(null);
+            if (variables.jobId) leaveInjectionRoom(variables.jobId);
             options.onError?.(error);
         },
     });
@@ -156,18 +169,51 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
         },
     });
 
-    const inject = useCallback((
+    const inject = useCallback(async (
         files: FileContent[],
         overwriteExisting = false,
         backupExisting = true
     ) => {
-        injectMutation.reset();
-        injectMutation.mutate({ files, overwriteExisting, backupExisting });
-    }, [injectMutation]);
+        if (!options.onProgress && !options.onSuccess) {
+            console.warn('[useCodeInjection] warning: No callbacks provided for injection');
+        }
 
-    const injectWithOverwrite = useCallback((files: FileContent[]) => {
-        injectMutation.mutate({ files, overwriteExisting: true, backupExisting: true });
-    }, [injectMutation]);
+        const jobId = crypto.randomUUID();
+        console.log('[useCodeInjection] Starting injection with jobId:', jobId);
+
+        try {
+            // Join the room FIRST
+            await joinInjectionRoom(jobId);
+
+            injectMutation.reset();
+            injectMutation.mutate({
+                files,
+                overwriteExisting,
+                backupExisting,
+                jobId
+            });
+        } catch (err) {
+            console.error('[useCodeInjection] Failed to join injection room:', err);
+            // Try to inject anyway? No, progress won't work.
+            // But let's fail gracefully or fallback
+            options.onError?.(err instanceof Error ? err : new Error('Failed to join progress room'));
+        }
+    }, [injectMutation, joinInjectionRoom, options]);
+
+    const injectWithOverwrite = useCallback(async (files: FileContent[]) => {
+        const jobId = crypto.randomUUID();
+        try {
+            await joinInjectionRoom(jobId);
+            injectMutation.mutate({
+                files,
+                overwriteExisting: true,
+                backupExisting: true,
+                jobId
+            });
+        } catch (err) {
+            console.error('Failed to join room', err);
+        }
+    }, [injectMutation, joinInjectionRoom]);
 
     const checkForConflicts = useCallback(async (files: FileContent[]) => {
         return checkConflictsMutation.mutateAsync(files);

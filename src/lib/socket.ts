@@ -48,12 +48,12 @@ class SocketService {
   connect(token: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:9092';
-      
+
       // Parse URL to extract base URL and path for socket.io
       // e.g., "https://example.com/socket" -> baseUrl: "https://example.com", path: "/socket/socket.io"
       let baseUrl = socketUrl;
       let socketPath = '/socket.io';
-      
+
       try {
         const url = new URL(socketUrl);
         baseUrl = url.origin;
@@ -66,9 +66,9 @@ class SocketService {
       } catch (e) {
         console.warn('[Socket] Failed to parse socket URL, using as-is:', socketUrl);
       }
-      
+
       console.log('[Socket] Connecting to:', baseUrl, 'with path:', socketPath);
-      
+
       // Send token as query parameter for netty-socketio compatibility
       // (netty-socketio doesn't support socket.io v4 auth object)
       this.socket = io(baseUrl, {
@@ -212,6 +212,41 @@ class SocketService {
     this.socket.emit('subscribe', { room: 'jobs:all' });
   }
 
+  joinInjectionRoom(jobId: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Socket not connected'));
+        return;
+      }
+
+      const room = `injection:${jobId}`;
+      console.log('[Socket.ts] Joining injection room:', room);
+
+      // Set a timeout for the ACK
+      const timeout = setTimeout(() => {
+        reject(new Error('Timeout waiting for room join ACK'));
+      }, 5000);
+
+      this.socket.emit('subscribe', { room }, (response: { status: string; room: string; message?: string }) => {
+        clearTimeout(timeout);
+        if (response.status === 'subscribed') {
+          console.log('[Socket.ts] Successfully joined room:', room);
+          resolve();
+        } else {
+          console.error('[Socket.ts] Failed to join room:', response);
+          reject(new Error(response.message || 'Failed to join injection room'));
+        }
+      });
+    });
+  }
+
+  leaveInjectionRoom(jobId: string) {
+    if (!this.socket) return;
+    const room = `injection:${jobId}`;
+    console.log('[Socket.ts] Leaving injection room:', room);
+    this.socket.emit('unsubscribe', { room });
+  }
+
   onJobCreated(callback: (data: JobCreatedPayload) => void) {
     this.socket?.on('job:created', callback);
   }
@@ -254,26 +289,26 @@ class SocketService {
     this.socket?.on('injection:start', callback);
   }
 
-  onInjectionProgress(callback: (data: { 
-    jobId: string; 
-    currentFile: string; 
-    currentIndex: number; 
+  onInjectionProgress(callback: (data: {
+    jobId: string;
+    currentFile: string;
+    currentIndex: number;
     totalFiles: number;
     progress: number;
   }) => void) {
     this.socket?.on('injection:progress', callback);
   }
 
-  onInjectionConflict(callback: (data: { 
-    jobId: string; 
-    fileName: string; 
+  onInjectionConflict(callback: (data: {
+    jobId: string;
+    fileName: string;
     existingContent: string;
   }) => void) {
     this.socket?.on('injection:conflict', callback);
   }
 
-  onInjectionCompleted(callback: (data: { 
-    jobId: string; 
+  onInjectionCompleted(callback: (data: {
+    jobId: string;
     injectedFiles: Array<{
       fileName: string;
       absolutePath: string;

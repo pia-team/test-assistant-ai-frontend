@@ -18,6 +18,8 @@ interface SocketContextType {
   onInjectionProgress: (callback: (data: { jobId: string; currentFile: string; currentIndex: number; totalFiles: number; progress: number }) => void) => void;
   onInjectionCompleted: (callback: (data: { jobId: string; totalFiles: number }) => void) => void;
   onInjectionFailed: (callback: (data: { jobId: string; error: string }) => void) => void;
+  joinInjectionRoom: (jobId: string) => Promise<void>;
+  leaveInjectionRoom: (jobId: string) => void;
 }
 
 interface JobCallbacks {
@@ -208,30 +210,35 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     try {
       await socketService.connect(token);
-      setIsConnected(true);
+      setIsConnected(prev => {
+        if (!prev) return true;
+        return prev;
+      });
       console.log('[Socket] Connected successfully');
 
       setupGlobalJobListeners();
 
-      // F006: Use keycloakId from JWT token instead of session.user.id
-      // Backend emits to user:{keycloakId} room, so frontend must subscribe with same ID
       const keycloakId = getKeycloakIdFromToken(token);
       if (keycloakId) {
         console.log('[Socket] Subscribing to user room:', `user:${keycloakId}`);
         socketService.subscribeToUserRoom(keycloakId);
-      } else {
-        console.warn('[Socket] Could not extract keycloakId from token, cannot subscribe to user room');
       }
     } catch (error) {
       console.error('[Socket] Failed to connect:', error);
-      setIsConnected(false);
+      setIsConnected(prev => {
+        if (prev) return false;
+        return prev;
+      });
     }
   }, [token, setupGlobalJobListeners]);
 
   const disconnect = useCallback(() => {
     globalSubscriptionRef.current = false;
     socketService.disconnect();
-    setIsConnected(false);
+    setIsConnected(prev => {
+      if (prev) return false;
+      return prev;
+    });
   }, []);
 
   const subscribeToJob = useCallback((jobId: string, callbacks: JobCallbacks) => {
@@ -253,17 +260,20 @@ export function SocketProvider({ children }: SocketProviderProps) {
   }, [authenticated, token, connect, disconnect]);
 
   useEffect(() => {
-    const checkConnection = () => {
+    const interval = setInterval(() => {
       const connected = socketService.isConnected();
-      setIsConnected(connected);
+
+      setIsConnected(prev => {
+        if (prev !== connected) return connected;
+        return prev;
+      });
 
       if (!connected && authenticated && token) {
         console.log('[Socket] Connection lost, attempting reconnect...');
         connect();
       }
-    };
+    }, 5000);
 
-    const interval = setInterval(checkConnection, 5000);
     return () => clearInterval(interval);
   }, [authenticated, token, connect]);
 
@@ -279,6 +289,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
         onInjectionProgress: (callback) => socketService.onInjectionProgress(callback),
         onInjectionCompleted: (callback) => socketService.onInjectionCompleted(callback),
         onInjectionFailed: (callback) => socketService.onInjectionFailed(callback),
+        joinInjectionRoom: (jobId) => socketService.joinInjectionRoom(jobId),
+        leaveInjectionRoom: (jobId) => socketService.leaveInjectionRoom(jobId),
       }}
     >
       {children}

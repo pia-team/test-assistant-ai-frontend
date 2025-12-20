@@ -36,7 +36,7 @@ export const parseLogsToDashboardData = (
     const lines = logs.split("\n");
     const testCases: TestCase[] = [];
     let currentTest: TestCase | null = null;
-    let globalVideos: string[] = [];
+    const globalVideos: string[] = [];
 
     const defaultTitle = tags ? `Test Run (${tags})` : "Test Run";
     let detectedBrowser = "Chrome"; // Default, will be overwritten if found in logs

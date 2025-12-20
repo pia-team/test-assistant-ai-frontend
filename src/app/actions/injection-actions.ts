@@ -33,7 +33,10 @@ export interface InjectionResult {
 export interface InjectionOptions {
     overwriteExisting?: boolean;
     backupExisting?: boolean;
+    jobId?: string;
 }
+
+// ... existing code ...
 
 async function getAuthHeaders(token?: string): Promise<HeadersInit> {
     const headers: HeadersInit = {
@@ -65,6 +68,7 @@ export async function injectCode(
             files,
             overwriteExisting: options.overwriteExisting ?? false,
             backupExisting: options.backupExisting ?? true,
+            jobId: options.jobId,
         }),
     });
 
