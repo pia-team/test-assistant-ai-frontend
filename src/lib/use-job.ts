@@ -145,14 +145,33 @@ export function useClearJob(type: JobType) {
 }
 
 // Hook to get all jobs for dashboard - now relies on socket updates
-export function useAllJobs() {
+// Hook to get paginated jobs with search
+export function useJobs(page = 0, size = 10, search = "", type?: JobType) {
     const { token } = useKeycloak();
     return useQuery({
-        queryKey: ["allJobs"],
-        queryFn: () => getAllJobs(token),
+        queryKey: ["jobs", page, size, search, type],
+        queryFn: async () => {
+            const params = new URLSearchParams();
+            params.append("page", page.toString());
+            params.append("size", size.toString());
+            if (search) params.append("search", search);
+            if (type) params.append("type", type);
+
+            // Re-using common fetch logic or defining it here. 
+            // Assuming getAllJobs in actions supports this or we need to update actions too.
+            // Let's assume we update calling logic.
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8093'}/api/jobs?${params.toString()}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            if (!res.ok) throw new Error("Failed to fetch jobs");
+            return res.json();
+        },
         enabled: !!token,
-        staleTime: 30000,
-        refetchOnWindowFocus: false,
+        staleTime: 10000,
+        // Using optimized debounce from quantum sim suggests we might need to handle debounce in UI, 
+        // passing search term here implies it's already debounced.
     });
 }
 
