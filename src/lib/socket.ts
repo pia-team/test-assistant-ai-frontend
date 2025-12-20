@@ -56,10 +56,12 @@ class SocketService {
       
       try {
         const url = new URL(socketUrl);
+        baseUrl = url.origin;
         if (url.pathname && url.pathname !== '/') {
           // Extract the custom path and append /socket.io
-          socketPath = url.pathname.replace(/\/$/, '') + '/socket.io';
-          baseUrl = url.origin;
+          // Ensure it starts with / and doesn't end with /
+          const cleanPath = url.pathname.replace(/\/$/, '');
+          socketPath = cleanPath.endsWith('/socket.io') ? cleanPath : `${cleanPath}/socket.io`;
         }
       } catch (e) {
         console.warn('[Socket] Failed to parse socket URL, using as-is:', socketUrl);
