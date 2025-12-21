@@ -1,14 +1,27 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useForm, ControllerRenderProps } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLocale } from "@/components/locale-context";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormMessage,
+} from "@/components/ui/form";
 import {
     Select,
     SelectContent,
@@ -18,7 +31,6 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
     Dialog,
@@ -30,34 +42,33 @@ import {
 } from "@/components/ui/dialog";
 import {
     Play,
-    Terminal,
     Info,
     Loader2,
     AlertCircle,
     Settings2,
     Zap,
-    Server,
-    Clock,
     CheckCircle2,
     XCircle,
     RefreshCw,
-    Tag,
-    Cpu,
-    BarChart2,
-    ExternalLink
+    ExternalLink,
+    Layers,
+    Rocket,
+    LayoutDashboard,
+    Search,
+    FolderClosed,
+    Eye,
+    EyeOff,
+    Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { TestReportViewer } from "@/components/test-report-viewer";
 import { TestResultsTable, type TestCreation, type TestItem } from "@/components/test-results-table";
 import { parseLogsToDashboardData } from "@/lib/log-parser";
-import { ReportSection } from "@/components/report-section";
 import {
     useActiveJob,
     useJobStatus,
     useStartRunTestsJob,
     useClearJob,
-    useStartOpenReportJob,
     useTestRuns,
     isJobInProgress,
     isJobComplete,
@@ -65,31 +76,18 @@ import {
     isJobStopped,
 } from "@/lib/use-job";
 import { useSocket } from "@/context/SocketContext";
-import { Eye, EyeOff, Globe } from "lucide-react";
 import {
     getPlaywrightConfig,
     updatePlaywrightConfig,
     type PlaywrightConfig
 } from "@/app/actions/playwright-config-actions";
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from "@/components/ui/form";
+
 import {
     getProjectsAction,
     getTagsByProjectAction
 } from "@/app/actions/tag-actions";
-import {
-    Search,
-    ChevronDown,
-    Filter,
-    FolderClosed,
-    X
-} from "lucide-react";
+import Confetti from 'react-confetti';
+import { useWindowSize } from 'react-use';
 
 // Zod schema for test run form validation
 const testRunFormSchema = z.object({
@@ -128,12 +126,51 @@ interface TestRunClientProps {
             newTest?: string;
             testResults?: string;
             testResultsDesc?: string;
+            testFailed?: string;
+            retry?: string;
+            newRun?: string;
+            viewReport?: string;
+            noTestsRun?: string;
+            noTestsRunDescription?: string;
+            selectEnvironment?: string;
+            browser?: string;
+            selectBrowser?: string;
+            headlessMode?: string;
+            headlessBackground?: string;
+            headlessVisible?: string;
+            environmentInfo?: string;
+            projectAndTags?: string;
+            selectProject?: string;
+            searchTags?: string;
+            noTagsFound?: string;
+            selectProjectFirst?: string;
+            manualTagInput?: string;
+            customTagGuide?: string;
+            generatedFilter?: string;
+            noTagsSelected?: string;
+            clear?: string;
+            tagsGuideSmoke?: string;
+            tagsGuideComplex?: string;
+            tagsGuideAny?: string;
+            operationLongerThanExpected?: string;
+            connectionLost?: string;
+            refreshPage?: string;
+            startNewTest?: string;
+            unknownError?: string;
+            testRunFailed?: string;
+            reportsReady?: string;
+            testResultsAndHistory?: string;
+            workerThreads?: string;
         };
         common: {
             error: string;
             success: string;
             close: string;
+            loading?: string;
+            username?: string;
+            password?: string;
         };
+        progressSteps?: Record<string, Record<string, string>>;
     };
 }
 
@@ -164,6 +201,7 @@ const BROWSER_OPTIONS = [
 
 export function TestRunClient({ dictionary }: TestRunClientProps) {
     const { dictionary: fullDict } = useLocale();
+    const { width, height } = useWindowSize();
     const [error, setError] = useState<string | null>(null);
     const [viewJobId, setViewJobId] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
@@ -182,7 +220,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const [tagSearch, setTagSearch] = useState("");
 
     // Fetch paginated test run jobs from backend
-    const { data: testRunsData, isLoading: testRunsLoading } = useTestRuns(currentPage, 11); // Quantum optimized page size
+    const { data: testRunsData, isLoading: testRunsLoading } = useTestRuns(currentPage, 10);
 
     console.log(testRunsData)
     // Derive testCreations from testRunsData
@@ -561,683 +599,645 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const isStopped = isJobStopped(currentJob);
 
     return (
-        <div className="space-y-6">
+        <div className="min-h-screen p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 transition-colors duration-500">
+            {isComplete && <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />}
+
             {/* Header */}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="space-y-2"
+                className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
-                <h1 className="text-3xl font-bold">{dictionary.testRun.title}</h1>
-                <p className="text-muted-foreground">{dictionary.testRun.subtitle}</p>
+                <div className="space-y-1">
+                    <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+                        {dictionary.testRun.title}
+                    </h1>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">
+                        {dictionary.testRun.subtitle}
+                    </p>
+                </div>
             </motion.div>
 
-            {/* Status Banners */}
-            <AnimatePresence mode="wait">
-                {isProcessing && (
-                    <motion.div
-                        key="processing"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                    >
-                        <Card className="border-blue-500/50 bg-blue-500/10">
-                            <CardContent className="py-4">
-                                <div className="flex items-center gap-3">
-                                    <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-                                    <div className="flex-1">
-                                        <p className="font-medium text-blue-500">
-                                            {currentJob?.stepKey
-                                                ? (fullDict.progressSteps as Record<string, Record<string, string>>)?.runTests?.[currentJob.stepKey] || currentJob.stepKey
-                                                : dictionary.testRun.processingInBackground || "Testler çalıştırılıyor..."}
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">
-                                            {currentJob?.stepKey && currentJob?.currentStep && currentJob?.totalSteps
-                                                ? `Adım ${currentJob.currentStep}/${currentJob.totalSteps} - %${currentJob.progress || 0}`
-                                                : `%${currentJob?.progress || 0} tamamlandı`}
-                                        </p>
-                                    </div>
-                                    <Badge variant="outline" className="text-blue-500 font-mono">
-                                        %{currentJob?.progress || 0}
-                                    </Badge>
-                                </div>
-                                <Progress className="mt-3" value={currentJob?.progress || 0} />
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                )}
-                {isStuck && !error && !isFailed && !isComplete && (
-                    <motion.div
-                        key="stuck-warning"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                    >
-                        <Card className="border-orange-500/50 bg-orange-500/10 mb-6">
-                            <CardContent className="py-4">
-                                <div className="flex items-start gap-3">
-                                    <AlertCircle className="w-5 h-5 text-orange-500 mt-1" />
-                                    <div className="flex-1">
-                                        <p className="font-medium text-orange-500">İşlem beklenenden uzun sürüyor</p>
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                            Süreç %0'da takılmış olabilir. Lütfen sayfayı yenilemeyi veya işlemi tekrar başlatmayı deneyin.
-                                        </p>
-                                        <div className="flex gap-2 mt-3">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-8 bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/30 text-orange-600"
-                                                onClick={() => window.location.reload()}
-                                            >
-                                                <RefreshCw className="w-3.5 h-3.5 mr-2" />
-                                                Sayfayı Yenile
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-8"
-                                                onClick={handleNewRun}
-                                            >
-                                                Farklı Test Başlat
-                                            </Button>
+            {/* Status Banners Area */}
+            <div className="mb-8">
+                <AnimatePresence mode="wait">
+                    {isProcessing && (
+                        <motion.div
+                            key="processing"
+                            initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, height: "auto", scale: 1 }}
+                            exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                            transition={{ type: "spring", bounce: 0.3 }}
+                        >
+                            <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 overflow-hidden relative">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500 animate-pulse" />
+                                <CardContent className="p-6">
+                                    <div className="flex items-center gap-5">
+                                        <div className="relative">
+                                            <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full animate-pulse" />
+                                            <div className="relative p-3 bg-white dark:bg-slate-800 rounded-full shadow-md">
+                                                <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 space-y-1">
+                                            <h3 className="font-bold text-xl text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                                {currentJob?.stepKey
+                                                    ? (fullDict.progressSteps as Record<string, Record<string, string>>)?.runTests?.[currentJob.stepKey] || currentJob.stepKey
+                                                    : dictionary.testRun.processingInBackground || "Testler çalıştırılıyor..."}
+                                                <span className="flex h-2 w-2 relative">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                                                </span>
+                                            </h3>
+                                            <p className="text-slate-600 dark:text-slate-400 font-medium">
+                                                {currentJob?.stepKey && currentJob?.currentStep && currentJob?.totalSteps
+                                                    ? `Adım ${currentJob.currentStep}/${currentJob.totalSteps}`
+                                                    : "İşlem devam ediyor..."}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-3xl font-black text-blue-600 dark:text-blue-400 tabular-nums">
+                                                %{currentJob?.progress || 0}
+                                            </span>
                                         </div>
                                     </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                )}
-
-                {(error || isFailed) && (
-                    <motion.div
-                        key="error"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                    >
-                        <Card className="border-red-500/50 bg-red-500/10">
-                            <CardContent className="py-4">
-                                <div className="flex items-center gap-3">
-                                    <XCircle className="w-5 h-5 text-red-500" />
-                                    <div className="flex-1">
-                                        <p className="font-medium text-red-500">{fullDict.testRun?.testFailed || "Test Çalıştırma Başarısız"}</p>
-                                        <p className="text-sm text-muted-foreground">{parseErrorMessage(error || currentJob?.error || "")}</p>
+                                    <div className="mt-4 h-3 bg-blue-100 dark:bg-blue-950/50 rounded-full overflow-hidden">
+                                        <motion.div
+                                            className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${currentJob?.progress || 0}%` }}
+                                            transition={{ ease: "easeInOut" }}
+                                        />
                                     </div>
-                                    <Button variant="outline" size="sm" onClick={handleNewRun} className="gap-2">
-                                        <RefreshCw className="w-4 h-4" />
-                                        {fullDict.testRun?.retry || "Yeniden Dene"}
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                )}
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
 
-                {isComplete && (
-                    <motion.div
-                        key="success"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                    >
-                        <Card className="border-green-500/50 bg-green-500/10">
-                            <CardContent className="py-4">
-                                <div className="flex items-center gap-3">
-                                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                                    <div className="flex-1">
-                                        <p className="font-medium text-green-500">{fullDict.progressSteps?.runTests?.completed || "Testler Tamamlandı"}</p>
-                                        <p className="text-sm text-muted-foreground">{dictionary.testRun.testResultsDesc || "Test sonuçları aşağıda görüntüleniyor"}</p>
+                    {/* Stuck Warning */}
+                    {isStuck && !error && !isFailed && !isComplete && (
+                        <motion.div
+                            key="stuck"
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="mt-4"
+                        >
+                            <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
+                                <CardContent className="p-4 flex items-center gap-4">
+                                    <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-full text-amber-600">
+                                        <AlertCircle className="w-5 h-5" />
                                     </div>
-                                    <Button variant="outline" size="sm" onClick={handleNewRun} className="gap-2">
-                                        <Play className="w-4 h-4" />
-                                        {dictionary.testRun.newTest || "Yeni Test"}
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-amber-800 dark:text-amber-200">İşlem Beklenenden Uzun Sürüyor</p>
+                                        <p className="text-sm text-amber-700 dark:text-amber-300">Bağlantı kopmuş olabilir. Sayfayı yenilemeyi deneyin.</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="bg-white/50 border-amber-300 text-amber-800 hover:bg-amber-100">
+                                            <RefreshCw className="w-3 h-3 mr-2" /> Yenile
+                                        </Button>
+                                        <Button variant="ghost" size="sm" onClick={handleNewRun} className="text-amber-800 hover:bg-amber-100">
+                                            İptal Et
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
 
-            {/* Main Grid Layout */}
-            <div className="grid lg:grid-cols-5 gap-6">
-                {/* Configuration Card - Left Side */}
-                <Card className="lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600">
-                                <Settings2 className="w-4 h-4 text-white" />
+                    {/* Error Banner */}
+                    {(error || isFailed) && (
+                        <motion.div
+                            key="error"
+                            initial={{ opacity: 0, rotateX: -90 }}
+                            animate={{ opacity: 1, rotateX: 0 }}
+                            exit={{ opacity: 0, height: 0 }}
+                        >
+                            <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 overflow-hidden">
+                                <div className="absolute left-0 top-0 w-1 h-full bg-red-500" />
+                                <CardContent className="p-6 flex items-start gap-4">
+                                    <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl text-red-600">
+                                        <XCircle className="w-8 h-8" />
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <h3 className="text-lg font-bold text-red-800 dark:text-red-200">
+                                            Test Çalıştırma Başarısız
+                                        </h3>
+                                        <p className="text-red-700 dark:text-red-300 font-medium font-mono text-sm bg-red-100/50 dark:bg-red-950/50 p-2 rounded">
+                                            {parseErrorMessage(error || currentJob?.error || "Bilinmeyen hata")}
+                                        </p>
+                                    </div>
+                                    <Button onClick={handleNewRun} className="bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 transition-all hover:scale-105">
+                                        <RefreshCw className="w-4 h-4 mr-2" />
+                                        Yeniden Dene
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+
+                    {/* Success Banner */}
+                    {isComplete && (
+                        <motion.div
+                            key="success"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                        >
+                            <Card className="border-0 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 shadow-xl overflow-hidden relative group">
+                                <div className="absolute inset-0 bg-white/40 dark:bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
+                                <CardContent className="p-6 relative z-10 flex items-center gap-5">
+                                    <div className="relative">
+                                        <div className="absolute inset-0 bg-emerald-400/30 blur-xl rounded-full" />
+                                        <div className="p-3 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full text-white shadow-lg">
+                                            <CheckCircle2 className="w-8 h-8" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-xl font-bold text-emerald-900 dark:text-emerald-100">
+                                            Testler Başarıyla Tamamlandı! 🚀
+                                        </h3>
+                                        <p className="text-emerald-700 dark:text-emerald-300 font-medium">
+                                            Raporlar analiz edilmeye hazır.
+                                        </p>
+                                    </div>
+                                    <Button onClick={handleNewRun} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 transition-transform hover:scale-105">
+                                        <Play className="w-4 h-4 mr-2" />
+                                        Yeni Test
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="grid lg:grid-cols-12 gap-8 items-start">
+                {/* Configuration Card - Left Side (4 Cols) */}
+                <Card className="lg:col-span-4 border-0 shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm ring-1 ring-slate-900/5 dark:ring-white/10 h-fit sticky top-6 transition-all duration-300 hover:shadow-2xl">
+                    <CardHeader className="pb-4">
+                        <CardTitle className="text-lg flex items-center gap-3">
+                            <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/30 text-white">
+                                <Settings2 className="w-5 h-5" />
                             </div>
-                            {dictionary.testRun.testConfiguration || "Test Yapılandırması"}
+                            <div>
+                                <span className="block">{dictionary.testRun.testConfiguration || "Test Yapılandırması"}</span>
+                                <span className="text-xs font-normal text-slate-500 dark:text-slate-400 block mt-0.5">Test parametrelerini belirleyin</span>
+                            </div>
                         </CardTitle>
-                        <CardDescription>
-                            {dictionary.testRun.subtitle}
-                        </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-5">
+                    <Separator className="bg-slate-100 dark:bg-slate-800" />
+                    <CardContent className="space-y-6 pt-6">
                         <Form {...form}>
-                            {/* Tags Input */}
-                            {/* Project and Tags Input */}
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <Label className="flex items-center gap-2 text-muted-foreground">
-                                            <FolderClosed className="w-4 h-4" />
-                                            JSON Projesi (Feature Klasörü)
+                            <form className="space-y-6">
+                                {/* Project & Tags Section */}
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-sm">
+                                            <FolderClosed className="w-4 h-4 text-indigo-500" />
+                                            PROJE & ETİKETLER
                                         </Label>
-                                    </div>
-                                    <Select
-                                        value={selectedProject}
-                                        onValueChange={handleProjectChange}
-                                        disabled={isProcessing || projectsLoading}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Proje seçin" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {projects.map((p) => (
-                                                <SelectItem key={p} value={p}>{p}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
 
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <Label className="flex items-center gap-2 text-muted-foreground">
-                                            <Tag className="w-4 h-4" />
-                                            Cucumber Etiketleri
-                                        </Label>
-                                        {selectedTags.length > 0 && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={clearSelection}
-                                                className="h-6 px-2 text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
-                                            >
-                                                <X className="w-3 h-3 mr-1" />
-                                                Temizle
-                                            </Button>
-                                        )}
+                                        <Select
+                                            value={selectedProject}
+                                            onValueChange={handleProjectChange}
+                                            disabled={isProcessing || projectsLoading}
+                                        >
+                                            <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-indigo-500/20 hover:border-indigo-300 transition-colors">
+                                                <SelectValue placeholder="Proje Seçin" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {projects.map((p) => (
+                                                    <SelectItem key={p} value={p} className="cursor-pointer">{p}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
-                                    {/* Tag Selection UI */}
-                                    <div className="border rounded-lg bg-muted/30 p-3 space-y-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className="relative flex-1">
-                                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                <Input
-                                                    placeholder="Etiket ara..."
-                                                    className="pl-8 h-9"
-                                                    value={tagSearch}
-                                                    onChange={(e) => setTagSearch(e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="flex border rounded-md p-0.5 bg-background">
-                                                <Button
-                                                    type="button"
-                                                    variant={tagLogic === "and" ? "secondary" : "ghost"}
-                                                    size="sm"
-                                                    className="h-8 px-3 text-xs"
-                                                    onClick={() => setTagLogic("and")}
-                                                >
-                                                    AND
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant={tagLogic === "or" ? "secondary" : "ghost"}
-                                                    size="sm"
-                                                    className="h-8 px-3 text-xs"
-                                                    onClick={() => setTagLogic("or")}
-                                                >
-                                                    OR
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant={tagLogic === "custom" ? "secondary" : "ghost"}
-                                                    size="sm"
-                                                    className="h-8 px-3 text-xs"
-                                                    onClick={() => setTagLogic("custom")}
-                                                >
-                                                    CUSTOM
-                                                </Button>
-                                            </div>
-                                        </div>
-
-                                        {tagLogic !== "custom" ? (
-                                            <div className="max-h-[160px] overflow-y-auto pr-1 space-y-1 custom-scrollbar">
-                                                {tagsLoading ? (
-                                                    <div className="flex items-center justify-center py-8">
-                                                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                                                    </div>
-                                                ) : filteredTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase())).length > 0 ? (
-                                                    <div className="flex flex-wrap gap-1.5 pt-1">
-                                                        {filteredTags
-                                                            .filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()))
-                                                            .map((tag) => (
-                                                                <Badge
-                                                                    key={tag}
-                                                                    variant={selectedTags.includes(tag) ? "default" : "outline"}
-                                                                    className={`cursor-pointer hover:border-primary transition-colors ${selectedTags.includes(tag)
-                                                                        ? "bg-primary text-primary-foreground"
-                                                                        : "bg-background hover:bg-muted"
-                                                                        }`}
-                                                                    onClick={() => toggleTag(tag)}
-                                                                >
-                                                                    {tag}
-                                                                </Badge>
-                                                            ))}
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-center py-8 text-sm text-muted-foreground">
-                                                        {selectedProject ? "Bu projede etiket bulunamadı" : "Önce bir proje seçin"}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-2 py-2">
-                                                <Label className="text-xs text-muted-foreground">Manuel Etiket Girişi</Label>
-                                                <FormField<TestRunFormValues>
-                                                    control={control}
-                                                    name="tags"
-                                                    render={({ field }: any) => (
-                                                        <FormItem>
-                                                            <FormControl>
-                                                                <Input
-                                                                    {...field}
-                                                                    placeholder="@smoke and (not @slow)"
-                                                                    className="font-mono text-sm"
-                                                                    disabled={isProcessing}
-                                                                />
-                                                            </FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                                <p className="text-[10px] text-muted-foreground italic">
-                                                    * Custom modunda etiketleri, 'and', 'or', 'not' ve parantez kullanarak manuel olarak girebilirsiniz.
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Preview of constructed tags */}
-                                    <div className="p-3 bg-muted rounded-lg border border-dashed border-muted-foreground/30">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="text-[10px] font-medium uppercase text-muted-foreground">Oluşturulan Filtre</span>
-                                            <Dialog>
-                                                <DialogTrigger asChild>
-                                                    <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px] text-muted-foreground">
-                                                        <Info className="w-3 h-3 mr-1" />
-                                                        Rehber
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent>
-                                                    <DialogHeader>
-                                                        <DialogTitle>{dictionary.testRun.tagsGuide}</DialogTitle>
-                                                        <DialogDescription>{dictionary.testRun.readyToExecuteDesc}</DialogDescription>
-                                                    </DialogHeader>
-                                                    <div className="space-y-3 mt-4">
-                                                        <div className="p-3 bg-muted rounded-lg space-y-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <code className="px-2 py-1 bg-background rounded text-sm font-mono">@smoke</code>
-                                                                <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideSmoke || "Smoke testlerini çalıştır"}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <code className="px-2 py-1 bg-background rounded text-sm font-mono">@regression and not @slow</code>
-                                                                <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideComplex || "Karmaşık mantık"}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <code className="px-2 py-1 bg-background rounded text-sm font-mono">@login or @signup</code>
-                                                                <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideAny || "Eşleşen herhangi biri"}</span>
+                                    {/* Modern Tag Selector */}
+                                    <div className="space-y-3 bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Etiketler</Label>
+                                                <Dialog>
+                                                    <DialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-4 w-4 text-slate-400 hover:text-indigo-500">
+                                                            <Info className="w-3 h-3" />
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>{dictionary.testRun.tagsGuide}</DialogTitle>
+                                                            <DialogDescription>{dictionary.testRun.readyToExecuteDesc}</DialogDescription>
+                                                        </DialogHeader>
+                                                        <div className="space-y-3 mt-4">
+                                                            <div className="p-3 bg-muted rounded-lg space-y-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <code className="px-2 py-1 bg-background rounded text-sm font-mono">@smoke</code>
+                                                                    <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideSmoke || "Smoke testlerini çalıştır"}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <code className="px-2 py-1 bg-background rounded text-sm font-mono">@regression and not @slow</code>
+                                                                    <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideComplex || "Karmaşık mantık"}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <code className="px-2 py-1 bg-background rounded text-sm font-mono">@login or @signup</code>
+                                                                    <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideAny || "Eşleşen herhangi biri"}</span>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                </DialogContent>
-                                            </Dialog>
-                                        </div>
-                                        <div className="min-h-[24px]">
-                                            <div className="flex flex-wrap gap-1.5 items-center">
-                                                {tagLogic === "custom" ? (
-                                                    <span className="font-mono text-sm text-primary break-all">
-                                                        {tags || <span className="text-muted-foreground italic text-xs">Henüz etiket girilmedi...</span>}
-                                                    </span>
-                                                ) : (
-                                                    <>
-                                                        {selectedTags.map((tag, index) => (
-                                                            <div key={tag} className="flex items-center gap-1.5">
-                                                                <Badge
-                                                                    variant="secondary"
-                                                                    className="h-6 gap-1 pr-1 pl-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors cursor-pointer group"
-                                                                    onClick={() => toggleTag(tag)}
-                                                                >
-                                                                    {tag}
-                                                                    <X className="w-3 h-3 text-muted-foreground group-hover:text-destructive" />
-                                                                </Badge>
-                                                                {index < selectedTags.length - 1 && (
-                                                                    <span className="text-[10px] font-bold text-muted-foreground/40 px-0.5">
-                                                                        {tagLogic.toUpperCase()}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                        {selectedTags.length === 0 && (
-                                                            <span className="text-muted-foreground italic text-xs">Henüz etiket seçilmedi...</span>
-                                                        )}
-                                                    </>
-                                                )}
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                {['and', 'or', 'custom'].map((mode) => (
+                                                    <button
+                                                        key={mode}
+                                                        type="button"
+                                                        onClick={() => setTagLogic(mode as any)}
+                                                        className={`text-[10px] uppercase font-bold px-2 py-1 rounded-md transition-all ${tagLogic === mode
+                                                            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 shadow-sm'
+                                                            : 'text-slate-400 hover:text-slate-600'
+                                                            }`}
+                                                    >
+                                                        {mode}
+                                                    </button>
+                                                ))}
                                             </div>
                                         </div>
-                                    </div>
-                                    <FormField<TestRunFormValues>
-                                        control={control}
-                                        name="tags"
-                                        render={({ field }: any) => (
-                                            <FormItem>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-                            </div>
 
-                            <Separator />
-
-                            {/* Environment */}
-                            <div className="space-y-2">
-                                <Label className="flex items-center gap-2 text-muted-foreground">
-                                    <Server className="w-4 h-4" />
-                                    {dictionary.testRun.environment}
-                                </Label>
-                                <Select value={env} onValueChange={(v) => setValue("env", v)} disabled={isProcessing}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {ENV_OPTIONS.map((opt) => (
-                                            <SelectItem key={opt.value} value={opt.value}>
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`w-2 h-2 rounded-full ${opt.value === 'prod' ? 'bg-red-500' :
-                                                        opt.value === 'staging' ? 'bg-yellow-500' :
-                                                            opt.value === 'uat' ? 'bg-blue-500' :
-                                                                'bg-green-500'
-                                                        }`} />
-                                                    {opt.label}
+                                        {tagLogic !== 'custom' ? (
+                                            <>
+                                                <div className="relative">
+                                                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                                    <Input
+                                                        placeholder="Etiket ara..."
+                                                        className="w-full pl-9 h-9 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus-visible:ring-indigo-500/20"
+                                                        value={tagSearch}
+                                                        onChange={(e) => setTagSearch(e.target.value)}
+                                                    />
                                                 </div>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
 
-                            {/* Environment Config */}
-                            <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">
-                                <Label className="flex items-center gap-2 text-sm font-medium">
-                                    <Globe className="w-4 h-4" />
-                                    {fullDict.testRun?.environmentInfo || "Test Ortamı Bilgileri"}
-                                </Label>
-
-                                {configLoading ? (
-                                    <div className="flex items-center justify-center py-4">
-                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                        <span className="text-sm text-muted-foreground">{fullDict.common?.loading || "Yükleniyor..."}</span>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <FormField<TestRunFormValues>
-                                            control={control}
-                                            name="baseLoginUrl"
-                                            render={({ field }: any) => (
-                                                <FormItem className="space-y-1">
-                                                    <FormLabel className="text-xs text-muted-foreground">Login URL</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            {...field}
-                                                            placeholder="https://example.com/login"
-                                                            disabled={isProcessing}
-                                                            className="h-8 text-sm"
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <div className="grid grid-cols-2 gap-2">
+                                                <div className="max-h-[140px] overflow-y-auto pr-1 flex flex-wrap gap-2 pt-1 custom-scrollbar min-h-[60px]">
+                                                    {tagsLoading ? (
+                                                        <div className="w-full h-full flex items-center justify-center p-4">
+                                                            <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
+                                                        </div>
+                                                    ) : filteredTags.length > 0 ? (
+                                                        filteredTags
+                                                            .filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()))
+                                                            .map(tag => (
+                                                                <Badge
+                                                                    key={tag}
+                                                                    variant="outline"
+                                                                    onClick={() => toggleTag(tag)}
+                                                                    className={`cursor-pointer px-2.5 py-1 text-xs border transition-all duration-200 select-none ${selectedTags.includes(tag)
+                                                                        ? 'bg-indigo-500 text-white border-indigo-600 shadow-md shadow-indigo-500/20 hover:bg-indigo-600'
+                                                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-300 hover:text-indigo-600'
+                                                                        }`}
+                                                                >
+                                                                    {tag}
+                                                                </Badge>
+                                                            ))
+                                                    ) : (
+                                                        <p className="w-full text-center text-xs text-slate-400 py-4 italic">
+                                                            {selectedProject ? "Etiket bulunamadı." : "Proje seçin."}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </>
+                                        ) : (
                                             <FormField<TestRunFormValues>
                                                 control={control}
-                                                name="username"
-                                                render={({ field }: any) => (
-                                                    <FormItem className="space-y-1">
-                                                        <FormLabel className="text-xs text-muted-foreground">{fullDict.playwrightConfig?.username || "Kullanıcı Adı"}</FormLabel>
+                                                name="tags"
+                                                render={({ field }) => (
+                                                    <FormItem>
                                                         <FormControl>
-                                                            <Input
-                                                                {...field}
-                                                                placeholder="username"
-                                                                disabled={isProcessing}
-                                                                className="h-8 text-sm"
-                                                            />
+                                                            <Input {...field} value={String(field.value)} placeholder="@custom and @query" className="w-full font-mono text-sm bg-white dark:bg-slate-900" />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
                                                 )}
                                             />
-                                            <FormField<TestRunFormValues>
-                                                control={control}
-                                                name="password"
-                                                render={({ field }: any) => (
-                                                    <FormItem className="space-y-1">
-                                                        <FormLabel className="text-xs text-muted-foreground">{fullDict.playwrightConfig?.password || "Şifre"}</FormLabel>
-                                                        <div className="relative">
-                                                            <FormControl>
-                                                                <Input
-                                                                    {...field}
-                                                                    type={showPassword ? 'text' : 'password'}
-                                                                    placeholder="••••••••"
-                                                                    disabled={isProcessing}
-                                                                    className="h-8 text-sm pr-8"
-                                                                />
-                                                            </FormControl>
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="absolute right-0 top-0 h-8 w-8 px-2"
-                                                                onClick={() => setShowPassword(!showPassword)}
-                                                            >
-                                                                {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                                                            </Button>
-                                                        </div>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                                        )}
 
-                            {/* Browser Selection */}
-                            <div className="space-y-3">
-                                <Label className="flex items-center gap-2 text-muted-foreground">
-                                    <Globe className="w-4 h-4" />
-                                    {fullDict.testRun?.browser || "Tarayıcı"}
-                                </Label>
-                                <FormField<TestRunFormValues>
-                                    control={control}
-                                    name="browser"
-                                    render={({ field }: any) => (
-                                        <Select value={field.value} onValueChange={field.onChange} disabled={isProcessing}>
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {BROWSER_OPTIONS.map((opt) => (
-                                                    <SelectItem key={opt.value} value={opt.value}>
-                                                        <div className="flex items-center gap-2">
-                                                            <span>{opt.icon}</span>
-                                                            {opt.label}
-                                                        </div>
-                                                    </SelectItem>
+                                        {/* Selected Tags Preview */}
+                                        {selectedTags.length > 0 && tagLogic !== 'custom' && (
+                                            <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                                                {selectedTags.map((tag, i) => (
+                                                    <Badge
+                                                        key={tag}
+                                                        variant="secondary"
+                                                        className="flex items-center gap-1.5 py-1 px-2 text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800/50"
+                                                    >
+                                                        {tag}
+                                                        {i < selectedTags.length - 1 && (
+                                                            <span className="ml-1 px-1 rounded bg-slate-200 dark:bg-slate-700 text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest">{tagLogic}</span>
+                                                        )}
+                                                    </Badge>
                                                 ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
+                                                <Button variant="ghost" size="sm" onClick={clearSelection} className="ml-auto h-6 px-2 text-[10px] text-red-500 hover:bg-red-50 hover:text-red-600 self-center">
+                                                    Temizle
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
 
-                                {/* Headless Mode */}
-                                <div className="flex items-center justify-between pt-2">
-                                    <Label className="flex items-center gap-2 text-muted-foreground text-sm">
-                                        <Eye className="w-4 h-4" />
-                                        {fullDict.testRun?.headlessMode || "Headless Mod"}
-                                    </Label>
-                                    <div className="flex items-center gap-2">
-                                        <Switch
-                                            checked={headless}
-                                            onCheckedChange={(v) => setValue("headless", v)}
-                                            disabled={isProcessing}
-                                        />
-                                        <Badge variant={headless ? "secondary" : "default"} className="text-xs">
-                                            {headless ? (fullDict.testRun?.headlessBackground || "Arka Plan") : (fullDict.testRun?.headlessVisible || "Görünür")}
-                                        </Badge>
+                                    {/* Environment Configuration Inputs */}
+                                    <div className="space-y-3 bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                        <Label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                            <Globe className="w-3.5 h-3.5" />
+                                            {fullDict.testRun?.environmentInfo || "Ortam Bilgileri"}
+                                        </Label>
+                                        {configLoading ? (
+                                            <div className="flex items-center justify-center py-2">
+                                                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                <FormField<TestRunFormValues>
+                                                    control={control}
+                                                    name="baseLoginUrl"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormControl>
+                                                                <div className="relative">
+                                                                    <Input
+                                                                        {...field}
+                                                                        value={String(field.value)}
+                                                                        placeholder="https://example.com/login"
+                                                                        className="h-9 text-xs bg-white dark:bg-slate-950 w-full"
+                                                                        disabled={isProcessing}
+                                                                    />
+                                                                    <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                                                        <span className="text-[10px] text-slate-400">URL</span>
+                                                                    </div>
+                                                                </div>
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <FormField<TestRunFormValues>
+                                                        control={control}
+                                                        name="username"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormControl>
+                                                                    <Input
+                                                                        {...field}
+                                                                        value={String(field.value)}
+                                                                        placeholder="Kullanıcı Adı"
+                                                                        className="h-9 text-xs bg-white dark:bg-slate-950 w-full"
+                                                                        disabled={isProcessing}
+                                                                    />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField<TestRunFormValues>
+                                                        control={control}
+                                                        name="password"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormControl>
+                                                                    <div className="relative">
+                                                                        <Input
+                                                                            {...field}
+                                                                            value={String(field.value)}
+                                                                            type={showPassword ? 'text' : 'password'}
+                                                                            placeholder="Şifre"
+                                                                            disabled={isProcessing}
+                                                                            className="h-9 text-xs bg-white dark:bg-slate-950 pr-8 w-full"
+                                                                        />
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="absolute right-0 top-0 h-9 w-8 text-slate-400 hover:text-slate-600"
+                                                                            onClick={() => setShowPassword(!showPassword)}
+                                                                        >
+                                                                            {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                                                                        </Button>
+                                                                    </div>
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            </div>
 
-                            <Separator />
+                                <Separator className="bg-slate-100 dark:bg-slate-800" />
 
-                            {/* Parallel Execution */}
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <Label className="flex items-center gap-2 text-muted-foreground">
-                                        <Zap className="w-4 h-4" />
-                                        {dictionary.testRun.parallelExecution}
-                                    </Label>
-                                    <div className="flex items-center gap-2">
-                                        <Switch
-                                            checked={isParallel}
-                                            onCheckedChange={(v) => setValue("isParallel", v)}
-                                            disabled={isProcessing}
+                                {/* Environment & Browser */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-semibold text-slate-500 uppercase">{dictionary.testRun.environment}</Label>
+                                        <FormField<TestRunFormValues>
+                                            control={control}
+                                            name="env"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <Select
+                                                        value={field.value as string}  // Cast to string to match expected type
+                                                        onValueChange={field.onChange}
+                                                        disabled={isProcessing}
+                                                    >
+                                                        <FormControl>
+                                                            <SelectTrigger className="w-full h-10 text-xs">
+                                                                <SelectValue placeholder={dictionary.testRun.selectEnvironment || "Ortam Seçin"} />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {ENV_OPTIONS.map((opt) => (
+                                                                <SelectItem key={opt.value} value={opt.value}>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className={`w-2 h-2 rounded-full ${opt.value === 'prod' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' :
+                                                                            opt.value === 'staging' ? 'bg-amber-400' :
+                                                                                'bg-emerald-500'
+                                                                            }`} />
+                                                                        {opt.label}
+                                                                    </div>
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </FormItem>
+                                            )}
                                         />
-                                        <Badge variant={isParallel ? "default" : "secondary"} className="text-xs">
-                                            {isParallel ? dictionary.testRun.enabled : dictionary.testRun.disabled}
-                                        </Badge>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-semibold text-slate-500 uppercase">{fullDict.testRun?.browser || "Tarayıcı"}</Label>
+                                        <FormField<TestRunFormValues>
+                                            control={control}
+                                            name="browser"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <Select
+                                                        value={field.value as string}
+                                                        onValueChange={field.onChange}
+                                                        disabled={isProcessing}
+                                                    >
+                                                        <FormControl>
+                                                            <SelectTrigger className="w-full h-10 text-xs">
+                                                                <SelectValue placeholder={fullDict.testRun?.selectBrowser || "Tarayıcı Seçin"} />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {BROWSER_OPTIONS.map(opt => (
+                                                                <SelectItem key={opt.value} value={opt.value}>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-base">{opt.icon}</span> {opt.label}
+                                                                    </div>
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </FormItem>
+                                            )}
+                                        />
                                     </div>
                                 </div>
 
-                                {isParallel && (
-                                    <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: "auto" }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="space-y-2"
-                                    >
-                                        <Label className="flex items-center gap-2 text-muted-foreground text-sm">
-                                            <Cpu className="w-4 h-4" />
-                                            {dictionary.testRun.threadCount}
+                                {/* Additional Config Accordion style */}
+                                <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-3 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs font-medium text-slate-600 flex items-center gap-2">
+                                            <Zap className="w-3.5 h-3.5 text-amber-500" />
+                                            {dictionary.testRun.parallelExecution}
                                         </Label>
                                         <FormField<TestRunFormValues>
                                             control={control}
-                                            name="threads"
-                                            render={({ field }: any) => (
-                                                <Select
-                                                    value={field.value.toString()}
-                                                    onValueChange={(v) => field.onChange(parseInt(v))}
-                                                    disabled={isProcessing}
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {THREAD_OPTIONS.map((opt) => (
-                                                            <SelectItem key={opt.value} value={opt.value}>
-                                                                {opt.label} thread
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                            name="isParallel"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={!!field.value}
+                                                            onCheckedChange={field.onChange}
+                                                            disabled={isProcessing}
+                                                            className="scale-75 origin-right"
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
                                             )}
                                         />
-                                    </motion.div>
-                                )}
-                            </div>
-
-                            <Separator />
-
-                            {/* Run Button */}
-                            <Button
-                                onClick={isComplete || isFailed ? handleNewRun : handleRun}
-                                disabled={isProcessing || (!tags.trim() && !isComplete && !isFailed) || startJobMutation.isPending}
-                                className="w-full gap-2"
-                                size="lg"
-                                variant={isComplete || isFailed ? "outline" : "default"}
-                            >
-                                {startJobMutation.isPending || isProcessing ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        {dictionary.testRun.running}
-                                    </>
-                                ) : isComplete || isFailed ? (
-                                    <>
-                                        <RefreshCw className="w-4 h-4" />
-                                        {fullDict.testRun?.newRun || "Yeni Test Çalıştır"}
-                                    </>
-                                ) : (
-                                    <>
-                                        <Play className="w-4 h-4" />
-                                        {dictionary.testRun.runTests}
-                                    </>
-                                )}
-                            </Button>
-
-                            {/* Test Report Section - Only show after successful test completion */}
-                            {isComplete && result && (
-                                <>
-                                    <Separator />
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-2">
-                                            <BarChart2 className="w-4 h-4 text-blue-500" />
-                                            <span className="font-medium text-sm">Test Raporu Hazır</span>
-                                        </div>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="gap-2 border-primary text-primary hover:bg-primary/10"
-                                                onClick={() => {
-                                                    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8093';
-                                                    const rawUrl = result.reportUrl || "";
-                                                    let url = "";
-                                                    if (rawUrl.startsWith('http')) {
-                                                        url = rawUrl;
-                                                    } else if (rawUrl.startsWith('file://')) {
-                                                        url = rawUrl;
-                                                    } else {
-                                                        url = `${baseUrl}${rawUrl}`;
-                                                    }
-                                                    window.open(url, '_blank');
-                                                }}
-                                            >
-                                                <ExternalLink className="w-3 h-3" />
-                                                Raporu Görüntüle
-                                            </Button>
-                                        </div>
                                     </div>
-                                </>
-                            )}
+                                    {isParallel && (
+                                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="pt-2 px-1">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{dictionary.testRun.threadCount}</Label>
+                                                <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-800">
+                                                    {form.watch("threads")}
+                                                </span>
+                                            </div>
+                                            <FormField<TestRunFormValues>
+                                                control={control}
+                                                name="threads"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormControl>
+                                                            <Slider
+                                                                min={1}
+                                                                max={10}
+                                                                step={1}
+                                                                value={[Number(field.value)]}
+                                                                onValueChange={(vals: number[]) => field.onChange(vals[0])}
+                                                                className="cursor-pointer py-2"
+                                                                disabled={isProcessing}
+                                                            />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-1">
+                                                <span>1</span>
+                                                <span>5</span>
+                                                <span>10</span>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </div>
+
+                                <Separator className="bg-slate-100 dark:bg-slate-800" />
+
+                                {/* CTA Button */}
+                                <Button
+                                    onClick={handleRun}
+                                    type="button"
+                                    disabled={isProcessing || (!tags.trim() && !isComplete && !isFailed) || startJobMutation.isPending}
+                                    className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25 rounded-xl text-base font-semibold tracking-wide transition-all hover:translate-y-[-1px] active:translate-y-[1px]"
+                                >
+                                    {startJobMutation.isPending || isProcessing ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                                            {dictionary.testRun.running}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Rocket className="w-5 h-5 mr-2 animate-pulse" />
+                                            {dictionary.testRun.runTests}
+                                        </>
+                                    )}
+                                </Button>
+
+                                {/* View Reports Link */}
+                                {isComplete && result && (
+                                    <Button
+                                        variant="outline"
+                                        className="w-full h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                                        onClick={() => {
+                                            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8093';
+                                            const url = result.reportUrl?.startsWith('http') ? result.reportUrl : `${baseUrl}${result.reportUrl}`;
+                                            window.open(url, '_blank');
+                                        }}
+                                    >
+                                        <ExternalLink className="w-4 h-4 mr-2" />
+                                        {fullDict.testRun?.viewReport || "Raporu Görüntüle"}
+                                    </Button>
+                                )}
+                            </form>
                         </Form>
                     </CardContent>
                 </Card>
 
-                {/* Results Card - Right Side */}
-                <div className="lg:col-span-3">
-                    <TestResultsTable
-                        creations={testCreations}
-                        currentPage={currentPage}
-                        totalPages={testRunsData?.totalPages || 0}
-                        totalElements={testRunsData?.totalElements || 0}
-                        onPageChange={handlePageChange}
-                        isLoading={testRunsLoading}
-                    />
+                {/* Results Card - Right Side (8 Cols) */}
+                <div className="lg:col-span-8 space-y-6">
+                    {/* Tabs for Results / Logs / History */}
+                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm shadow-xl ring-1 ring-slate-900/5 dark:ring-white/10 rounded-xl p-6 min-h-[600px]">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                <LayoutDashboard className="w-5 h-5 text-indigo-500" />
+                                {dictionary.testRun.testResults || "Test Sonuçları & Geçmiş"}
+                            </h2>
+                        </div>
+
+                        <TestResultsTable
+                            creations={testCreations}
+                            currentPage={currentPage}
+                            totalPages={testRunsData?.totalPages || 0}
+                            totalElements={testRunsData?.totalElements || 0}
+                            onPageChange={handlePageChange}
+                            isLoading={testRunsLoading}
+                        />
+
+                        {(!testCreations || testCreations.length === 0) && !testRunsLoading && (
+                            <div className="text-center py-20">
+                                <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Layers className="w-10 h-10 text-slate-300" />
+                                </div>
+                                <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400">{fullDict.testRun.noResults || "Henüz Test Koşulmadı"}</h3>
+                                <p className="text-slate-400 dark:text-slate-500 max-w-xs mx-auto mt-2">
+                                    {fullDict.testRun?.noResultsDescription || "Soldaki panelden proje ve etiket seçerek ilk testinizi başlatın."}
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
