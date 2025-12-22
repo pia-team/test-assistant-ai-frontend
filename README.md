@@ -123,12 +123,12 @@ docker build \
 
 ### Build Arguments Reference
 
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_SOCKET_URL` | Socket.io server URL for real-time updates | `http://localhost:9092` |
+| Argument | Description | Default                      |
+|----------|-------------|------------------------------|
+| `NEXT_PUBLIC_SOCKET_URL` | Socket.io server URL for real-time updates | `http://localhost:8080`      |
 | `NEXT_PUBLIC_KEYCLOAK_URL` | Keycloak authentication server URL | `https://diam.dnext-pia.com` |
-| `NEXT_PUBLIC_KEYCLOAK_REALM` | Keycloak realm name | `orbitant-realm` |
-| `NEXT_PUBLIC_KEYCLOAK_CLIENT_ID` | Keycloak client ID | `orbitant-ui-client` |
+| `NEXT_PUBLIC_KEYCLOAK_REALM` | Keycloak realm name | `orbitant-realm`             |
+| `NEXT_PUBLIC_KEYCLOAK_CLIENT_ID` | Keycloak client ID | `orbitant-ui-client`         |
 
 > **Important**: `NEXT_PUBLIC_*` variables are inlined at build time. You must rebuild the image to change these values.
 
