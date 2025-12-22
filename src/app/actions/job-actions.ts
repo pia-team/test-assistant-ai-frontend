@@ -36,7 +36,7 @@ export interface Job {
 
 // ... imports and types remain same
 
-const API_URL = process.env.API_URL || "http://localhost:8093";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8093";
 
 // Helper to get auth headers from client token
 async function getAuthHeaders(token?: string) {

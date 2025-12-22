@@ -26,7 +26,7 @@ ARG NEXT_PUBLIC_API_URL=https://test-asistant-ai-be.dnext-pia.com
 ARG KEYCLOAK_CLIENT_SECRET
 ARG KEYCLOAK_CLIENT_ISSUER
 ARG NEXTAUTH_SECRET
-ARG NEXTAUTH_URL
+ARG NEXT_PUBLIC_API_URL
 ARG API_URL
 
 # Set environment variables for build process
@@ -58,7 +58,8 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Runtime environment variables for server-side code (can be overridden at container run)
-ENV API_URL=http://localhost:8093
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV API_URL=$API_URL
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
