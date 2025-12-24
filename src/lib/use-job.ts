@@ -16,6 +16,8 @@ import {
     type JobType,
 } from "@/app/actions/job-actions";
 
+export type { Job, JobType };
+
 // Hook to get active job by type - fetches from backend only on first mount if cache is empty
 export function useActiveJob(type: JobType) {
     const { token } = useKeycloak();

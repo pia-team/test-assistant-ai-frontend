@@ -139,6 +139,10 @@ interface TestRunClientProps {
             headlessBackground?: string;
             headlessVisible?: string;
             environmentInfo?: string;
+            testRunFailed?: string;
+            reportsReady?: string;
+            testResultsAndHistory?: string;
+            workerThreads?: string;
             projectAndTags?: string;
             selectProject?: string;
             searchTags?: string;
@@ -146,21 +150,11 @@ interface TestRunClientProps {
             selectProjectFirst?: string;
             manualTagInput?: string;
             customTagGuide?: string;
-            generatedFilter?: string;
-            noTagsSelected?: string;
+            selectTags?: string;
             clear?: string;
             tagsGuideSmoke?: string;
             tagsGuideComplex?: string;
             tagsGuideAny?: string;
-            operationLongerThanExpected?: string;
-            connectionLost?: string;
-            refreshPage?: string;
-            startNewTest?: string;
-            unknownError?: string;
-            testRunFailed?: string;
-            reportsReady?: string;
-            testResultsAndHistory?: string;
-            workerThreads?: string;
         };
         common: {
             error: string;
@@ -169,6 +163,7 @@ interface TestRunClientProps {
             loading?: string;
             username?: string;
             password?: string;
+            done?: string;
         };
         progressSteps?: Record<string, Record<string, string>>;
     };
@@ -797,7 +792,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                     <div className="space-y-2">
                                         <Label className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-sm">
                                             <FolderClosed className="w-4 h-4 text-indigo-500" />
-                                            PROJE & ETİKETLER
+                                            {dictionary.testRun.projectAndTags || "PROJE & ETİKETLER"}
                                         </Label>
 
                                         <Select
@@ -806,7 +801,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                             disabled={isProcessing || projectsLoading}
                                         >
                                             <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-indigo-500/20 hover:border-indigo-300 transition-colors">
-                                                <SelectValue placeholder="Proje Seçin" />
+                                                <SelectValue placeholder={dictionary.testRun.selectProject || "Proje Seçin"} />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {projects.map((p) => (
@@ -820,7 +815,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                     <div className="space-y-3 bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Etiketler</Label>
+                                                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{dictionary.testRun.selectTags || "Etiketler"}</Label>
                                                 <Dialog>
                                                     <DialogTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="h-4 w-4 text-slate-400 hover:text-indigo-500">
@@ -873,7 +868,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                                 <div className="relative">
                                                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                                                     <Input
-                                                        placeholder="Etiket ara..."
+                                                        placeholder={dictionary.testRun.searchTags || "Etiket ara..."}
                                                         className="w-full pl-9 h-9 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus-visible:ring-indigo-500/20"
                                                         value={tagSearch}
                                                         onChange={(e) => setTagSearch(e.target.value)}
@@ -903,7 +898,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                                             ))
                                                     ) : (
                                                         <p className="w-full text-center text-xs text-slate-400 py-4 italic">
-                                                            {selectedProject ? "Etiket bulunamadı." : "Proje seçin."}
+                                                            {selectedProject ? (dictionary.testRun.noTagsFound || "Etiket bulunamadı.") : (dictionary.testRun.selectProjectFirst || "Proje seçin.")}
                                                         </p>
                                                     )}
                                                 </div>
@@ -939,7 +934,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                                     </Badge>
                                                 ))}
                                                 <Button variant="ghost" size="sm" onClick={clearSelection} className="ml-auto h-6 px-2 text-[10px] text-red-500 hover:bg-red-50 hover:text-red-600 self-center">
-                                                    Temizle
+                                                    {dictionary.testRun.clear || "Temizle"}
                                                 </Button>
                                             </div>
                                         )}

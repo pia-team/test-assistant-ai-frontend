@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Dialog,
@@ -40,6 +41,16 @@ export function InjectionProgressModal({
     const currentStepKey = progress?.currentFile ?? "";
     const progressPercent = progress?.progress ?? 0;
     const isComplete = progressPercent >= 100;
+
+    // Auto-close on completion
+    useEffect(() => {
+        if (isComplete && open) {
+            const timer = setTimeout(() => {
+                onOpenChange(false);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [isComplete, open, onOpenChange]);
 
     // Map step keys to localized labels
     const getStepLabel = (stepKey: string) => {
@@ -107,30 +118,6 @@ export function InjectionProgressModal({
                         )}
                     </AnimatePresence>
 
-                    {isComplete && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="flex flex-col items-center gap-4 py-6 px-4 rounded-xl bg-green-500/5 border border-green-500/10"
-                        >
-                            <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center shadow-lg shadow-green-500/20">
-                                <CheckCircle className="w-10 h-10 text-green-500" />
-                            </div>
-                            <div className="text-center space-y-1">
-                                <h3 className="font-bold text-lg text-green-700">İşlem Başarılı!</h3>
-                                <p className="text-sm text-muted-foreground max-w-[240px]">
-                                    {dictionary.injection.successMessage.replace("{count}", String(totalFiles))}
-                                </p>
-                            </div>
-                            <Button
-                                variant="default"
-                                className="w-full bg-green-600 hover:bg-green-700 font-bold"
-                                onClick={() => onOpenChange(false)}
-                            >
-                                {dictionary.injection.close}
-                            </Button>
-                        </motion.div>
-                    )}
                 </div>
             </DialogContent>
         </Dialog>

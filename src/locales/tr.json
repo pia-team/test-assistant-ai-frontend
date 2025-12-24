@@ -16,7 +16,8 @@
         "no": "Hayır",
         "copy": "Kopyala",
         "download": "İndir",
-        "copied": "Kopyalandı!"
+        "copied": "Kopyalandı!",
+        "done": "Tamam"
     },
     "nav": {
         "overview": "Genel Bakış",
@@ -59,7 +60,14 @@
         "supportedFormats": "JSON veya HAR dosyaları desteklenir",
         "selectTags": "Test Etiketlerini Seçin",
         "addCustomTag": "Yeni etiket ekle...",
-        "tagsDescription": "Oluşturulacak testlere eklemek istediğiniz Cucumber etiketlerini seçin (örn: @regression, @smoke)"
+        "tagsDescription": "Oluşturulacak testlere eklemek istediğiniz Cucumber etiketlerini seçin (örn: @regression, @smoke)",
+        "folderNameLabel": "Özel Klasör Adı",
+        "selectExistingFolder": "Mevcut Klasör Seç",
+        "historicalUploads": "Geçmiş Yüklemeler",
+        "mandatoryTagsError": "Lütfen en az bir etiket seçin!",
+        "searchPlaceholder": "Dosya veya kullanıcıya göre ara...",
+        "unnamedUpload": "İsimsiz Yükleme",
+        "unknownUploader": "Bilinmiyor"
     },
     "testRun": {
         "title": "Testleri Çalıştır",
@@ -124,7 +132,14 @@
         "newRun": "Yeni Test Çalıştır",
         "processingInBackground": "Arka planda işleniyor...",
         "testFailed": "Test Çalıştırma Başarısız",
-        "retry": "Yeniden Dene"
+        "retry": "Yeniden Dene",
+        "projectAndTags": "PROJE & ETİKETLER",
+        "selectProject": "Proje Seçin",
+        "searchTags": "Etiket ara...",
+        "noTagsFound": "Etiket bulunamadı.",
+        "selectProjectFirst": "Proje seçin.",
+        "manualTagInput": "Manuel Etiket Girişi",
+        "customTagGuide": "Standart Cucumber etiket mantığını kullanın"
     },
     "generateTests": {
         "title": "Yapay Zeka Destekli Test Oluştur",
@@ -250,7 +265,7 @@
     "injection": {
         "title": "Kod Ekleme",
         "inProgress": "Kodlar Projeye Ekleniyor...",
-        "completed": "Kod Ekleme Tamamlandı",
+        "completed": "Tamamlandı",
         "progress": "İlerleme",
         "step": "Adım",
         "preparingFiles": "Dosyalar hazırlanıyor...",
@@ -267,7 +282,10 @@
         "addGroupToProject": "Grubu Ekle",
         "allFilesAdded": "Tüm dosyalar projeye eklendi!",
         "file": "dosya",
-        "files": "dosya"
+        "files": "dosya",
+        "injectionPreview": "Yerleştirme Önizlemesi",
+        "reviewFiles": "Projeye eklenecek dosyaları gözden geçirin.",
+        "confirmAndInject": "Onayla ve Tümünü Ekle"
     },
     "conflict": {
         "title": "Çakışma Tespit Edildi",

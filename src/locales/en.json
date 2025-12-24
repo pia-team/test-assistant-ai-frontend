@@ -16,7 +16,8 @@
         "no": "No",
         "copy": "Copy",
         "download": "Download",
-        "copied": "Copied!"
+        "copied": "Copied!",
+        "done": "Done"
     },
     "nav": {
         "overview": "Overview",
@@ -59,7 +60,14 @@
         "supportedFormats": "JSON or HAR files are supported",
         "selectTags": "Select Test Tags",
         "addCustomTag": "Add new tag...",
-        "tagsDescription": "Select the Cucumber tags you want to include in the generated tests (e.g. @regression, @smoke)"
+        "tagsDescription": "Select the Cucumber tags you want to include in the generated tests (e.g. @regression, @smoke)",
+        "folderNameLabel": "Custom Folder Name",
+        "selectExistingFolder": "Select Existing Folder",
+        "historicalUploads": "Historical Uploads",
+        "mandatoryTagsError": "Please select at least one tag!",
+        "searchPlaceholder": "Search by file or user...",
+        "unnamedUpload": "Unnamed Upload",
+        "unknownUploader": "Unknown"
     },
     "testRun": {
         "title": "Run Tests",
@@ -124,7 +132,14 @@
         "newRun": "Run New Test",
         "processingInBackground": "Processing in background...",
         "testFailed": "Test Execution Failed",
-        "retry": "Retry"
+        "retry": "Retry",
+        "projectAndTags": "Project & Tags",
+        "selectProject": "Select Project",
+        "searchTags": "Search tags...",
+        "noTagsFound": "No tags found.",
+        "selectProjectFirst": "Select a project.",
+        "manualTagInput": "Manual Tag Input",
+        "customTagGuide": "Use standard Cucumber tag logic"
     },
     "generateTests": {
         "title": "AI Powered Test Generation",
@@ -267,7 +282,10 @@
         "addGroupToProject": "Add Group",
         "allFilesAdded": "All files added to project!",
         "file": "file",
-        "files": "files"
+        "files": "files",
+        "injectionPreview": "Injection Preview",
+        "reviewFiles": "Review the files that will be added to your project.",
+        "confirmAndInject": "Confirm & Inject All"
     },
     "conflict": {
         "title": "Conflict Detected",
