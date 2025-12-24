@@ -237,11 +237,13 @@ export function GeneratedFilesDisplay({ data, dictionary, onSuccessAll }: Genera
                             <div className="space-y-2 text-center">
                                 <div className="flex justify-between text-sm font-medium px-1">
                                     <span className="text-muted-foreground">
-                                        {progress?.progress === 100
-                                            ? fullDict.injection.completed
-                                            : progress?.currentIndex && progress.currentIndex > 0
-                                                ? `${fullDict.injection.step || 'Step'} ${progress.currentIndex}`
-                                                : fullDict.injection.preparingFiles}
+                                        {!progress
+                                            ? fullDict.injection.preparingFiles || 'Hazırlanıyor...'
+                                            : progress.progress === 100
+                                                ? fullDict.injection.completed
+                                                : progress.currentIndex && progress.currentIndex > 0
+                                                    ? `${fullDict.injection.step || 'Step'} ${progress.currentIndex}`
+                                                    : fullDict.injection.preparingFiles}
                                     </span>
                                     <span className="text-indigo-600 font-bold">
                                         %{progress?.progress || 0}
@@ -251,6 +253,24 @@ export function GeneratedFilesDisplay({ data, dictionary, onSuccessAll }: Genera
                             </div>
 
                             <AnimatePresence mode="wait">
+                                {!progress && (
+                                    <motion.div
+                                        key="waiting"
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="flex items-center gap-4 p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/50 shadow-sm"
+                                    >
+                                        <div className="p-2.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                                            <Loader2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400 animate-spin" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                                {fullDict.injection.preparingFiles || 'Dosyalar hazırlanıyor...'}
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
                                 {progress?.currentFile && progress.progress !== 100 && (
                                     <motion.div
                                         key={progress.currentFile}

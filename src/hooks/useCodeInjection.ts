@@ -62,7 +62,55 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
     } = useSocket();
     const [progress, setProgress] = useState<InjectionProgress | null>(null);
     const [isInjecting, setIsInjecting] = useState(false);
+    const [injectionResult, setInjectionResult] = useState<InjectionResult | null>(null);
     const totalFilesRef = useRef<number>(0);
+
+    const injectMutation = useMutation({
+        mutationFn: async (params: {
+            files: FileContent[];
+            overwriteExisting?: boolean;
+            backupExisting?: boolean;
+            jobId?: string;
+        }) => {
+            return injectCode(params.files, {
+                overwriteExisting: params.overwriteExisting ?? false,
+                backupExisting: params.backupExisting ?? true,
+                jobId: params.jobId,
+            }, token);
+        },
+        onMutate: async (variables) => {
+            setIsInjecting(true);
+            totalFilesRef.current = variables.files.length;
+
+            // Don't set progress here - wait for socket events
+            // Initial progress will be set by onInjectionStart event
+        },
+        onSuccess: (result, variables) => {
+            const jobId = variables.jobId;
+            setInjectionResult(result);
+
+            // Success handler for conflicts only
+            if (result.conflicts && result.conflicts.length > 0) {
+                setIsInjecting(false);
+                setProgress(null);
+                if (jobId) leaveInjectionRoom(jobId);
+                options.onConflict?.(result.conflicts);
+            }
+            // Don't call onSuccess here - wait for socket completion event
+        },
+        onError: (error: Error, variables) => {
+            setIsInjecting(false);
+            setProgress(null);
+            if (variables.jobId) leaveInjectionRoom(variables.jobId);
+            options.onError?.(error);
+        },
+    });
+
+    const checkConflictsMutation = useMutation({
+        mutationFn: async (files: FileContent[]) => {
+            return checkConflicts(files, token);
+        },
+    });
 
     // Subscribe to socket events for the injection process
     useEffect(() => {
@@ -71,6 +119,15 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
         onInjectionStart((data) => {
             console.log('[useCodeInjection] Injection started:', data);
             totalFilesRef.current = data.totalFiles;
+            
+            // Set initial progress when injection actually starts
+            setProgress({
+                jobId: data.jobId,
+                currentFile: 'preparingFiles',
+                currentIndex: 0,
+                totalFiles: data.totalFiles,
+                progress: 0,
+            });
         });
 
         onInjectionProgress((data) => {
@@ -93,6 +150,14 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
                 totalFiles: data.totalFiles,
                 progress: 100,
             });
+            
+            // Trigger success callback only after socket confirms completion
+            setTimeout(() => {
+                setIsInjecting(false);
+                if (injectionResult) {
+                    options.onSuccess?.(injectionResult);
+                }
+            }, 500);
         });
 
         onInjectionFailed((data) => {
@@ -100,74 +165,7 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
             setIsInjecting(false);
             setProgress(null);
         });
-    }, [isInjecting, onInjectionStart, onInjectionProgress, onInjectionCompleted, onInjectionFailed]);
-
-    const injectMutation = useMutation({
-        mutationFn: async (params: {
-            files: FileContent[];
-            overwriteExisting?: boolean;
-            backupExisting?: boolean;
-            jobId?: string;
-        }) => {
-            return injectCode(params.files, {
-                overwriteExisting: params.overwriteExisting ?? false,
-                backupExisting: params.backupExisting ?? true,
-                jobId: params.jobId,
-            }, token);
-        },
-        onMutate: async (variables) => {
-            setIsInjecting(true);
-            totalFilesRef.current = variables.files.length;
-
-            // Set initial progress
-            setProgress({
-                jobId: variables.jobId || 'injection',
-                currentFile: 'preparingFiles',
-                currentIndex: 0,
-                totalFiles: variables.files.length,
-                progress: 0,
-            });
-        },
-        onSuccess: (result, variables) => {
-            const jobId = variables.jobId;
-
-            // Success handler
-            if (result.conflicts && result.conflicts.length > 0) {
-                // Keep connected if there are conflicts to resolve? 
-                // Actually conflicts means we stop here usually.
-                setIsInjecting(false);
-                setProgress(null);
-                if (jobId) leaveInjectionRoom(jobId);
-                options.onConflict?.(result.conflicts);
-            } else {
-                // If no conflicts, wait for socket completed event or close if already 100
-                if (progress?.progress === 100) {
-                    setIsInjecting(false);
-                    if (jobId) leaveInjectionRoom(jobId);
-                    options.onSuccess?.(result);
-                } else {
-                    // Small fallback in case socket is slow
-                    setTimeout(() => {
-                        setIsInjecting(false);
-                        if (jobId) leaveInjectionRoom(jobId);
-                        options.onSuccess?.(result);
-                    }, 1500);
-                }
-            }
-        },
-        onError: (error: Error, variables) => {
-            setIsInjecting(false);
-            setProgress(null);
-            if (variables.jobId) leaveInjectionRoom(variables.jobId);
-            options.onError?.(error);
-        },
-    });
-
-    const checkConflictsMutation = useMutation({
-        mutationFn: async (files: FileContent[]) => {
-            return checkConflicts(files, token);
-        },
-    });
+    }, [isInjecting, onInjectionStart, onInjectionProgress, onInjectionCompleted, onInjectionFailed, injectionResult, options]);
 
     const inject = useCallback(async (
         files: FileContent[],

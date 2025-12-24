@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileJson, Loader2, X, AlertCircle, Plus, Tag as TagIcon, CheckCircle2, RefreshCw, Search, User } from "lucide-react";
+import { Upload, FileJson, Loader2, X, AlertCircle, Plus, Tag as TagIcon, CheckCircle2, RefreshCw, Search, User, Info } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import Confetti from 'react-confetti';
@@ -87,6 +87,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
     const [projectFolders, setProjectFolders] = useState<string[]>([]);
     const [selectedProjectFolder, setSelectedProjectFolder] = useState<string>("none");
     const [customFolderName, setCustomFolderName] = useState("");
+    const [fileBaseName, setFileBaseName] = useState("");
     const [selectedPreviousJobId, setSelectedPreviousJobId] = useState<string>("none");
     const [historicalSearch, setHistoricalSearch] = useState("");
 
@@ -220,13 +221,59 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
         }
     }, [dictionary]);
 
-    const handleUpload = () => {
+    const handleUpload = async () => {
         if (!file) return;
 
         // Mandatory Tags Validation
         if (selectedTags.length === 0) {
             toast.error(dictionary.uploadJson.mandatoryTagsError || "Lütfen en az bir etiket seçin!");
             return;
+        }
+
+        // Validate that fileBaseName is not the same as any tag
+        if (fileBaseName.trim()) {
+            const baseNameLower = fileBaseName.trim().toLowerCase();
+            const hasDuplicateTag = selectedTags.some(tag => {
+                const cleanTag = tag.startsWith('@') ? tag.substring(1) : tag;
+                return cleanTag.toLowerCase() === baseNameLower;
+            });
+            
+            if (hasDuplicateTag) {
+                toast.error(`Dosya adı "${fileBaseName}" ile etiket adı aynı olamaz`);
+                return;
+            }
+        }
+
+        // Validate fileBaseName for duplicates if provided
+        if (fileBaseName.trim()) {
+            const effectiveProjectName = customFolderName.trim() || (selectedProjectFolder !== "none" ? selectedProjectFolder : "");
+            
+            if (effectiveProjectName) {
+                try {
+                    // Check if file with this base name already exists
+                    const response = await fetch(
+                        `http://localhost:8093/api/projects/${encodeURIComponent(effectiveProjectName)}/features`
+                    );
+                    
+                    if (response.ok) {
+                        const existingFiles = await response.json() as string[];
+                        const baseNamePattern = fileBaseName.trim().toLowerCase();
+                        
+                        // Check if any existing file starts with this base name
+                        const hasDuplicate = existingFiles.some(file => 
+                            file.toLowerCase().startsWith(baseNamePattern)
+                        );
+                        
+                        if (hasDuplicate) {
+                            toast.error(`"${fileBaseName}" adında dosya zaten mevcut. Farklı bir isim seçin.`);
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Failed to check for duplicate files:", err);
+                    // Continue anyway - backend will handle conflicts
+                }
+            }
         }
 
         // Clear previous job state before starting a new one
@@ -240,6 +287,10 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
         const effectiveProjectName = customFolderName.trim() || (selectedProjectFolder !== "none" ? selectedProjectFolder : "");
         if (effectiveProjectName) {
             formData.append("projectName", effectiveProjectName);
+        }
+
+        if (fileBaseName.trim()) {
+            formData.append("fileBaseName", fileBaseName.trim());
         }
 
         startJobMutation.mutate(formData, {
@@ -275,6 +326,14 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
         if (!customTag.trim()) return;
 
         let tagToAdd = customTag.trim();
+        
+        // Boşluk kontrolü
+        if (tagToAdd.includes(" ")) {
+            toast.error("Etiket adında boşluk bulunamaz");
+            return;
+        }
+        
+        // @ ekle
         if (!tagToAdd.startsWith("@")) {
             tagToAdd = "@" + tagToAdd;
         }
@@ -304,6 +363,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
         setIsViewingHistorical(false);
         setSelectedPreviousJobId("none");
         setFile(null);
+        setFileBaseName("");
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
@@ -315,6 +375,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
         setCustomTag("");
         setCustomFolderName("");
         setSelectedProjectFolder("none");
+        setFileBaseName("");
     };
 
     return (
@@ -567,36 +628,76 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                        {/* Information Banner */}
+                        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                            <div className="flex items-start gap-2">
+                                <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                                <div className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+                                    <p className="font-semibold">Dosya Yapısı:</p>
+                                    <p className="text-blue-700 dark:text-blue-300">
+                                        <strong>Grup Adı:</strong> Playwright projesinde klasör ismi (örn: "customerSearch")<br/>
+                                        <strong>Dosya Adı:</strong> Oluşturulacak test dosyalarının ismi (örn: "login")<br/>
+                                        Sonuç: features/customerSearch/login.feature, pages/customerSearch/loginPage.ts
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Folder Selection */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-semibold flex items-center gap-2">
-                                    {dictionary.uploadJson.folderNameLabel || "Custom Folder Name"}
+                                    Grup Adı (Yeni Klasör)
                                 </label>
                                 <Input
                                     value={customFolderName}
-                                    onChange={(e) => setCustomFolderName(e.target.value)}
-                                    placeholder="Enter new folder name..."
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        // Sadece harf, rakam, tire ve alt çizgi kabul et
+                                        const sanitized = value.replace(/[^a-zA-Z0-9_-]/g, '');
+                                        setCustomFolderName(sanitized);
+                                    }}
+                                    placeholder="Yeni grup adı girin..."
                                     className="bg-muted/50"
-                                    disabled={isProcessing}
+                                    disabled={isProcessing || selectedProjectFolder !== "none"}
                                 />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-semibold flex items-center gap-2">
-                                    {dictionary.uploadJson.selectExistingFolder || "Select Existing Folder"}
+                                    Mevcut Grup Seç
                                 </label>
                                 <Select value={selectedProjectFolder} onValueChange={setSelectedProjectFolder}>
                                     <SelectTrigger className="bg-muted/50">
-                                        <SelectValue placeholder="Select folder" />
+                                        <SelectValue placeholder="Grup seç" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="none">{dictionary.common.none || "None"}</SelectItem>
+                                        <SelectItem value="none">{dictionary.common.none || "Yok"}</SelectItem>
                                         {projectFolders.map(folder => (
                                             <SelectItem key={folder} value={folder}>{folder}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
+                        </div>
+
+                        {/* File Base Name */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold flex items-center gap-2">
+                                Dosya Adı (Test İsimlendirmesi)
+                                <span className="text-xs font-normal text-muted-foreground">(Zorunlu)</span>
+                            </label>
+                            <Input
+                                value={fileBaseName}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    // Sadece harf, rakam, tire ve alt çizgi kabul et
+                                    const sanitized = value.replace(/[^a-zA-Z0-9_-]/g, '');
+                                    setFileBaseName(sanitized);
+                                }}
+                                placeholder="Örn: login, customerSearch, createOrder"
+                                className="bg-muted/50"
+                                disabled={isProcessing}
+                            />
                         </div>
 
                         {/* Dropzone */}
@@ -771,7 +872,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
             </div>
 
             {/* Results */}
-            {result && (
+            {result && isComplete && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}

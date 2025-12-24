@@ -64,7 +64,7 @@ export async function getProjectFoldersAction() {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth_token")?.value;
 
-    const response = await fetch(`${API_URL}/api/playwright-config/folders`, {
+    const response = await fetch(`${API_URL}/api/projects`, {
         method: "GET",
         headers: {
             ...(token && { Authorization: `Bearer ${token}` }),
@@ -76,6 +76,24 @@ export async function getProjectFoldersAction() {
         throw new Error(`Failed to fetch project folders: ${errorText}`);
     }
 
-    const data = await response.json();
-    return data.folders as string[];
+    return response.json() as string[];
+}
+
+export async function getFilesByGroupAction(groupName: string) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth_token")?.value;
+
+    const response = await fetch(`${API_URL}/api/projects/${encodeURIComponent(groupName)}/features`, {
+        method: "GET",
+        headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+        },
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch files for group ${groupName}: ${errorText}`);
+    }
+
+    return response.json() as Promise<string[]>;
 }

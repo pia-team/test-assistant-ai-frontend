@@ -59,6 +59,7 @@ import {
     Eye,
     EyeOff,
     Globe,
+    FileJson,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -84,7 +85,8 @@ import {
 
 import {
     getProjectsAction,
-    getTagsByProjectAction
+    getTagsByProjectAction,
+    getFilesByGroupAction
 } from "@/app/actions/tag-actions";
 import Confetti from 'react-confetti';
 import { useWindowSize } from 'react-use';
@@ -213,6 +215,9 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const [projectsLoading, setProjectsLoading] = useState(false);
     const [tagsLoading, setTagsLoading] = useState(false);
     const [tagSearch, setTagSearch] = useState("");
+    const [availableFeatureFiles, setAvailableFeatureFiles] = useState<string[]>([]);
+    const [selectedFeatureFile, setSelectedFeatureFile] = useState<string>("");
+    const [filesLoading, setFilesLoading] = useState(false);
 
     // Fetch paginated test run jobs from backend
     const { data: testRunsData, isLoading: testRunsLoading } = useTestRuns(currentPage, 10);
@@ -335,12 +340,67 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         fetchTags();
     }, [selectedProject]);
 
+    // Fetch feature files when project changes
+    useEffect(() => {
+        const fetchFeatureFiles = async () => {
+            if (!selectedProject) {
+                setAvailableFeatureFiles([]);
+                setSelectedFeatureFile("");
+                return;
+            }
+            setFilesLoading(true);
+            try {
+                const data = await getFilesByGroupAction(selectedProject);
+                setAvailableFeatureFiles(data);
+                // Auto-select first file if available
+                if (data.length > 0) {
+                    setSelectedFeatureFile(data[0]);
+                }
+            } catch (err: any) {
+                console.error("Failed to fetch feature files:", err);
+                toast.error("Dosyalar yüklenemedi");
+            } finally {
+                setFilesLoading(false);
+            }
+        };
+        fetchFeatureFiles();
+    }, [selectedProject]);
+
+    // Fetch tags from selected feature file
+    useEffect(() => {
+        const fetchFeatureFileTags = async () => {
+            if (!selectedProject || !selectedFeatureFile) {
+                setAvailableTags([]);
+                return;
+            }
+            setTagsLoading(true);
+            try {
+                const response = await fetch(
+                    `http://localhost:8093/api/projects/${encodeURIComponent(selectedProject)}/features/${encodeURIComponent(selectedFeatureFile)}/tags`
+                );
+                if (!response.ok) {
+                    throw new Error("Failed to fetch tags");
+                }
+                const data = await response.json();
+                setAvailableTags(data);
+            } catch (err: any) {
+                console.error("Failed to fetch feature file tags:", err);
+                toast.error("Tag'ler yüklenemedi");
+                setAvailableTags([]);
+            } finally {
+                setTagsLoading(false);
+            }
+        };
+        fetchFeatureFileTags();
+    }, [selectedProject, selectedFeatureFile]);
+
     // Handle project change with state reset
     const handleProjectChange = (project: string) => {
         setSelectedProject(project);
         setSelectedTags([]);
         setTagSearch("");
         setTagLogic("and");
+        setSelectedFeatureFile("");
 
         // Reset form fields to default values
         setValue("tags", "", { shouldValidate: true });
@@ -351,14 +411,10 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         setValue("threads", 5, { shouldValidate: true });
     };
 
-    // Filter out the project-specific tag from the selection list
+    // All available tags without filtering
     const filteredTags = useMemo(() => {
-        return availableTags.filter(tag => {
-            const projectTag = `@${selectedProject.toLowerCase()}`;
-            const normalizedTag = tag.toLowerCase();
-            return normalizedTag !== projectTag && normalizedTag !== selectedProject.toLowerCase();
-        });
-    }, [availableTags, selectedProject]);
+        return availableTags;
+    }, [availableTags]);
 
     // Update form tags when selection or logic changes
     useEffect(() => {
@@ -547,7 +603,8 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
             {
                 tags: data.tags,
                 env: data.env,
-                project: selectedProject,
+                groupName: selectedProject,
+                featureFile: selectedFeatureFile,
                 isParallel: data.isParallel,
                 threads: data.isParallel ? data.threads : null,
                 browser: data.browser,
@@ -810,6 +867,36 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                             </SelectContent>
                                         </Select>
                                     </div>
+
+                                    {/* Feature File Selection */}
+                                    {selectedProject && (
+                                        <div className="space-y-2">
+                                            <Label className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-sm">
+                                                <FileJson className="w-4 h-4 text-emerald-500" />
+                                                Feature Dosyası
+                                            </Label>
+                                            <Select
+                                                value={selectedFeatureFile}
+                                                onValueChange={setSelectedFeatureFile}
+                                                disabled={isProcessing || filesLoading}
+                                            >
+                                                <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-indigo-500/20 hover:border-emerald-300 transition-colors">
+                                                    <SelectValue placeholder={filesLoading ? "Yükleniyor..." : "Dosya Seçin"} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {availableFeatureFiles.map((file) => (
+                                                        <SelectItem key={file} value={file} className="cursor-pointer font-mono text-sm">{file}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {availableFeatureFiles.length === 0 && !filesLoading && (
+                                                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                                    <AlertCircle className="w-3 h-3" />
+                                                    Bu grupta henüz feature dosyası yok
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Modern Tag Selector */}
                                     <div className="space-y-3 bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
@@ -1165,7 +1252,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                 <Button
                                     onClick={handleRun}
                                     type="button"
-                                    disabled={isProcessing || (!tags.trim() && !isComplete && !isFailed) || startJobMutation.isPending}
+                                    disabled={isProcessing || (!tags.trim() && !isComplete && !isFailed) || !selectedProject || !selectedFeatureFile || startJobMutation.isPending}
                                     className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25 rounded-xl text-base font-semibold tracking-wide transition-all hover:translate-y-[-1px] active:translate-y-[1px]"
                                 >
                                     {startJobMutation.isPending || isProcessing ? (

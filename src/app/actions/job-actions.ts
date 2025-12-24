@@ -89,6 +89,8 @@ export async function startRunTestsJob(params: {
     tags: string;
     env: string;
     project?: string;
+    groupName?: string;
+    featureFile?: string;
     isParallel: boolean;
     threads: number | null;
     browser?: string;
