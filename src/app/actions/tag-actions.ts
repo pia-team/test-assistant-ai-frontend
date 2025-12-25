@@ -76,7 +76,7 @@ export async function getProjectFoldersAction() {
         throw new Error(`Failed to fetch project folders: ${errorText}`);
     }
 
-    return response.json() as string[];
+    return response.json() as Promise<string[]>;
 }
 
 export async function getFilesByGroupAction(groupName: string) {
