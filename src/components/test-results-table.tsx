@@ -247,7 +247,7 @@ export function TestResultsTable({
                                                         className="h-8 w-8 p-0"
                                                         title="Raporu Aç"
                                                         onClick={() => {
-                                                            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8093';
+                                                            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
                                                             const rawUrl = creation.reportUrl || "";
 
                                                             let url = "";

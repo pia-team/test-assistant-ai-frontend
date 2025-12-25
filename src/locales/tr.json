@@ -139,7 +139,8 @@
         "noTagsFound": "Etiket bulunamadı.",
         "selectProjectFirst": "Proje seçin.",
         "manualTagInput": "Manuel Etiket Girişi",
-        "customTagGuide": "Standart Cucumber etiket mantığını kullanın"
+        "customTagGuide": "Standart Cucumber etiket mantığını kullanın",
+        "clear": "Temizle"
     },
     "generateTests": {
         "title": "Yapay Zeka Destekli Test Oluştur",

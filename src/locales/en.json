@@ -139,7 +139,8 @@
         "noTagsFound": "No tags found.",
         "selectProjectFirst": "Select a project.",
         "manualTagInput": "Manual Tag Input",
-        "customTagGuide": "Use standard Cucumber tag logic"
+        "customTagGuide": "Use standard Cucumber tag logic",
+        "clear": "Clear"
     },
     "generateTests": {
         "title": "AI Powered Test Generation",

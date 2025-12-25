@@ -33,7 +33,7 @@ export async function uploadJsonAction(formData: FormData, token?: string): Prom
     }
 
     const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8093"}/api/upload-json-ai`,
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/upload-json-ai`,
         {
             method: "POST",
             headers: {

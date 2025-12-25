@@ -35,7 +35,7 @@ NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=your_generated_secret_key
 
 # Backend API
-NEXT_PUBLIC_API_URL=http://localhost:8093
+NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
 ### Installation

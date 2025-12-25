@@ -177,7 +177,7 @@ export const parseLogsToDashboardData = (
             const fullPath = line.split("Video kaydedildi:")[1]?.trim() || line.split("🎥")[1]?.trim() || "";
             const filename = fullPath.split("\\").pop()?.split("/").pop() || "";
             if (filename) {
-                const videoUrl = `http://localhost:8093/videos/${filename}`;
+                const videoUrl = `http://localhost:8080/videos/${filename}`;
                 if (currentTest) {
                     currentTest.video = videoUrl;
                     currentTest.videos.push(videoUrl);
@@ -197,7 +197,7 @@ export const parseLogsToDashboardData = (
             const fullPath = line.split("Screenshot kaydedildi:")[1]?.trim() || line.split("📸")[1]?.trim() || "";
             const filename = fullPath.split("\\").pop()?.split("/").pop() || "";
             if (filename && filename.endsWith(".png")) {
-                const screenshotUrl = `http://localhost:8093/screenshots/${filename}`;
+                const screenshotUrl = `http://localhost:8080/screenshots/${filename}`;
                 if (currentTest) {
                     currentTest.screenshots.push(screenshotUrl);
                 }

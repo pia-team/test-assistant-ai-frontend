@@ -162,7 +162,7 @@ export function useJobs(page = 0, size = 10, search = "", type?: JobType) {
             // Re-using common fetch logic or defining it here. 
             // Assuming getAllJobs in actions supports this or we need to update actions too.
             // Let's assume we update calling logic.
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8093'}/api/jobs?${params.toString()}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/jobs?${params.toString()}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
