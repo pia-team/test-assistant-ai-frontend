@@ -635,8 +635,8 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                                 <div className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
                                     <p className="font-semibold">Dosya Yapısı:</p>
                                     <p className="text-blue-700 dark:text-blue-300">
-                                        <strong>Grup Adı:</strong> Playwright projesinde klasör ismi (örn: "customerSearch")<br/>
-                                        <strong>Dosya Adı:</strong> Oluşturulacak test dosyalarının ismi (örn: "login")<br/>
+                                        <strong>Grup Adı:</strong> Playwright projesinde klasör ismi (örn: &quot;customerSearch&quot;)<br/>
+                                        <strong>Dosya Adı:</strong> Oluşturulacak test dosyalarının ismi (örn: &quot;login&quot;)<br/>
                                         Sonuç: features/customerSearch/login.feature, pages/customerSearch/loginPage.ts
                                     </p>
                                 </div>
