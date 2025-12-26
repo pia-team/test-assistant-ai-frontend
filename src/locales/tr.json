@@ -271,6 +271,7 @@
         "step": "Adım",
         "preparingFiles": "Dosyalar hazırlanıyor...",
         "writingFiles": "Dosyalar projeye yazılıyor...",
+        "updatingDependencies": "Proje bağımlılıkları güncelleniyor...",
         "filesCount": "{current} / {total} dosya",
         "successMessage": "{count} dosya başarıyla projeye eklendi",
         "close": "Kapat",

@@ -64,6 +64,8 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
     const [isInjecting, setIsInjecting] = useState(false);
     const [injectionResult, setInjectionResult] = useState<InjectionResult | null>(null);
     const totalFilesRef = useRef<number>(0);
+    const resultRef = useRef<InjectionResult | null>(null);
+    const completedBySocketRef = useRef<boolean>(false);
 
     const injectMutation = useMutation({
         mutationFn: async (params: {
@@ -81,13 +83,13 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
         onMutate: async (variables) => {
             setIsInjecting(true);
             totalFilesRef.current = variables.files.length;
-
-            // Don't set progress here - wait for socket events
-            // Initial progress will be set by onInjectionStart event
+            resultRef.current = null;
+            completedBySocketRef.current = false;
         },
         onSuccess: (result, variables) => {
+            console.log('[useCodeInjection] Mutation success:', result);
             const jobId = variables.jobId;
-            setInjectionResult(result);
+            resultRef.current = result;
 
             // Success handler for conflicts only
             if (result.conflicts && result.conflicts.length > 0) {
@@ -95,8 +97,14 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
                 setProgress(null);
                 if (jobId) leaveInjectionRoom(jobId);
                 options.onConflict?.(result.conflicts);
+            } else if (completedBySocketRef.current) {
+                // If socket already said we're done, trigger success now
+                setTimeout(() => {
+                    setIsInjecting(false);
+                    options.onSuccess?.(result);
+                    if (jobId) leaveInjectionRoom(jobId);
+                }, 500);
             }
-            // Don't call onSuccess here - wait for socket completion event
         },
         onError: (error: Error, variables) => {
             setIsInjecting(false);
@@ -119,8 +127,7 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
         onInjectionStart((data) => {
             console.log('[useCodeInjection] Injection started:', data);
             totalFilesRef.current = data.totalFiles;
-            
-            // Set initial progress when injection actually starts
+
             setProgress({
                 jobId: data.jobId,
                 currentFile: 'preparingFiles',
@@ -143,6 +150,8 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
 
         onInjectionCompleted((data) => {
             console.log('[useCodeInjection] Injection completed:', data);
+            completedBySocketRef.current = true;
+
             setProgress({
                 jobId: data.jobId,
                 currentFile: 'completed',
@@ -150,22 +159,24 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
                 totalFiles: data.totalFiles,
                 progress: 100,
             });
-            
-            // Trigger success callback only after socket confirms completion
-            setTimeout(() => {
-                setIsInjecting(false);
-                if (injectionResult) {
-                    options.onSuccess?.(injectionResult);
-                }
-            }, 500);
+
+            // Trigger success callback only after socket confirms completion AND we have the result
+            if (resultRef.current) {
+                setTimeout(() => {
+                    setIsInjecting(false);
+                    options.onSuccess?.(resultRef.current!);
+                    if (data.jobId) leaveInjectionRoom(data.jobId);
+                }, 500);
+            }
         });
 
         onInjectionFailed((data) => {
             console.error('[useCodeInjection] Injection failed:', data);
             setIsInjecting(false);
             setProgress(null);
+            if (data.jobId) leaveInjectionRoom(data.jobId);
         });
-    }, [isInjecting, onInjectionStart, onInjectionProgress, onInjectionCompleted, onInjectionFailed, injectionResult, options]);
+    }, [isInjecting, onInjectionStart, onInjectionProgress, onInjectionCompleted, onInjectionFailed, leaveInjectionRoom, options]);
 
     const inject = useCallback(async (
         files: FileContent[],

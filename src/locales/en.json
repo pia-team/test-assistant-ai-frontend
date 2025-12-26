@@ -271,6 +271,7 @@
         "step": "Step",
         "preparingFiles": "Preparing files...",
         "writingFiles": "Writing files to project...",
+        "updatingDependencies": "Updating project dependencies...",
         "filesCount": "{current} / {total} files",
         "successMessage": "{count} files successfully added to project",
         "close": "Close",

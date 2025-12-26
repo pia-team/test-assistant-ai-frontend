@@ -237,7 +237,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                 const cleanTag = tag.startsWith('@') ? tag.substring(1) : tag;
                 return cleanTag.toLowerCase() === baseNameLower;
             });
-            
+
             if (hasDuplicateTag) {
                 toast.error(`Dosya adı "${fileBaseName}" ile etiket adı aynı olamaz`);
                 return;
@@ -247,23 +247,23 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
         // Validate fileBaseName for duplicates if provided
         if (fileBaseName.trim()) {
             const effectiveProjectName = customFolderName.trim() || (selectedProjectFolder !== "none" ? selectedProjectFolder : "");
-            
+
             if (effectiveProjectName) {
                 try {
                     // Check if file with this base name already exists
                     const response = await fetch(
                         `http://localhost:8080/api/projects/${encodeURIComponent(effectiveProjectName)}/features`
                     );
-                    
+
                     if (response.ok) {
                         const existingFiles = await response.json() as string[];
                         const baseNamePattern = fileBaseName.trim().toLowerCase();
-                        
+
                         // Check if any existing file starts with this base name
-                        const hasDuplicate = existingFiles.some(file => 
+                        const hasDuplicate = existingFiles.some(file =>
                             file.toLowerCase().startsWith(baseNamePattern)
                         );
-                        
+
                         if (hasDuplicate) {
                             toast.error(`"${fileBaseName}" adında dosya zaten mevcut. Farklı bir isim seçin.`);
                             return;
@@ -326,13 +326,13 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
         if (!customTag.trim()) return;
 
         let tagToAdd = customTag.trim();
-        
+
         // Boşluk kontrolü
         if (tagToAdd.includes(" ")) {
             toast.error("Etiket adında boşluk bulunamaz");
             return;
         }
-        
+
         // @ ekle
         if (!tagToAdd.startsWith("@")) {
             tagToAdd = "@" + tagToAdd;
@@ -635,8 +635,8 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                                 <div className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
                                     <p className="font-semibold">Dosya Yapısı:</p>
                                     <p className="text-blue-700 dark:text-blue-300">
-                                        <strong>Grup Adı:</strong> Playwright projesinde klasör ismi (örn: &quot;customerSearch&quot;)<br/>
-                                        <strong>Dosya Adı:</strong> Oluşturulacak test dosyalarının ismi (örn: &quot;login&quot;)<br/>
+                                        <strong>Grup Adı:</strong> Playwright projesinde klasör ismi (örn: &quot;customerSearch&quot;)<br />
+                                        <strong>Dosya Adı:</strong> Oluşturulacak test dosyalarının ismi (örn: &quot;login&quot;)<br />
                                         Sonuç: features/customerSearch/login.feature, pages/customerSearch/loginPage.ts
                                     </p>
                                 </div>
@@ -658,16 +658,22 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                                         setCustomFolderName(sanitized);
                                     }}
                                     placeholder="Yeni grup adı girin..."
-                                    className="bg-muted/50"
+                                    className={`bg-muted/50 ${customFolderName.trim() && projectFolders.includes(customFolderName.trim()) ? "border-amber-400 focus-visible:ring-amber-400/20" : ""}`}
                                     disabled={isProcessing || selectedProjectFolder !== "none"}
                                 />
+                                {customFolderName.trim() && projectFolders.includes(customFolderName.trim()) && (
+                                    <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                                        <AlertCircle className="w-3 h-3" />
+                                        Bu grup adı zaten mevcut. Mevcut gruptan seçebilir veya yeni bir isim verebilirsiniz.
+                                    </p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-semibold flex items-center gap-2">
                                     Mevcut Grup Seç
                                 </label>
                                 <Select value={selectedProjectFolder} onValueChange={setSelectedProjectFolder}>
-                                    <SelectTrigger className="bg-muted/50">
+                                    <SelectTrigger className="bg-muted/50 w-full">
                                         <SelectValue placeholder="Grup seç" />
                                     </SelectTrigger>
                                     <SelectContent>

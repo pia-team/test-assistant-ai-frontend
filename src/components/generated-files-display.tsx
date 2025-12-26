@@ -171,6 +171,7 @@ export function GeneratedFilesDisplay({ data, dictionary, onSuccessAll }: Genera
         const stepLabels: Record<string, string> = {
             'preparingFiles': fullDict.injection.preparingFiles || 'Dosyalar hazırlanıyor...',
             'writingFiles': fullDict.injection.writingFiles || 'Dosyalar yazılıyor...',
+            'updatingDependencies': fullDict.injection.updatingDependencies || 'Bağımlılıklar güncelleniyor...',
             'completed': fullDict.injection.completed || 'Tamamlandı',
         };
         return stepLabels[stepKey] || stepKey;
