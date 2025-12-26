@@ -252,7 +252,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                 try {
                     // Check if file with this base name already exists
                     const response = await fetch(
-                        `http://localhost:8093/api/projects/${encodeURIComponent(effectiveProjectName)}/features`
+                        `http://localhost:8080/api/projects/${encodeURIComponent(effectiveProjectName)}/features`
                     );
                     
                     if (response.ok) {

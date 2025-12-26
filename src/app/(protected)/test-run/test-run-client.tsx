@@ -376,7 +376,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
             setTagsLoading(true);
             try {
                 const response = await fetch(
-                    `http://localhost:8093/api/projects/${encodeURIComponent(selectedProject)}/features/${encodeURIComponent(selectedFeatureFile)}/tags`
+                    `http://localhost:8080/api/projects/${encodeURIComponent(selectedProject)}/features/${encodeURIComponent(selectedFeatureFile)}/tags`
                 );
                 if (!response.ok) {
                     throw new Error("Failed to fetch tags");
@@ -1274,7 +1274,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                         variant="outline"
                                         className="w-full h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
                                         onClick={() => {
-                                            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8093';
+                                            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
                                             const url = result.reportUrl?.startsWith('http') ? result.reportUrl : `${baseUrl}${result.reportUrl}`;
                                             window.open(url, '_blank');
                                         }}
