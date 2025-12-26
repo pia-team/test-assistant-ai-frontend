@@ -26,6 +26,7 @@
         "uploadJson": "Upload JSON",
         "testRun": "Run Tests",
         "requests": "Requests",
+        "fileManagement": "File Management",
         "logout": "Logout",
         "theme": "Theme",
         "language": "Language"
