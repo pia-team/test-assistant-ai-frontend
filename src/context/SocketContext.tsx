@@ -13,6 +13,13 @@ interface SocketContextType {
   disconnect: () => void;
   subscribeToJob: (jobId: string, callbacks: JobCallbacks) => void;
   unsubscribeFromJob: (jobId: string) => void;
+  // Injection listeners
+  onInjectionStart: (callback: (data: { jobId: string; totalFiles: number }) => void) => void;
+  onInjectionProgress: (callback: (data: { jobId: string; currentFile: string; currentIndex: number; totalFiles: number; progress: number }) => void) => void;
+  onInjectionCompleted: (callback: (data: { jobId: string; totalFiles: number }) => void) => void;
+  onInjectionFailed: (callback: (data: { jobId: string; error: string }) => void) => void;
+  joinInjectionRoom: (jobId: string) => Promise<void>;
+  leaveInjectionRoom: (jobId: string) => void;
 }
 
 interface JobCallbacks {
@@ -37,27 +44,75 @@ export function SocketProvider({ children }: SocketProviderProps) {
   const globalSubscriptionRef = useRef<boolean>(false);
 
   const updateJobInCache = useCallback((jobId: string, updates: Partial<Job>) => {
+    console.log('[SocketContext] updateJobInCache called for:', jobId, 'with updates:', JSON.stringify(updates));
+
+    let resolvedType: string | undefined;
+
+    // 1. Update the main job cache [job, jobId]
     queryClient.setQueryData<Job | null>(['job', jobId], (old) => {
-      if (!old) return old;
-      return { ...old, ...updates };
+      // If we don't have the job in cache yet, create a initial one but merge with updates
+      if (!old) {
+        console.log('[SocketContext] Cache entry missing for job:', jobId, '- creating initial entry with updates');
+        const initialJob = {
+          id: jobId,
+          status: 'RUNNING',
+          progress: 0,
+          ...updates
+        } as Job;
+        resolvedType = initialJob.type;
+        return initialJob;
+      }
+
+      // Merge existing data with new updates. 
+      // CRITICAL: Ensure we don't downgrade progress or revert status from final to active
+      if ((old.progress ?? 0) > (updates.progress ?? 0) && updates.status !== 'COMPLETED') {
+        // Only ignore progress downgrade if we aren't completing the job
+        // (sometimes completed comes with 100 which is good)
+      }
+
+      const updated = { ...old, ...updates };
+      resolvedType = updated.type;
+      console.log('[SocketContext] Updated [job, jobId] cache. New progress:', updated.progress);
+      return updated;
     });
 
+    // 2. Synchronize the corresponding activeJob cache
+    // We try to find the type from the merged job data
+    if (resolvedType) {
+      queryClient.setQueryData<Job | null>(['activeJob', resolvedType], (old) => {
+        // If there's no active job of this type, or it's the SAME job, update it
+        if (!old || old.id === jobId) {
+          console.log(`[SocketContext] Syncing [activeJob, ${resolvedType}] for job:`, jobId);
+          return queryClient.getQueryData<Job>(['job', jobId]) || null;
+        }
+        return old;
+      });
+    } else {
+      // Fallback: search all activeJob slots if we don't know the type yet
+      const jobTypes = ['GENERATE_TESTS', 'RUN_TESTS', 'UPLOAD_JSON', 'OPEN_REPORT'];
+      jobTypes.forEach(type => {
+        queryClient.setQueryData<Job | null>(['activeJob', type], (old) => {
+          if (old && old.id === jobId) {
+            console.log(`[SocketContext] Found and updated job in [activeJob, ${type}]`);
+            const merged = { ...old, ...updates };
+            resolvedType = type; // Found it!
+            return merged;
+          }
+          return old;
+        });
+      });
+    }
+
+    // 3. Update allJobs list
     queryClient.setQueryData<Job[]>(['allJobs'], (old) => {
       if (!old) return old;
       return old.map(job => job.id === jobId ? { ...job, ...updates } : job);
     });
-
-    const jobTypes = ['GENERATE_TESTS', 'RUN_TESTS', 'UPLOAD_JSON', 'OPEN_REPORT'];
-    jobTypes.forEach(type => {
-      queryClient.setQueryData<Job | null>(['activeJob', type], (old) => {
-        if (!old || old.id !== jobId) return old;
-        return { ...old, ...updates };
-      });
-    });
   }, [queryClient]);
 
   const addJobToCache = useCallback((jobData: JobCreatedPayload) => {
-    const newJob: Job = {
+    console.log('[SocketContext] addJobToCache (job:created) for:', jobData.id);
+    const updates: Partial<Job> = {
       id: jobData.id,
       type: jobData.type as Job['type'],
       status: 'PENDING',
@@ -67,16 +122,19 @@ export function SocketProvider({ children }: SocketProviderProps) {
       username: jobData.username,
     };
 
-    queryClient.setQueryData<Job | null>(['activeJob', jobData.type], newJob);
-    queryClient.setQueryData<Job | null>(['job', jobData.id], newJob);
+    // Use the unified merge logic
+    updateJobInCache(jobData.id, updates);
 
+    // Specifically for job created, we want to ensure it's in allJobs
     queryClient.setQueryData<Job[]>(['allJobs'], (old) => {
-      if (!old) return [newJob];
+      if (!old) return [queryClient.getQueryData<Job>(['job', jobData.id])!];
       const exists = old.some(j => j.id === jobData.id);
       if (exists) return old;
-      return [newJob, ...old];
+      return [queryClient.getQueryData<Job>(['job', jobData.id])!, ...old];
     });
-  }, [queryClient]);
+
+    queryClient.invalidateQueries({ queryKey: ['testRuns'] });
+  }, [queryClient, updateJobInCache]);
 
   const setupGlobalJobListeners = useCallback(() => {
     if (globalSubscriptionRef.current) return;
@@ -96,11 +154,17 @@ export function SocketProvider({ children }: SocketProviderProps) {
     });
 
     socketService.onJobProgress((data) => {
-      console.log('[Socket] Job progress:', data.id, data.progress, data.message);
-      updateJobInCache(data.id, {
+      console.log('[SocketContext] Job progress received:', JSON.stringify(data));
+      console.log('[SocketContext] Updating cache for job:', data.id);
+      const updates = {
         progress: data.progress,
-        progressMessage: data.message
-      });
+        progressMessage: data.message,
+        stepKey: data.stepKey,
+        currentStep: data.currentStep,
+        totalSteps: data.totalSteps
+      };
+      console.log('[SocketContext] Cache updates:', JSON.stringify(updates));
+      updateJobInCache(data.id, updates);
     });
 
     socketService.onJobCompleted((data) => {
@@ -112,6 +176,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
         completedAt: data.completedAt
       });
       queryClient.invalidateQueries({ queryKey: ['allJobs'] });
+      queryClient.invalidateQueries({ queryKey: ['testRuns'] });
     });
 
     socketService.onJobFailed((data) => {
@@ -122,6 +187,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
         completedAt: data.completedAt
       });
       queryClient.invalidateQueries({ queryKey: ['allJobs'] });
+      queryClient.invalidateQueries({ queryKey: ['testRuns'] });
     });
 
     socketService.onJobStopped((data) => {
@@ -132,6 +198,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
         completedAt: data.completedAt
       });
       queryClient.invalidateQueries({ queryKey: ['allJobs'] });
+      queryClient.invalidateQueries({ queryKey: ['testRuns'] });
     });
   }, [addJobToCache, updateJobInCache, queryClient]);
 
@@ -143,30 +210,35 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     try {
       await socketService.connect(token);
-      setIsConnected(true);
+      setIsConnected(prev => {
+        if (!prev) return true;
+        return prev;
+      });
       console.log('[Socket] Connected successfully');
 
       setupGlobalJobListeners();
 
-      // F006: Use keycloakId from JWT token instead of session.user.id
-      // Backend emits to user:{keycloakId} room, so frontend must subscribe with same ID
       const keycloakId = getKeycloakIdFromToken(token);
       if (keycloakId) {
         console.log('[Socket] Subscribing to user room:', `user:${keycloakId}`);
         socketService.subscribeToUserRoom(keycloakId);
-      } else {
-        console.warn('[Socket] Could not extract keycloakId from token, cannot subscribe to user room');
       }
     } catch (error) {
       console.error('[Socket] Failed to connect:', error);
-      setIsConnected(false);
+      setIsConnected(prev => {
+        if (prev) return false;
+        return prev;
+      });
     }
   }, [token, setupGlobalJobListeners]);
 
   const disconnect = useCallback(() => {
     globalSubscriptionRef.current = false;
     socketService.disconnect();
-    setIsConnected(false);
+    setIsConnected(prev => {
+      if (prev) return false;
+      return prev;
+    });
   }, []);
 
   const subscribeToJob = useCallback((jobId: string, callbacks: JobCallbacks) => {
@@ -188,17 +260,20 @@ export function SocketProvider({ children }: SocketProviderProps) {
   }, [authenticated, token, connect, disconnect]);
 
   useEffect(() => {
-    const checkConnection = () => {
+    const interval = setInterval(() => {
       const connected = socketService.isConnected();
-      setIsConnected(connected);
+
+      setIsConnected(prev => {
+        if (prev !== connected) return connected;
+        return prev;
+      });
 
       if (!connected && authenticated && token) {
         console.log('[Socket] Connection lost, attempting reconnect...');
         connect();
       }
-    };
+    }, 5000);
 
-    const interval = setInterval(checkConnection, 5000);
     return () => clearInterval(interval);
   }, [authenticated, token, connect]);
 
@@ -210,6 +285,12 @@ export function SocketProvider({ children }: SocketProviderProps) {
         disconnect,
         subscribeToJob,
         unsubscribeFromJob,
+        onInjectionStart: (callback) => socketService.onInjectionStart(callback),
+        onInjectionProgress: (callback) => socketService.onInjectionProgress(callback),
+        onInjectionCompleted: (callback) => socketService.onInjectionCompleted(callback),
+        onInjectionFailed: (callback) => socketService.onInjectionFailed(callback),
+        joinInjectionRoom: (jobId) => socketService.joinInjectionRoom(jobId),
+        leaveInjectionRoom: (jobId) => socketService.leaveInjectionRoom(jobId),
       }}
     >
       {children}

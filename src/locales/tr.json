@@ -16,14 +16,17 @@
         "no": "Hayır",
         "copy": "Kopyala",
         "download": "İndir",
-        "copied": "Kopyalandı!"
+        "copied": "Kopyalandı!",
+        "done": "Tamam"
     },
     "nav": {
-        "home": "Ana Sayfa",
+        "overview": "Genel Bakış",
+        "home": "Aktiviteler",
         "generateTests": "Test Oluştur",
         "uploadJson": "JSON Yükle",
         "testRun": "Test Çalıştır",
         "requests": "İstekler",
+        "fileManagement": "Dosya Yönetimi",
         "logout": "Çıkış Yap",
         "theme": "Tema",
         "language": "Dil"
@@ -34,21 +37,14 @@
         "signInWith": "ile giriş yap",
         "signingIn": "Giriş yapılıyor..."
     },
-    "home": {
-        "title": "CoTesterAi",
-        "subtitle": "Otomatik test oluşturma ve çalıştırma platformu",
-        "uploadCard": {
-            "title": "JSON Şema Yükle",
-            "description": "API şemanızı yükleyin ve test senaryoları oluşturun"
-        },
-        "runCard": {
-            "title": "Testleri Çalıştır",
-            "description": "Cucumber testlerinizi çalıştırın ve sonuçları görüntüleyin"
-        },
-        "dashboardCard": {
-            "title": "Yapay Zeka Destekli Test Oluştur",
-            "description": "API dökümantasyonunuzdan otomatik olarak test paketi oluşturun"
-        }
+    "activity": {
+        "title": "Test Aktiviteleri",
+        "subtitle": "Tüm test işlemlerinin anlık durumu ve geçmişi",
+        "liveStatus": "Canlı Durum",
+        "quickActions": "Hızlı Aksiyonlar",
+        "systemStatus": "Sistem Durumu",
+        "connected": "Bağlı",
+        "disconnected": "Bağlantı Kesildi"
     },
     "uploadJson": {
         "title": "JSON Şema Yükle",
@@ -62,7 +58,17 @@
         "networkError": "Ağ hatası",
         "noStepsReturned": "Adım oluşturulamadı",
         "cardTitle": "JSON / HAR Dosyası",
-        "supportedFormats": "JSON veya HAR dosyaları desteklenir"
+        "supportedFormats": "JSON veya HAR dosyaları desteklenir",
+        "selectTags": "Test Etiketlerini Seçin",
+        "addCustomTag": "Yeni etiket ekle...",
+        "tagsDescription": "Oluşturulacak testlere eklemek istediğiniz Cucumber etiketlerini seçin (örn: @regression, @smoke)",
+        "folderNameLabel": "Özel Klasör Adı",
+        "selectExistingFolder": "Mevcut Klasör Seç",
+        "historicalUploads": "Geçmiş Yüklemeler",
+        "mandatoryTagsError": "Lütfen en az bir etiket seçin!",
+        "searchPlaceholder": "Dosya veya kullanıcıya göre ara...",
+        "unnamedUpload": "İsimsiz Yükleme",
+        "unknownUploader": "Bilinmiyor"
     },
     "testRun": {
         "title": "Testleri Çalıştır",
@@ -71,14 +77,71 @@
         "runTests": "Testleri Çalıştır",
         "running": "Çalışıyor...",
         "tagsGuide": "Etiket Rehberi",
+        "tagsGuideSmoke": "Smoke testlerini çalıştır",
+        "tagsGuideComplex": "Karmaşık mantık",
+        "tagsGuideAny": "Eşleşen herhangi biri",
         "readyToExecute": "Çalıştırmaya hazır",
         "readyToExecuteDesc": "Yukarıya etiket girin ve başlatmak için Testleri Çalıştır'a tıklayın",
         "environment": "Ortam",
+        "environmentInfo": "Test Ortamı Bilgileri",
+        "browser": "Tarayıcı",
+        "headlessMode": "Headless Mod",
+        "headlessBackground": "Arka Plan",
+        "headlessVisible": "Görünür",
         "parallelExecution": "Paralel Çalıştırma",
         "threadCount": "Thread Sayısı",
+        "thread": "thread",
         "enabled": "Aktif",
         "disabled": "Pasif",
-        "testConfiguration": "Test Yapılandırması"
+        "testConfiguration": "Test Yapılandırması",
+        "newTest": "Yeni Test",
+        "testResults": "Test Sonuçları",
+        "testResultsDesc": "Test çalıştırma sonuçları ve raporlar",
+        "creationName": "Oluşturma Adı",
+        "status": "Durum",
+        "testName": "Test Adı",
+        "type": "Tip",
+        "latestStatus": "Son Durum",
+        "modifiedAt": "Değiştirilme Tarihi",
+        "createdBy": "Oluşturan",
+        "actions": "İşlemler",
+        "view": "Görüntüle",
+        "searchByName": "İsme göre ara...",
+        "noResults": "Test sonucu bulunamadı",
+        "live": "Canlı",
+        "offline": "Çevrimdışı",
+        "back": "Geri",
+        "preview": "Önizleme",
+        "code": "Kod",
+        "error": "Hata",
+        "selectBrowser": "Tarayıcı Seç",
+        "noResultsDescription": "Soldaki panelden proje ve etiket seçerek ilk testinizi başlatın.",
+        "selectEnvironment": "Ortam Seç",
+        "selectTags": "Etiket Seç",
+        "selectTagsDescription": "Test etiketlerini seçin",
+        "viewReport": "Raporu Görüntüle",
+        "browserConsoleLogs": "Tarayıcı Konsol Logları",
+        "noVideoAvailable": "Video mevcut değil",
+        "realtimeActive": "Gerçek zamanlı bağlantısı aktif",
+        "waitingConnection": "Bağlantıyı bekleniyor...",
+        "tagRequired": "En az bir tag girilmelidir",
+        "envRequired": "Ortam seçilmelidir",
+        "browserRequired": "Tarayıcı seçilmelidir",
+        "urlRequired": "Geçerli bir URL giriniz",
+        "usernameRequired": "Kullanıcı adı zorunludur",
+        "passwordRequired": "Şifre zorunludur",
+        "newRun": "Yeni Test Çalıştır",
+        "processingInBackground": "Arka planda işleniyor...",
+        "testFailed": "Test Çalıştırma Başarısız",
+        "retry": "Yeniden Dene",
+        "projectAndTags": "PROJE & ETİKETLER",
+        "selectProject": "Proje Seçin",
+        "searchTags": "Etiket ara...",
+        "noTagsFound": "Etiket bulunamadı.",
+        "selectProjectFirst": "Proje seçin.",
+        "manualTagInput": "Manuel Etiket Girişi",
+        "customTagGuide": "Standart Cucumber etiket mantığını kullanın",
+        "clear": "Temizle"
     },
     "generateTests": {
         "title": "Yapay Zeka Destekli Test Oluştur",
@@ -99,7 +162,10 @@
         "readyToGenerateDesc": "Seçeneklerinizi yapılandırın ve yapay zeka destekli test paketleri oluşturmak için butona tıklayın",
         "testsGeneratedSuccess": "Testler başarıyla oluşturuldu!",
         "errorGeneratingTests": "Test oluşturma hatası",
-        "generatedResults": "Oluşturulan Sonuçlar"
+        "generatedResults": "Oluşturulan Sonuçlar",
+        "newGenerate": "Yeni Test Üret",
+        "processingInBackground": "Arka planda işleniyor...",
+        "urlExample": "Örnek: https://api.example.com/swagger.json, /v2/api-docs, /openapi.yaml"
     },
     "testDetail": {
         "executionVideo": "Yürütme Videosu",
@@ -120,7 +186,9 @@
         "noAttachments": "Ek Yok",
         "attachmentsDesc": "Ekran görüntüleri veya ek dosyalar burada görünecek.",
         "stepDescription": "Adım Açıklaması",
-        "status": "Durum"
+        "status": "Durum",
+        "screenshot": "Ekran Görüntüsü",
+        "videoThumbnails": "Video kayıtlarından alınan görüntüler:"
     },
     "testList": {
         "all": "Tümü",
@@ -195,5 +263,162 @@
     "connection": {
         "connected": "Bağlandı",
         "disconnected": "Bağlantısı kesildi"
+    },
+    "injection": {
+        "title": "Kod Ekleme",
+        "inProgress": "Kodlar Projeye Ekleniyor...",
+        "completed": "Tamamlandı",
+        "progress": "İlerleme",
+        "step": "Adım",
+        "preparingFiles": "Dosyalar hazırlanıyor...",
+        "writingFiles": "Dosyalar projeye yazılıyor...",
+        "updatingDependencies": "Proje bağımlılıkları güncelleniyor...",
+        "filesCount": "{current} / {total} dosya",
+        "successMessage": "{count} dosya başarıyla projeye eklendi",
+        "close": "Kapat",
+        "addToProject": "Projeye Ekle",
+        "adding": "Ekleniyor...",
+        "added": "Eklendi!",
+        "noFilesToAdd": "Eklenecek dosya bulunamadı",
+        "errorAdding": "Dosyalar eklenirken hata oluştu",
+        "addAllToProject": "Tümünü Projeye Ekle",
+        "addGroupToProject": "Grubu Ekle",
+        "allFilesAdded": "Tüm dosyalar projeye eklendi!",
+        "file": "dosya",
+        "files": "dosya",
+        "injectionPreview": "Yerleştirme Önizlemesi",
+        "reviewFiles": "Projeye eklenecek dosyaları gözden geçirin.",
+        "confirmAndInject": "Onayla ve Tümünü Ekle"
+    },
+    "conflict": {
+        "title": "Çakışma Tespit Edildi",
+        "description": "{count} dosya zaten mevcut. Üzerine yazmak ister misiniz?",
+        "badge": "Çakışma",
+        "existingContent": "Mevcut İçerik",
+        "newContent": "Yeni İçerik",
+        "cancel": "İptal",
+        "overwriteAll": "Tümünü Üzerine Yaz (Yedekle)"
+    },
+    "playwrightConfig": {
+        "title": "Playwright Test Ayarları",
+        "description": "Test ortamı için login bilgilerini ve URL'leri yapılandırın",
+        "loginUrl": "Login URL",
+        "username": "Kullanıcı Adı",
+        "password": "Şifre",
+        "required": "zorunludur",
+        "loading": "Yükleniyor...",
+        "saving": "Kaydediliyor...",
+        "save": "Kaydet",
+        "configUpdated": "{env}.json config dosyası güncellendi",
+        "configLoadError": "Config yüklenemedi",
+        "configUpdateError": "Config güncellenemedi",
+        "validationError": "URL, kullanıcı adı ve şifre zorunludur"
+    },
+    "overview": {
+        "hero": {
+            "title": "CoTesterAI ile Test Yazımını Dönüştürün",
+            "subtitle": "Yapay Zeka Destekli Test Otomasyonu",
+            "description": "API dokümanlarınızdan otomatik olarak Playwright test senaryoları üretin, tek tıkla çalıştırın ve detaylı raporlarla analiz edin.",
+            "descriptionStrong": "Manuel test yazımını unutun.",
+            "getStarted": "Hemen Başla",
+            "learnMore": "Nasıl Çalışır?"
+        },
+        "stats": {
+            "fasterWriting": "Daha Hızlı Test Yazımı",
+            "codeCoverage": "Kod Kapsama Oranı",
+            "autoTesting": "Otomatik Test Çalıştırma",
+            "compatibility": "Playwright Uyumluluğu"
+        },
+        "features": {
+            "badge": "Özellikler",
+            "title": "Test Otomasyonunun Geleceği",
+            "subtitle": "CoTesterAI, test yazım sürecinizi uçtan uca otomatikleştirir ve geliştirme verimliliğinizi artırır.",
+            "explore": "Keşfet",
+            "aiGeneration": "Yapay Zeka Destekli Test Üretimi",
+            "aiGenerationDesc": "Swagger/OpenAPI dokümanlarından otomatik olarak Gherkin formatında test senaryoları oluşturun.",
+            "jsonAnalysis": "JSON/HAR Dosya Analizi",
+            "jsonAnalysisDesc": "API şemalarınızı veya HAR dosyalarınızı yükleyin, AI otomatik olarak test kodlarını üretsin.",
+            "oneClickRun": "Tek Tıkla Test Çalıştırma",
+            "oneClickRunDesc": "Cucumber etiketleri ile testlerinizi seçin, paralel veya sıralı olarak çalıştırın.",
+            "allureReports": "Detaylı Allure Raporları",
+            "allureReportsDesc": "Test sonuçlarınızı görsel raporlarla analiz edin, hataları hızlıca tespit edin.",
+            "multiBrowser": "Çoklu Tarayıcı Desteği",
+            "multiBrowserDesc": "Chrome, Firefox ve Safari tarayıcılarında testlerinizi headless veya görünür modda çalıştırın.",
+            "autoIntegration": "Projeye Otomatik Entegrasyon",
+            "autoIntegrationDesc": "Üretilen test kodlarını tek tıkla Playwright projenize entegre edin."
+        },
+        "howItWorks": {
+            "badge": "Nasıl Çalışır?",
+            "title": "5 Adımda Test Otomasyonu",
+            "subtitle": "API dokümanından çalışan testlere dakikalar içinde geçin.",
+            "step": "Adım",
+            "enterApi": "API Dokümanını Girin",
+            "enterApiDesc": "Swagger veya OpenAPI URL'nizi sisteme girin. JSON/HAR dosyası da yükleyebilirsiniz.",
+            "aiGenerates": "AI Test Senaryoları Üretir",
+            "aiGeneratesDesc": "Yapay zeka API'nizi analiz eder ve kapsamlı Gherkin test senaryoları oluşturur.",
+            "addCode": "Kodu Projenize Ekleyin",
+            "addCodeDesc": "Üretilen Feature dosyaları ve Step Definition'ları tek tıkla projenize entegre edin.",
+            "runTests": "Testleri Çalıştırın",
+            "runTestsDesc": "Cucumber etiketleri ile testlerinizi seçin ve istediğiniz tarayıcıda çalıştırın.",
+            "analyzeResults": "Sonuçları Analiz Edin",
+            "analyzeResultsDesc": "Allure raporları ile test sonuçlarını görselleştirin ve hataları tespit edin."
+        },
+        "outputs": {
+            "badge": "Çıktılar",
+            "title": "Üretilen Test Artefaktları",
+            "subtitle": "AI, API'nizi analiz ederek aşağıdaki formatları otomatik olarak üretir.",
+            "featureFiles": "Feature Dosyaları",
+            "featureFilesDesc": "Gherkin formatında BDD senaryoları",
+            "stepDefinitions": "Step Definitions",
+            "stepDefinitionsDesc": "TypeScript test adım tanımları",
+            "apiTestData": "API Test Dataları",
+            "apiTestDataDesc": "JSON formatında test verileri",
+            "allureReports": "Allure Raporları",
+            "allureReportsDesc": "Detaylı görsel test raporları",
+            "generatedByAI": "AI Tarafından Üretildi"
+        },
+        "techStack": {
+            "badge": "Teknoloji",
+            "title": "Güçlü Teknoloji Yığını"
+        },
+        "cta": {
+            "title": "Test Otomasyonuna Bugün Başlayın",
+            "description": "API dokümanınızı girin ve birkaç dakika içinde çalışan testlere sahip olun. Manuel test yazımına son verin.",
+            "button": "Test Üretmeye Başla",
+            "goToActivity": "Aktivitelere Git"
+        }
+    },
+    "progressSteps": {
+        "generateTests": {
+            "starting": "Test üretimi başlatılıyor...",
+            "navigatingToProject": "Playwright projesine gidiliyor...",
+            "analyzingSchema": "API şeması analiz ediliyor...",
+            "generatingWithAI": "Yapay zeka ile test senaryoları oluşturuluyor...",
+            "creatingFeatureFiles": "Feature dosyaları oluşturuluyor...",
+            "creatingStepDefinitions": "Step tanımları yazılıyor...",
+            "finalizingResults": "Sonuçlar tamamlanıyor...",
+            "completed": "Test üretimi tamamlandı!"
+        },
+        "runTests": {
+            "starting": "Test çalıştırma başlatılıyor...",
+            "preparingEnvironment": "Test ortamı hazırlanıyor...",
+            "executingTests": "Testler çalıştırılıyor...",
+            "collectingResults": "Test sonuçları toplanıyor...",
+            "generatingReport": "Rapor oluşturuluyor...",
+            "completed": "Test çalıştırma tamamlandı!"
+        },
+        "uploadJson": {
+            "starting": "JSON işleme başlatılıyor...",
+            "parsingJson": "JSON içeriği ayrıştırılıyor...",
+            "analyzingEndpoints": "API endpoint'leri analiz ediliyor...",
+            "generatingWithAI": "Yapay zeka ile kodlar oluşturuluyor...",
+            "creatingFiles": "Dosyalar oluşturuluyor...",
+            "completed": "JSON işleme tamamlandı!"
+        },
+        "openReport": {
+            "starting": "Rapor açılıyor...",
+            "generatingReport": "Allure raporu oluşturuluyor...",
+            "completed": "Rapor hazır!"
+        }
     }
 }

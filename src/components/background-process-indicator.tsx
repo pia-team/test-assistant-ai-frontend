@@ -18,10 +18,10 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocale } from "@/components/locale-context";
 
-const JOB_TYPES: { type: JobType; labelKey: "generateTests" | "runTests" | "uploadJson"; path: string }[] = [
-    { type: "GENERATE_TESTS", labelKey: "generateTests", path: "/generate-tests" },
-    { type: "RUN_TESTS", labelKey: "runTests", path: "/test-run" },
-    { type: "UPLOAD_JSON", labelKey: "uploadJson", path: "/upload-json" },
+const JOB_TYPES: { type: JobType; labelKey: "generateTests" | "runTests" | "uploadJson"; progressKey: "generateTests" | "runTests" | "uploadJson"; path: string }[] = [
+    { type: "GENERATE_TESTS", labelKey: "generateTests", progressKey: "generateTests", path: "/generate-tests" },
+    { type: "RUN_TESTS", labelKey: "runTests", progressKey: "runTests", path: "/test-run" },
+    { type: "UPLOAD_JSON", labelKey: "uploadJson", progressKey: "uploadJson", path: "/upload-json" },
 ];
 
 function getJobStatusIcon(job: Job | null) {
@@ -80,13 +80,31 @@ export function BackgroundProcessIndicator() {
     });
 
     // Filter active jobs (in progress or recently completed)
-    const activeJobs = jobQueries
-        .map((query, index) => ({
-            ...JOB_TYPES[index],
-            job: query.data,
-            isLoading: query.isLoading,
-        }))
-        .filter(({ job }) => job !== null && job !== undefined);
+    const activeJobs = JOB_TYPES.map(({ type, labelKey, progressKey, path }) => {
+        const result = jobQueries.find((q) => q.data?.type === type);
+        const job = result?.data ?? null;
+
+        // Debug logging for progress tracking
+        if (job && job.status === 'RUNNING') {
+            console.log(`[BackgroundProcess] Job ${type}:`, JSON.stringify({
+                id: job.id,
+                status: job.status,
+                progress: job.progress,
+                stepKey: job.stepKey,
+                currentStep: job.currentStep,
+                totalSteps: job.totalSteps
+            }));
+        }
+
+        return {
+            type,
+            labelKey,
+            progressKey,
+            path,
+            job,
+            isLoading: result?.isLoading ?? true,
+        };
+    }).filter(({ job }) => job !== null && job !== undefined);
 
     // Count jobs in progress
     const inProgressCount = activeJobs.filter(({ job }) => isJobInProgress(job)).length;
@@ -168,13 +186,21 @@ export function BackgroundProcessIndicator() {
                             {getJobStatusIcon(job ?? null)}
                             <span>{dictionary.backgroundProcess[labelKey]}</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-end gap-1">
                             {job?.progress !== undefined && isJobInProgress(job) && (
                                 <span className="text-xs text-blue-500">%{job.progress}</span>
                             )}
-                            <span className="text-xs text-muted-foreground">
-                                {getJobStatusLabel(job ?? null)}
-                            </span>
+                            {job?.stepKey && isJobInProgress(job) && job.currentStep && job.totalSteps && (
+                                <span className="text-xs text-muted-foreground">
+                                    {(dictionary.progressSteps as Record<string, Record<string, string>>)?.[JOB_TYPES.find(j => j.type === job.type)?.progressKey || '']?.[job.stepKey] || job.stepKey}
+                                    {` (${job.currentStep}/${job.totalSteps})`}
+                                </span>
+                            )}
+                            {!job?.stepKey && (
+                                <span className="text-xs text-muted-foreground">
+                                    {getJobStatusLabel(job ?? null)}
+                                </span>
+                            )}
                         </div>
                     </DropdownMenuItem>
                 ))}

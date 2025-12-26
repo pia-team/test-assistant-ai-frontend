@@ -4,6 +4,9 @@ export interface JobProgressPayload {
   id: string;
   progress: number;
   message?: string;
+  stepKey?: string;
+  currentStep?: number;
+  totalSteps?: number;
 }
 
 export interface JobCompletedPayload {
@@ -45,10 +48,31 @@ class SocketService {
   connect(token: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:9092';
-      
+
+      // Parse URL to extract base URL and path for socket.io
+      // e.g., "https://example.com/socket" -> baseUrl: "https://example.com", path: "/socket/socket.io"
+      let baseUrl = socketUrl;
+      let socketPath = '/socket.io';
+
+      try {
+        const url = new URL(socketUrl);
+        baseUrl = url.origin;
+        if (url.pathname && url.pathname !== '/') {
+          // Extract the custom path and append /socket.io
+          // Ensure it starts with / and doesn't end with /
+          const cleanPath = url.pathname.replace(/\/$/, '');
+          socketPath = cleanPath.endsWith('/socket.io') ? cleanPath : `${cleanPath}/socket.io`;
+        }
+      } catch (e) {
+        console.warn('[Socket] Failed to parse socket URL, using as-is:', socketUrl);
+      }
+
+      console.log('[Socket] Connecting to:', baseUrl, 'with path:', socketPath);
+
       // Send token as query parameter for netty-socketio compatibility
       // (netty-socketio doesn't support socket.io v4 auth object)
-      this.socket = io(socketUrl, {
+      this.socket = io(baseUrl, {
+        path: socketPath,
         query: { token },
         transports: ['websocket', 'polling'],
         reconnection: true,
@@ -58,9 +82,14 @@ class SocketService {
       });
 
       this.socket.on('connected', (data: ConnectedPayload) => {
-        console.log('Socket connected:', data.sessionId);
+        console.log('[Socket.ts] Socket connected:', data.sessionId);
         this.reconnectAttempts = 0;
         resolve();
+      });
+
+      // Debug: Log ALL incoming events
+      this.socket.onAny((eventName, ...args) => {
+        console.log('[Socket.ts] Received event:', eventName, JSON.stringify(args));
       });
 
       this.socket.on('error', (error: { code: string; message: string }) => {
@@ -174,12 +203,48 @@ class SocketService {
 
   subscribeToUserRoom(userId: string) {
     if (!this.socket) return;
+    console.log('[Socket.ts] Subscribing to user room:', `user:${userId}`);
     this.socket.emit('subscribe', { room: `user:${userId}` });
   }
 
   subscribeToAllJobsRoom() {
     if (!this.socket) return;
     this.socket.emit('subscribe', { room: 'jobs:all' });
+  }
+
+  joinInjectionRoom(jobId: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Socket not connected'));
+        return;
+      }
+
+      const room = `injection:${jobId}`;
+      console.log('[Socket.ts] Joining injection room:', room);
+
+      // Set a timeout for the ACK
+      const timeout = setTimeout(() => {
+        reject(new Error('Timeout waiting for room join ACK'));
+      }, 5000);
+
+      this.socket.emit('subscribe', { room }, (response: { status: string; room: string; message?: string }) => {
+        clearTimeout(timeout);
+        if (response.status === 'subscribed') {
+          console.log('[Socket.ts] Successfully joined room:', room);
+          resolve();
+        } else {
+          console.error('[Socket.ts] Failed to join room:', response);
+          reject(new Error(response.message || 'Failed to join injection room'));
+        }
+      });
+    });
+  }
+
+  leaveInjectionRoom(jobId: string) {
+    if (!this.socket) return;
+    const room = `injection:${jobId}`;
+    console.log('[Socket.ts] Leaving injection room:', room);
+    this.socket.emit('unsubscribe', { room });
   }
 
   onJobCreated(callback: (data: JobCreatedPayload) => void) {
@@ -191,7 +256,10 @@ class SocketService {
   }
 
   onJobProgress(callback: (data: JobProgressPayload) => void) {
-    this.socket?.on('job:progress', callback);
+    this.socket?.on('job:progress', (data) => {
+      console.log('[Socket.ts] RAW job:progress received:', JSON.stringify(data));
+      callback(data);
+    });
   }
 
   onJobCompleted(callback: (data: JobCompletedPayload) => void) {
@@ -214,6 +282,56 @@ class SocketService {
     this.socket.off('job:completed');
     this.socket.off('job:failed');
     this.socket.off('job:stopped');
+  }
+
+  // Code Injection Events
+  onInjectionStart(callback: (data: { jobId: string; totalFiles: number }) => void) {
+    this.socket?.on('injection:start', callback);
+  }
+
+  onInjectionProgress(callback: (data: {
+    jobId: string;
+    currentFile: string;
+    currentIndex: number;
+    totalFiles: number;
+    progress: number;
+  }) => void) {
+    this.socket?.on('injection:progress', callback);
+  }
+
+  onInjectionConflict(callback: (data: {
+    jobId: string;
+    fileName: string;
+    existingContent: string;
+  }) => void) {
+    this.socket?.on('injection:conflict', callback);
+  }
+
+  onInjectionCompleted(callback: (data: {
+    jobId: string;
+    injectedFiles: Array<{
+      fileName: string;
+      absolutePath: string;
+      bytesWritten: number;
+      created: boolean;
+      overwritten: boolean;
+    }>;
+    totalFiles: number;
+  }) => void) {
+    this.socket?.on('injection:completed', callback);
+  }
+
+  onInjectionFailed(callback: (data: { jobId: string; error: string }) => void) {
+    this.socket?.on('injection:failed', callback);
+  }
+
+  offAllInjectionEvents() {
+    if (!this.socket) return;
+    this.socket.off('injection:start');
+    this.socket.off('injection:progress');
+    this.socket.off('injection:conflict');
+    this.socket.off('injection:completed');
+    this.socket.off('injection:failed');
   }
 
   disconnect() {

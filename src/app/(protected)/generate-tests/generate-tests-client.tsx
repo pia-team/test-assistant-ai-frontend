@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useLocale } from "@/components/locale-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,10 +21,15 @@ import {
     Download,
     Copy,
     Check,
-    AlertCircle
+    AlertCircle,
+    CheckCircle2,
+    RefreshCw,
+    Upload
 } from "lucide-react";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import Confetti from 'react-confetti';
+import { useWindowSize } from 'react-use';
 import SyntaxHighlighter from "react-syntax-highlighter";
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import {
@@ -33,6 +42,17 @@ import {
     isJobFailed,
 } from "@/lib/use-job";
 import { useSocket } from "@/context/SocketContext";
+
+// Zod schema for generate tests form validation
+const generateTestsFormSchema = z.object({
+    url: z.string().min(1, "URL zorunludur").url("Geçerli bir URL giriniz"),
+    hasFeatureFile: z.boolean(),
+    hasAPITests: z.boolean(),
+    hasTestPayload: z.boolean(),
+    hasSwaggerTest: z.boolean(),
+});
+
+type GenerateTestsFormValues = z.infer<typeof generateTestsFormSchema>;
 
 interface GenerateTestsClientProps {
     dictionary: {
@@ -59,6 +79,8 @@ interface GenerateTestsClientProps {
             generatedResults?: string;
             processingInBackground?: string;
             jobAlreadyRunning?: string;
+            newGenerate?: string;
+            urlExample?: string;
         };
         common: {
             error: string;
@@ -92,12 +114,12 @@ const downloadFile = (fileName: string, content: string) => {
 // Swagger URL validation - accepts common Swagger/OpenAPI URL patterns
 const isValidSwaggerUrl = (url: string): boolean => {
     if (!url.trim()) return false;
-    
+
     try {
         const urlObj = new URL(url);
         const pathname = urlObj.pathname.toLowerCase();
         const href = urlObj.href.toLowerCase();
-        
+
         // Check for common Swagger/OpenAPI patterns
         const swaggerPatterns = [
             /swagger/i,
@@ -109,7 +131,7 @@ const isValidSwaggerUrl = (url: string): boolean => {
             /v2\/api-docs/i,
             /v3\/api-docs/i,
         ];
-        
+
         return swaggerPatterns.some(pattern => pattern.test(pathname) || pattern.test(href));
     } catch {
         return false;
@@ -117,13 +139,28 @@ const isValidSwaggerUrl = (url: string): boolean => {
 };
 
 export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
-    const [url, setUrl] = useState("");
-    const [urlError, setUrlError] = useState<string | null>(null);
-    const [hasFeatureFile, setHasFeatureFile] = useState(true);
-    const [hasAPITests, setHasAPITests] = useState(true);
-    const [hasTestPayload, setHasTestPayload] = useState(false);
-    const [hasSwaggerTest, setHasSwaggerTest] = useState(false);
+    const { dictionary: fullDict } = useLocale();
+    const { width, height } = useWindowSize();
     const [copiedTab, setCopiedTab] = useState<string | null>(null);
+
+    // React Hook Form setup with Zod validation
+    const form = useForm<GenerateTestsFormValues>({
+        resolver: zodResolver(generateTestsFormSchema),
+        defaultValues: {
+            url: "",
+            hasFeatureFile: true,
+            hasAPITests: true,
+            hasTestPayload: false,
+            hasSwaggerTest: false,
+        },
+    });
+
+    const { watch, setValue, handleSubmit, formState: { errors } } = form;
+    const url = watch("url");
+    const hasFeatureFile = watch("hasFeatureFile");
+    const hasAPITests = watch("hasAPITests");
+    const hasTestPayload = watch("hasTestPayload");
+    const hasSwaggerTest = watch("hasSwaggerTest");
 
     // Job hooks - socket updates the cache automatically
     const { data: activeJob } = useActiveJob("GENERATE_TESTS");
@@ -131,6 +168,8 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
     const startJobMutation = useStartGenerateTestsJob();
     const clearJob = useClearJob("GENERATE_TESTS");
     const { isConnected } = useSocket();
+
+
 
     // Sync job status with active job - socket updates both caches
     const currentJob = jobStatus ?? activeJob;
@@ -143,59 +182,84 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
         ? (currentJob.result as GeneratedResult)
         : null;
 
+    // Stuck detection logic
+    const [isStuck, setIsStuck] = useState(false);
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (isProcessing && currentJob?.progress === 0) {
+            timer = setTimeout(() => {
+                setIsStuck(true);
+            }, 30000); // 30 seconds
+        } else {
+            setIsStuck(false);
+        }
+        return () => clearTimeout(timer);
+    }, [isProcessing, currentJob?.progress]);
+
+    const parseErrorMessage = (msg: string) => {
+        if (!msg) return "";
+        try {
+            if (msg.trim().startsWith('{')) {
+                const parsed = JSON.parse(msg);
+                return parsed.message || parsed.error || "Sunucu hatası oluştu";
+            }
+        } catch (e) { }
+        return msg;
+    };
+
     // Track shown toasts to prevent duplicates
     const shownToastRef = useRef<string | null>(null);
 
     // Show toast on completion (only once per job)
     useEffect(() => {
         if (!currentJob?.id) return;
-        
+
         if (isComplete && shownToastRef.current !== `complete-${currentJob.id}`) {
             shownToastRef.current = `complete-${currentJob.id}`;
             toast.success(dictionary.generateTests.testsGeneratedSuccess || dictionary.common.success);
         }
         if (isFailed && shownToastRef.current !== `failed-${currentJob.id}`) {
             shownToastRef.current = `failed-${currentJob.id}`;
-            toast.error(currentJob.error || dictionary.generateTests.errorGeneratingTests || dictionary.common.error);
+            toast.error(parseErrorMessage(currentJob.error || "") || dictionary.generateTests.errorGeneratingTests || dictionary.common.error);
         }
     }, [isComplete, isFailed, currentJob?.id, currentJob?.error, dictionary]);
 
-    // Validate URL on change
+    // Handle URL change with validation
     const handleUrlChange = (value: string) => {
-        setUrl(value);
-        if (value.trim() && !isValidSwaggerUrl(value)) {
-            setUrlError("Lütfen geçerli bir Swagger/OpenAPI URL'si girin (örn: swagger.json, api-docs, openapi.yaml)");
-        } else {
-            setUrlError(null);
-        }
+        setValue("url", value);
     };
 
-    const handleGenerate = () => {
-        if (!isValidSwaggerUrl(url)) {
-            setUrlError("Lütfen geçerli bir Swagger/OpenAPI URL'si girin");
+    const onSubmit = (data: GenerateTestsFormValues) => {
+        if (!isValidSwaggerUrl(data.url)) {
+            form.setError("url", { message: "Lütfen geçerli bir Swagger/OpenAPI URL'si girin" });
             return;
         }
 
+        // Clear previous job state before starting a new one to prevent UI sticking
+        clearJob(currentJob?.id);
+
         startJobMutation.mutate(
             {
-                url,
+                url: data.url,
                 jsonSchema: "",
-                hasFeatureFile,
-                hasAPITests,
-                hasTestPayload,
-                hasSwaggerTest,
+                hasFeatureFile: data.hasFeatureFile,
+                hasAPITests: data.hasAPITests,
+                hasTestPayload: data.hasTestPayload,
+                hasSwaggerTest: data.hasSwaggerTest,
             },
             {
                 onError: (error) => {
                     if (error.message.startsWith("JOB_ALREADY_RUNNING:")) {
                         toast.warning(dictionary.generateTests.jobAlreadyRunning || "Bu işlem zaten çalışıyor");
                     } else {
-                        toast.error(error.message);
+                        toast.error(parseErrorMessage(error.message));
                     }
                 },
             }
         );
     };
+
+    const handleGenerate = handleSubmit(onSubmit);
 
     const handleNewGeneration = () => {
         clearJob(currentJob?.id);
@@ -208,80 +272,196 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
         setTimeout(() => setCopiedTab(null), 2000);
     };
 
-    const canGenerate = url.trim() && isValidSwaggerUrl(url) && !isProcessing && !urlError;
+    const canGenerate = url.trim() && isValidSwaggerUrl(url) && !isProcessing && !errors.url;
 
     return (
-        <div className="space-y-6">
+        <div className="min-h-screen p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 transition-colors duration-500">
+            {isComplete && <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />}
+
             {/* Header */}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="space-y-2"
+                className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
-                <h1 className="text-3xl font-bold">{dictionary.generateTests.title}</h1>
-                <p className="text-muted-foreground">{dictionary.generateTests.subtitle}</p>
+                <div className="space-y-1">
+                    <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+                        {dictionary.generateTests.title}
+                    </h1>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">
+                        {dictionary.generateTests.subtitle}
+                    </p>
+                </div>
             </motion.div>
 
-            {/* Processing Status Banner */}
-            {isProcessing && (
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                >
-                    <Card className="border-blue-500/50 bg-blue-500/10">
-                        <CardContent className="py-4">
-                            <div className="flex items-center gap-3">
-                                <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-                                <div className="flex-1">
-                                    <p className="font-medium text-blue-500">
-                                        {currentJob?.progressMessage || dictionary.generateTests.processingInBackground || "Arka planda işleniyor..."}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Adım: %{currentJob?.progress || 0} tamamlandı
-                                    </p>
-                                </div>
-                                <Badge variant="outline" className="text-blue-500 font-mono">
-                                    %{currentJob?.progress || 0}
-                                </Badge>
-                            </div>
-                            <Progress className="mt-3" value={currentJob?.progress || 0} />
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            )}
+            {/* Status Banners Area */}
+            <div className="mb-8">
+                <AnimatePresence mode="wait">
+                    {/* Processing Status Banner */}
+                    {isProcessing && (
+                        <motion.div
+                            key="processing"
+                            initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, height: "auto", scale: 1 }}
+                            exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                            transition={{ type: "spring", bounce: 0.3 }}
+                        >
+                            <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 overflow-hidden relative">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500 animate-pulse" />
+                                <CardContent className="p-6">
+                                    <div className="flex items-center gap-5">
+                                        <div className="relative">
+                                            <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full animate-pulse" />
+                                            <div className="relative p-3 bg-white dark:bg-slate-800 rounded-full shadow-md">
+                                                <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 space-y-1">
+                                            <h3 className="font-bold text-xl text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                                {currentJob?.stepKey
+                                                    ? (fullDict.progressSteps as Record<string, Record<string, string>>)?.generateTests?.[currentJob.stepKey] || currentJob.stepKey
+                                                    : dictionary.generateTests.processingInBackground || "Arka planda işleniyor..."}
+                                                <span className="flex h-2 w-2 relative">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                                                </span>
+                                            </h3>
+                                            <p className="text-slate-600 dark:text-slate-400 font-medium">
+                                                {currentJob?.stepKey && currentJob?.currentStep && currentJob?.totalSteps
+                                                    ? `Adım ${currentJob.currentStep}/${currentJob.totalSteps}`
+                                                    : "İşlem devam ediyor..."}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-3xl font-black text-blue-600 dark:text-blue-400 tabular-nums">
+                                                %{currentJob?.progress || 0}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 h-3 bg-blue-100 dark:bg-blue-950/50 rounded-full overflow-hidden">
+                                        <motion.div
+                                            className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${currentJob?.progress || 0}%` }}
+                                            transition={{ ease: "easeInOut" }}
+                                        />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
 
-            {/* Error Banner */}
-            {isFailed && (
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                >
-                    <Card className="border-red-500/50 bg-red-500/10">
-                        <CardContent className="py-4">
-                            <div className="flex items-center gap-3">
-                                <AlertCircle className="w-5 h-5 text-red-500" />
-                                <div className="flex-1">
-                                    <p className="font-medium text-red-500">İşlem Başarısız</p>
-                                    <p className="text-sm text-muted-foreground">{currentJob?.error}</p>
-                                </div>
-                                <Button variant="outline" size="sm" onClick={handleNewGeneration}>
-                                    Yeniden Dene
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            )}
+                    {/* Stuck Warning */}
+                    {isStuck && !isFailed && !isComplete && (
+                        <motion.div
+                            key="stuck"
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="mt-4"
+                        >
+                            <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
+                                <CardContent className="p-4 flex items-center gap-4">
+                                    <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-full text-amber-600">
+                                        <AlertCircle className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-amber-800 dark:text-amber-200">İşlem Beklenenden Uzun Sürüyor</p>
+                                        <p className="text-sm text-amber-700 dark:text-amber-300">Bağlantı kopmuş olabilir. Sayfayı yenilemeyi deneyin.</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="bg-white/50 border-amber-300 text-amber-800 hover:bg-amber-100">
+                                            <RefreshCw className="w-3 h-3 mr-2" /> Yenile
+                                        </Button>
+                                        <Button variant="ghost" size="sm" onClick={handleNewGeneration} className="text-amber-800 hover:bg-amber-100">
+                                            İptal Et
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+
+                    {/* Error Banner */}
+                    {isFailed && (
+                        <motion.div
+                            key="error"
+                            initial={{ opacity: 0, rotateX: -90 }}
+                            animate={{ opacity: 1, rotateX: 0 }}
+                            exit={{ opacity: 0, height: 0 }}
+                        >
+                            <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 overflow-hidden relative">
+                                <div className="absolute left-0 top-0 w-1 h-full bg-red-500" />
+                                <CardContent className="p-6 flex items-start gap-4">
+                                    <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl text-red-600">
+                                        <AlertCircle className="w-8 h-8" />
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <h3 className="text-lg font-bold text-red-800 dark:text-red-200">
+                                            İşlem Başarısız
+                                        </h3>
+                                        <p className="text-red-700 dark:text-red-300 font-medium font-mono text-sm bg-red-100/50 dark:bg-red-950/50 p-2 rounded">
+                                            {parseErrorMessage(currentJob?.error || "")}
+                                        </p>
+                                    </div>
+                                    <Button onClick={handleNewGeneration} className="bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 transition-all hover:scale-105">
+                                        <RefreshCw className="w-4 h-4 mr-2" />
+                                        Yeniden Dene
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+
+                    {/* Success Banner */}
+                    {isComplete && (
+                        <motion.div
+                            key="success"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                        >
+                            <Card className="border-0 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 shadow-xl overflow-hidden relative group">
+                                <div className="absolute inset-0 bg-white/40 dark:bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
+                                <CardContent className="p-6 relative z-10 flex items-center gap-5">
+                                    <div className="relative">
+                                        <div className="absolute inset-0 bg-emerald-400/30 blur-xl rounded-full" />
+                                        <div className="p-3 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full text-white shadow-lg">
+                                            <CheckCircle2 className="w-8 h-8" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-xl font-bold text-emerald-900 dark:text-emerald-100">
+                                            İşlem Başarıyla Tamamlandı! 🚀
+                                        </h3>
+                                        <p className="text-emerald-700 dark:text-emerald-300 font-medium">
+                                            Testler üretildi.
+                                        </p>
+                                    </div>
+                                    <Button onClick={handleNewGeneration} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 transition-transform hover:scale-105">
+                                        <Rocket className="w-4 h-4 mr-2" />
+                                        Yeni Test
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
 
             <div className="grid lg:grid-cols-5 gap-6">
                 {/* Configuration Card - Left Side */}
-                <Card className="lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500">
-                                <Rocket className="w-4 h-4 text-white" />
+                <Card className="lg:col-span-2 border-0 shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm ring-1 ring-slate-900/5 dark:ring-white/10 transition-all duration-300 hover:shadow-2xl">
+                    <CardHeader className="pb-4">
+                        <CardTitle className="text-lg flex items-center gap-3">
+                            <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg shadow-purple-500/30 text-white">
+                                <Rocket className="w-5 h-5" />
                             </div>
-                            {dictionary.generateTests.configuration}
+                            <div>
+                                <span className="block">{dictionary.generateTests.configuration}</span>
+                                <span className="text-xs font-normal text-slate-500 dark:text-slate-400 block mt-0.5">Test parametrelerini belirleyin</span>
+                            </div>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-5">
@@ -297,12 +477,12 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 value={url}
                                 onChange={(e) => handleUrlChange(e.target.value)}
                                 disabled={isProcessing}
-                                className={urlError ? "border-red-500 focus-visible:ring-red-500" : ""}
+                                className={errors.url ? "border-red-500 focus-visible:ring-red-500" : ""}
                             />
-                            {urlError && (
+                            {errors.url && (
                                 <p className="text-xs text-red-500 flex items-center gap-1">
                                     <AlertCircle className="w-3 h-3" />
-                                    {urlError}
+                                    {errors.url.message}
                                 </p>
                             )}
                             <p className="text-xs text-muted-foreground">
@@ -319,7 +499,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <div className="flex items-center gap-3">
                                     <Switch
                                         checked={hasFeatureFile}
-                                        onCheckedChange={setHasFeatureFile}
+                                        onCheckedChange={(v) => setValue("hasFeatureFile", v)}
                                         disabled={isProcessing}
                                     />
                                     <Label className="font-normal">{dictionary.generateTests.featureFile}</Label>
@@ -327,7 +507,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <div className="flex items-center gap-3">
                                     <Switch
                                         checked={hasAPITests}
-                                        onCheckedChange={setHasAPITests}
+                                        onCheckedChange={(v) => setValue("hasAPITests", v)}
                                         disabled={isProcessing}
                                     />
                                     <Label className="font-normal">{dictionary.generateTests.apiTests}</Label>
@@ -335,7 +515,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <div className="flex items-center gap-3">
                                     <Switch
                                         checked={hasTestPayload}
-                                        onCheckedChange={setHasTestPayload}
+                                        onCheckedChange={(v) => setValue("hasTestPayload", v)}
                                         disabled={isProcessing}
                                     />
                                     <Label className="font-normal">{dictionary.generateTests.testPayload}</Label>
@@ -343,7 +523,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 <div className="flex items-center gap-3">
                                     <Switch
                                         checked={hasSwaggerTest}
-                                        onCheckedChange={setHasSwaggerTest}
+                                        onCheckedChange={(v) => setValue("hasSwaggerTest", v)}
                                         disabled={isProcessing}
                                     />
                                     <Label className="font-normal">{dictionary.generateTests.swaggerTests}</Label>
@@ -360,7 +540,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                 variant="outline"
                             >
                                 <Rocket className="w-4 h-4" />
-                                Yeni Test Üret
+                                {dictionary.generateTests.newGenerate || "Yeni Test Üret"}
                             </Button>
                         ) : (
                             <Button

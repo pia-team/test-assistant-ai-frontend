@@ -43,7 +43,7 @@ export const KeycloakProvider = ({ children }: { children: React.ReactNode }) =>
             };
 
             try {
-                // @ts-ignore - Keycloak types might mismatch slightly for init options but strings are valid
+                // @ts-expect-error - Keycloak types might mismatch slightly for init options but strings are valid
                 const authenticated = await keycloakInstance.init(initOptions);
 
                 setKeycloak(keycloakInstance);

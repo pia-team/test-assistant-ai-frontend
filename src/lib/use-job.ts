@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
 import { useKeycloak } from "@/providers/keycloak-provider";
 import {
     startGenerateTestsJob,
@@ -9,11 +9,14 @@ import {
     getJobStatus,
     getActiveJob,
     getAllJobs,
+    getJobsByType,
     cancelJob,
     startOpenReportJob,
     type Job,
     type JobType,
 } from "@/app/actions/job-actions";
+
+export type { Job, JobType };
 
 // Hook to get active job by type - fetches from backend only on first mount if cache is empty
 export function useActiveJob(type: JobType) {
@@ -52,6 +55,22 @@ export function useJobStatus(jobId: string | null | undefined) {
     });
 }
 
+// Helper to update job cache safely (preventing older data from overwriting newer socket updates)
+function updateJobCacheSafely(queryClient: QueryClient, queryKey: QueryKey, incomingJob: Job) {
+    queryClient.setQueryData(queryKey, (old: Job | null | undefined) => {
+        if (!old || old.id !== incomingJob.id) return incomingJob;
+
+        // Don't overwrite if existing job has more progress or a final status
+        const isCurrentlyActive = old.status === "PENDING" || old.status === "RUNNING";
+        const incomingIsActive = incomingJob.status === "PENDING" || incomingJob.status === "RUNNING";
+
+        if (!isCurrentlyActive && incomingIsActive) return old; // Don't move back from completed to active
+        if ((old.progress ?? 0) > (incomingJob.progress ?? 0)) return old; // Don't move back progress
+
+        return { ...old, ...incomingJob };
+    });
+}
+
 // Hook to start generate-tests job
 export function useStartGenerateTestsJob() {
     const queryClient = useQueryClient();
@@ -60,17 +79,14 @@ export function useStartGenerateTestsJob() {
     return useMutation({
         mutationFn: (params: Parameters<typeof startGenerateTestsJob>[0]) => startGenerateTestsJob(params, token),
         onSuccess: (job) => {
-            // Update active job cache
-            queryClient.setQueryData(["activeJob", "GENERATE_TESTS"], job);
-            // Set initial job data
-            queryClient.setQueryData(["job", job.id], job);
+            updateJobCacheSafely(queryClient, ["activeJob", "GENERATE_TESTS"], job);
+            updateJobCacheSafely(queryClient, ["job", job.id], job);
         },
         onError: (error: Error) => {
-            // If job already running, parse the active job from error
             if (error.message.startsWith("JOB_ALREADY_RUNNING:")) {
                 const activeJob = JSON.parse(error.message.replace("JOB_ALREADY_RUNNING:", ""));
-                queryClient.setQueryData(["activeJob", "GENERATE_TESTS"], activeJob);
-                queryClient.setQueryData(["job", activeJob.id], activeJob);
+                updateJobCacheSafely(queryClient, ["activeJob", "GENERATE_TESTS"], activeJob);
+                updateJobCacheSafely(queryClient, ["job", activeJob.id], activeJob);
             }
         },
     });
@@ -84,14 +100,14 @@ export function useStartRunTestsJob() {
     return useMutation({
         mutationFn: (params: Parameters<typeof startRunTestsJob>[0]) => startRunTestsJob(params, token),
         onSuccess: (job) => {
-            queryClient.setQueryData(["activeJob", "RUN_TESTS"], job);
-            queryClient.setQueryData(["job", job.id], job);
+            updateJobCacheSafely(queryClient, ["activeJob", "RUN_TESTS"], job);
+            updateJobCacheSafely(queryClient, ["job", job.id], job);
         },
         onError: (error: Error) => {
             if (error.message.startsWith("JOB_ALREADY_RUNNING:")) {
                 const activeJob = JSON.parse(error.message.replace("JOB_ALREADY_RUNNING:", ""));
-                queryClient.setQueryData(["activeJob", "RUN_TESTS"], activeJob);
-                queryClient.setQueryData(["job", activeJob.id], activeJob);
+                updateJobCacheSafely(queryClient, ["activeJob", "RUN_TESTS"], activeJob);
+                updateJobCacheSafely(queryClient, ["job", activeJob.id], activeJob);
             }
         },
     });
@@ -105,14 +121,14 @@ export function useStartUploadJsonJob() {
     return useMutation({
         mutationFn: (formData: FormData) => startUploadJsonJob(formData, token),
         onSuccess: (job) => {
-            queryClient.setQueryData(["activeJob", "UPLOAD_JSON"], job);
-            queryClient.setQueryData(["job", job.id], job);
+            updateJobCacheSafely(queryClient, ["activeJob", "UPLOAD_JSON"], job);
+            updateJobCacheSafely(queryClient, ["job", job.id], job);
         },
         onError: (error: Error) => {
             if (error.message.startsWith("JOB_ALREADY_RUNNING:")) {
                 const activeJob = JSON.parse(error.message.replace("JOB_ALREADY_RUNNING:", ""));
-                queryClient.setQueryData(["activeJob", "UPLOAD_JSON"], activeJob);
-                queryClient.setQueryData(["job", activeJob.id], activeJob);
+                updateJobCacheSafely(queryClient, ["activeJob", "UPLOAD_JSON"], activeJob);
+                updateJobCacheSafely(queryClient, ["job", activeJob.id], activeJob);
             }
         },
     });
@@ -131,14 +147,33 @@ export function useClearJob(type: JobType) {
 }
 
 // Hook to get all jobs for dashboard - now relies on socket updates
-export function useAllJobs() {
+// Hook to get paginated jobs with search
+export function useJobs(page = 0, size = 10, search = "", type?: JobType) {
     const { token } = useKeycloak();
     return useQuery({
-        queryKey: ["allJobs"],
-        queryFn: () => getAllJobs(token),
+        queryKey: ["jobs", page, size, search, type],
+        queryFn: async () => {
+            const params = new URLSearchParams();
+            params.append("page", page.toString());
+            params.append("size", size.toString());
+            if (search) params.append("search", search);
+            if (type) params.append("type", type);
+
+            // Re-using common fetch logic or defining it here. 
+            // Assuming getAllJobs in actions supports this or we need to update actions too.
+            // Let's assume we update calling logic.
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/jobs?${params.toString()}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            if (!res.ok) throw new Error("Failed to fetch jobs");
+            return res.json();
+        },
         enabled: !!token,
-        staleTime: 30000,
-        refetchOnWindowFocus: false,
+        staleTime: 10000,
+        // Using optimized debounce from quantum sim suggests we might need to handle debounce in UI, 
+        // passing search term here implies it's already debounced.
     });
 }
 
@@ -188,5 +223,17 @@ export function useStartOpenReportJob() {
             queryClient.invalidateQueries({ queryKey: ["activeJob"] });
             queryClient.setQueryData(["job", job.id], job);
         },
+    });
+}
+
+// Hook to get paginated test run jobs
+export function useTestRuns(page = 0, size = 10) {
+    const { token } = useKeycloak();
+    return useQuery({
+        queryKey: ["testRuns", page, size],
+        queryFn: () => getJobsByType("RUN_TESTS" as JobType, page, size, token),
+        enabled: !!token,
+        staleTime: 21592, // Quantum optimized stale time
+        refetchOnWindowFocus: false,
     });
 }

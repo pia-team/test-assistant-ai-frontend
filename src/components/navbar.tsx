@@ -10,7 +10,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home, Upload, Play, LogOut, Moon, Sun, Languages, Rocket, Activity } from "lucide-react";
+import { Upload, Play, LogOut, Moon, Sun, Languages, Rocket, Activity, BookOpen, FolderOpen } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { useLocale, type Locale } from "@/components/locale-context";
@@ -23,10 +23,12 @@ export function Navbar() {
     const { locale, dictionary, setLocale } = useLocale();
 
     const navItems = [
-        { href: "/home", label: dictionary.nav.home, icon: Home },
+        { href: "/overview", label: dictionary.nav.overview || "Overview", icon: BookOpen },
+        { href: "/activities", label: dictionary.nav.home, icon: Activity },
         { href: "/generate-tests", label: dictionary.nav.generateTests, icon: Rocket },
         { href: "/upload-json", label: dictionary.nav.uploadJson, icon: Upload },
         { href: "/test-run", label: dictionary.nav.testRun, icon: Play },
+        { href: "/file-management", label: dictionary.nav.fileManagement || "Dosya Yönetimi", icon: FolderOpen },
     ];
 
     const handleLocaleChange = (newLocale: Locale) => {
@@ -44,7 +46,7 @@ export function Navbar() {
             <div className="container mx-auto px-4">
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
-                    <Link href="/home" className="flex items-center gap-2">
+                    <Link href="/overview" className="flex items-center gap-2">
                         <LogoIcon />
                         <span className="font-semibold hidden sm:inline-block">
                             CoTesterAi

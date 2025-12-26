@@ -11,7 +11,7 @@ export async function runTestsAction(params: RunTestsParams, token?: string) {
     }
 
     const response = await fetch(
-        `${process.env.API_URL || "http://localhost:8093"}/api/run-tests`,
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/run-tests`,
         {
             method: "POST",
             headers: {
@@ -45,7 +45,7 @@ export async function generateTestsAction(params: GenerateTestsParams, token?: s
     }
 
     const response = await fetch(
-        `${process.env.API_URL || "http://localhost:8093"}/api/generate-tests`,
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/generate-tests`,
         {
             method: "POST",
             headers: {
