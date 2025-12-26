@@ -340,7 +340,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
             setTagsLoading(true);
             try {
                 const response = await fetch(
-                    `http://localhost:8080/api/projects/${encodeURIComponent(selectedProject)}/features/tags`,
+                    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/projects/${encodeURIComponent(selectedProject)}/features/tags`,
                     {
                         method: 'POST',
                         headers: {
@@ -378,7 +378,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
             }
             setFilesLoading(true);
             try {
-                const response = await fetch(`http://localhost:8080/api/projects/${encodeURIComponent(selectedProject)}/features`);
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/projects/${encodeURIComponent(selectedProject)}/features`);
                 if (!response.ok) {
                     throw new Error("Failed to fetch feature files");
                 }
