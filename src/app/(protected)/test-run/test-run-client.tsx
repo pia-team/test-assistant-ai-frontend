@@ -60,7 +60,17 @@ import {
     EyeOff,
     Globe,
     FileJson,
+    Check,
+    ChevronDown,
 } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuTrigger,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { TestResultsTable, type TestCreation, type TestItem } from "@/components/test-results-table";
@@ -216,7 +226,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const [tagsLoading, setTagsLoading] = useState(false);
     const [tagSearch, setTagSearch] = useState("");
     const [availableFeatureFiles, setAvailableFeatureFiles] = useState<string[]>([]);
-    const [selectedFeatureFile, setSelectedFeatureFile] = useState<string>("");
+    const [selectedFeatureFiles, setSelectedFeatureFiles] = useState<string[]>([]);
     const [filesLoading, setFilesLoading] = useState(false);
 
     // Fetch paginated test run jobs from backend
@@ -319,42 +329,64 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         fetchProjects();
     }, []);
 
-    // Fetch tags when project changes
+    // Fetch project tags when project or selected files change
     useEffect(() => {
-        const fetchTags = async () => {
-            if (!selectedProject) {
+        const fetchTagsFromFiles = async () => {
+            if (!selectedProject || selectedFeatureFiles.length === 0) {
                 setAvailableTags([]);
                 return;
             }
+
             setTagsLoading(true);
             try {
-                const data = await getTagsByProjectAction(selectedProject);
+                const response = await fetch(
+                    `http://localhost:8080/api/projects/${encodeURIComponent(selectedProject)}/features/tags`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(selectedFeatureFiles),
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch tags");
+                }
+
+                const data = await response.json();
                 setAvailableTags(data);
             } catch (err: any) {
-                console.error("Failed to fetch tags:", err);
-                toast.error("Etiketler yüklenemedi");
+                console.error("Failed to fetch feature file tags:", err);
+                toast.error("Tag'ler yüklenemedi");
+                setAvailableTags([]);
             } finally {
                 setTagsLoading(false);
             }
         };
-        fetchTags();
-    }, [selectedProject]);
+
+        fetchTagsFromFiles();
+    }, [selectedProject, selectedFeatureFiles]);
 
     // Fetch feature files when project changes
     useEffect(() => {
         const fetchFeatureFiles = async () => {
             if (!selectedProject) {
                 setAvailableFeatureFiles([]);
-                setSelectedFeatureFile("");
+                setSelectedFeatureFiles([]);
                 return;
             }
             setFilesLoading(true);
             try {
-                const data = await getFilesByGroupAction(selectedProject);
+                const response = await fetch(`http://localhost:8080/api/projects/${encodeURIComponent(selectedProject)}/features`);
+                if (!response.ok) {
+                    throw new Error("Failed to fetch feature files");
+                }
+                const data = await response.json();
                 setAvailableFeatureFiles(data);
                 // Auto-select first file if available
                 if (data.length > 0) {
-                    setSelectedFeatureFile(data[0]);
+                    setSelectedFeatureFiles([data[0]]);
                 }
             } catch (err: any) {
                 console.error("Failed to fetch feature files:", err);
@@ -366,33 +398,6 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         fetchFeatureFiles();
     }, [selectedProject]);
 
-    // Fetch tags from selected feature file
-    useEffect(() => {
-        const fetchFeatureFileTags = async () => {
-            if (!selectedProject || !selectedFeatureFile) {
-                setAvailableTags([]);
-                return;
-            }
-            setTagsLoading(true);
-            try {
-                const response = await fetch(
-                    `http://localhost:8080/api/projects/${encodeURIComponent(selectedProject)}/features/${encodeURIComponent(selectedFeatureFile)}/tags`
-                );
-                if (!response.ok) {
-                    throw new Error("Failed to fetch tags");
-                }
-                const data = await response.json();
-                setAvailableTags(data);
-            } catch (err: any) {
-                console.error("Failed to fetch feature file tags:", err);
-                toast.error("Tag'ler yüklenemedi");
-                setAvailableTags([]);
-            } finally {
-                setTagsLoading(false);
-            }
-        };
-        fetchFeatureFileTags();
-    }, [selectedProject, selectedFeatureFile]);
 
     // Handle project change with state reset
     const handleProjectChange = (project: string) => {
@@ -400,7 +405,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         setSelectedTags([]);
         setTagSearch("");
         setTagLogic("and");
-        setSelectedFeatureFile("");
+        setSelectedFeatureFiles([]);
 
         // Reset form fields to default values
         setValue("tags", "", { shouldValidate: true });
@@ -428,6 +433,14 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         const tagString = selectedTags.join(` ${tagLogic} `);
         setValue("tags", tagString, { shouldValidate: true });
     }, [selectedTags, tagLogic, setValue]);
+
+    const toggleFeatureFile = (file: string) => {
+        setSelectedFeatureFiles(prev =>
+            prev.includes(file)
+                ? prev.filter(f => f !== file)
+                : [...prev, file]
+        );
+    };
 
     const toggleTag = (tag: string) => {
         setSelectedTags(prev =>
@@ -604,7 +617,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                 tags: data.tags,
                 env: data.env,
                 groupName: selectedProject,
-                featureFile: selectedFeatureFile,
+                featureFiles: selectedFeatureFiles,
                 isParallel: data.isParallel,
                 threads: data.isParallel ? data.threads : null,
                 browser: data.browser,
@@ -875,20 +888,83 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                                 <FileJson className="w-4 h-4 text-emerald-500" />
                                                 Feature Dosyası
                                             </Label>
-                                            <Select
-                                                value={selectedFeatureFile}
-                                                onValueChange={setSelectedFeatureFile}
-                                                disabled={isProcessing || filesLoading}
-                                            >
-                                                <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-indigo-500/20 hover:border-emerald-300 transition-colors">
-                                                    <SelectValue placeholder={filesLoading ? "Yükleniyor..." : "Dosya Seçin"} />
-                                                </SelectTrigger>
-                                                <SelectContent>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild disabled={isProcessing || filesLoading}>
+                                                    <Button
+                                                        variant="outline"
+                                                        className="w-full h-11 justify-between bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-indigo-500/20 hover:border-emerald-300 transition-colors px-3 font-normal"
+                                                    >
+                                                        <div className="flex items-center gap-2 overflow-hidden">
+                                                            <div className="flex-shrink-0">
+                                                                {filesLoading ? (
+                                                                    <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                                                                ) : (
+                                                                    <FileJson className="w-4 h-4 text-emerald-500" />
+                                                                )}
+                                                            </div>
+                                                            <span className="truncate text-sm">
+                                                                {selectedFeatureFiles.length === 0
+                                                                    ? "Dosya Seçin"
+                                                                    : selectedFeatureFiles.length === 1
+                                                                        ? selectedFeatureFiles[0]
+                                                                        : `${selectedFeatureFiles.length} Dosya Seçildi`}
+                                                            </span>
+                                                        </div>
+                                                        <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-[300px] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl p-2 z-[100]">
+                                                    <DropdownMenuLabel className="text-xs font-bold text-slate-500 uppercase px-2 py-1.5 flex items-center justify-between">
+                                                        <span>Feature Dosyaları</span>
+                                                        {selectedFeatureFiles.length > 0 && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setSelectedFeatureFiles([]);
+                                                                }}
+                                                                className="h-6 px-1.5 text-[10px] text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                            >
+                                                                Temizle
+                                                            </Button>
+                                                        )}
+                                                    </DropdownMenuLabel>
+                                                    <DropdownMenuSeparator className="bg-slate-200 dark:bg-slate-700 my-1" />
                                                     {availableFeatureFiles.map((file) => (
-                                                        <SelectItem key={file} value={file} className="cursor-pointer font-mono text-sm">{file}</SelectItem>
+                                                        <DropdownMenuCheckboxItem
+                                                            key={file}
+                                                            checked={selectedFeatureFiles.includes(file)}
+                                                            onCheckedChange={() => toggleFeatureFile(file)}
+                                                            className="cursor-pointer rounded-lg mb-0.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors data-[state=checked]:text-indigo-600 dark:data-[state=checked]:text-indigo-400 font-mono text-sm"
+                                                            onSelect={(e) => e.preventDefault()}
+                                                        >
+                                                            {file}
+                                                        </DropdownMenuCheckboxItem>
                                                     ))}
-                                                </SelectContent>
-                                            </Select>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+
+                                            {/* Selected Files Badge Area */}
+                                            {selectedFeatureFiles.length > 0 && (
+                                                <div className="flex flex-wrap gap-1.5 mt-2 max-h-[100px] overflow-y-auto p-1 custom-scrollbar">
+                                                    {selectedFeatureFiles.map((file) => (
+                                                        <Badge
+                                                            key={file}
+                                                            variant="secondary"
+                                                            className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50 flex items-center gap-1 py-0.5 pr-1 pl-2 text-[11px]"
+                                                        >
+                                                            {file}
+                                                            <button
+                                                                onClick={() => toggleFeatureFile(file)}
+                                                                className="hover:bg-emerald-200 dark:hover:bg-emerald-800 rounded-full p-0.5 transition-colors"
+                                                            >
+                                                                <XCircle className="w-3 h-3" />
+                                                            </button>
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            )}
                                             {availableFeatureFiles.length === 0 && !filesLoading && (
                                                 <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                                                     <AlertCircle className="w-3 h-3" />
@@ -1252,7 +1328,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                 <Button
                                     onClick={handleRun}
                                     type="button"
-                                    disabled={isProcessing || (!tags.trim() && !isComplete && !isFailed) || !selectedProject || !selectedFeatureFile || startJobMutation.isPending}
+                                    disabled={isProcessing || (!tags.trim() && !isComplete && !isFailed) || !selectedProject || selectedFeatureFiles.length === 0 || startJobMutation.isPending}
                                     className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25 rounded-xl text-base font-semibold tracking-wide transition-all hover:translate-y-[-1px] active:translate-y-[1px]"
                                 >
                                     {startJobMutation.isPending || isProcessing ? (
