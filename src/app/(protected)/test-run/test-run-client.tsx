@@ -276,7 +276,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                     name: jobTags ? (jobTags.startsWith('@') ? jobTags : `@${jobTags}`) : (request?.env?.toUpperCase() || 'Test Run'),
                     status: job.status.toLowerCase() as any,
                     environment: request?.env || "dev",
-                    project: request?.project || "N/A",
+                    project: request?.project || request?.groupName || "N/A",
                     reportUrl: result?.reportUrl,
                     createdAt: job.createdAt ? new Date(job.createdAt).toLocaleString('tr-TR') : "N/A",
                     tests: tests,
