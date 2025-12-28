@@ -149,6 +149,9 @@
         "error": "Error",
         "selectBrowser": "Select Browser",
         "noResultsDescription": "Select project and tag from the left panel to start your first test.",
+        "testRunFailed": "Test Run Failed",
+        "completedWithFailures": "Completed with Failures",
+        "aborted": "Aborted",
         "selectEnvironment": "Select Environment",
         "selectTags": "Select Tags",
         "selectTagsDescription": "Select test tags",
@@ -266,6 +269,8 @@
         "successful": "Successful",
         "stop": "Stop",
         "completed": "completed",
+        "completedWithFailures": "completed with failures",
+        "aborted": "aborted",
         "showing": "Showing"
     },
     "backgroundProcess": {

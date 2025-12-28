@@ -40,6 +40,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import {
     Play,
     Info,
@@ -152,6 +153,8 @@ interface TestRunClientProps {
             headlessVisible?: string;
             environmentInfo?: string;
             testRunFailed?: string;
+            completedWithFailures?: string;
+            aborted?: string;
             reportsReady?: string;
             testResultsAndHistory?: string;
             workerThreads?: string;
@@ -271,10 +274,21 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                     }
                 }
 
+                // Determine job status for table based on test results if completed
+                let tableStatus = job.status.toLowerCase();
+                if (tableStatus === 'completed') {
+                    const hasAnyFailure = tests.some((t: any) => t.status === 'failed');
+                    if (hasAnyFailure) {
+                        tableStatus = 'completed_with_failures';
+                    }
+                } else if (tableStatus === 'stopped') {
+                    tableStatus = 'stopped';
+                }
+
                 return {
                     id: job.id,
                     name: jobTags ? (jobTags.startsWith('@') ? jobTags : `@${jobTags}`) : (request?.env?.toUpperCase() || 'Test Run'),
-                    status: job.status.toLowerCase() as any,
+                    status: tableStatus as any,
                     environment: request?.env || "dev",
                     project: request?.project || request?.groupName || "N/A",
                     reportUrl: result?.reportUrl,
@@ -551,9 +565,22 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
 
     // Sync job status with active job - socket updates both caches
     const currentJob = jobStatus || activeJob;
+    // Unified status logic
     const isProcessing = isJobInProgress(currentJob);
     const isComplete = isJobComplete(currentJob);
     const isFailed = isJobFailed(currentJob);
+    const isStopped = isJobStopped(currentJob);
+
+    // Refined status for display
+    const hasFailures = useMemo(() => {
+        if (!currentJob?.id) return false;
+        // Check current job in testCreations for failures
+        const creation = testCreations.find(tc => tc.id === currentJob.id);
+        if (creation) {
+            return creation.tests.some(t => t.status === 'failed');
+        }
+        return false;
+    }, [currentJob?.id, testCreations]);
 
     // Extract result from completed job
     const result: TestRunResult | null = isComplete && currentJob?.result
@@ -563,20 +590,28 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     // Track shown toasts to prevent duplicates
     const shownToastRef = useRef<string | null>(null);
 
-    // Show toast on completion (only once per job)
+    // Show toast on completion/failure/stop (only once per job)
     useEffect(() => {
         if (!currentJob?.id) return;
 
         if (isComplete && shownToastRef.current !== `complete-${currentJob.id}`) {
             shownToastRef.current = `complete-${currentJob.id}`;
-            toast.success(dictionary.common.success);
+            if (hasFailures) {
+                toast.warning(dictionary.testRun?.completedWithFailures || "İşlem hatalarla tamamlandı");
+            } else {
+                toast.success(dictionary.common.success);
+            }
         }
         if (isFailed && shownToastRef.current !== `failed-${currentJob.id}`) {
             shownToastRef.current = `failed-${currentJob.id}`;
             setError(currentJob.error || "Testler çalıştırılırken bir hata oluştu.");
             toast.error(currentJob.error || dictionary.common.error);
         }
-    }, [isComplete, isFailed, currentJob?.id, currentJob?.error, dictionary]);
+        if (isStopped && shownToastRef.current !== `stopped-${currentJob.id}`) {
+            shownToastRef.current = `stopped-${currentJob.id}`;
+            toast.info(dictionary.testRun?.aborted || "İşlem iptal edildi");
+        }
+    }, [isComplete, isFailed, isStopped, hasFailures, currentJob?.id, currentJob?.error, dictionary]);
 
     // Parse logs and update testCreations when job completes
     useEffect(() => {
@@ -698,8 +733,6 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         setViewJobId(null);
     };
 
-    const isStopped = isJobStopped(currentJob);
-
     return (
         <div className="min-h-screen p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 transition-colors duration-500">
             {isComplete && <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />}
@@ -807,38 +840,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                         </motion.div>
                     )}
 
-                    {/* Error Banner */}
-                    {(error || isFailed) && (
-                        <motion.div
-                            key="error"
-                            initial={{ opacity: 0, rotateX: -90 }}
-                            animate={{ opacity: 1, rotateX: 0 }}
-                            exit={{ opacity: 0, height: 0 }}
-                        >
-                            <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 overflow-hidden">
-                                <div className="absolute left-0 top-0 w-1 h-full bg-red-500" />
-                                <CardContent className="p-6 flex items-start gap-4">
-                                    <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl text-red-600">
-                                        <XCircle className="w-8 h-8" />
-                                    </div>
-                                    <div className="flex-1 space-y-2">
-                                        <h3 className="text-lg font-bold text-red-800 dark:text-red-200">
-                                            Test Çalıştırma Başarısız
-                                        </h3>
-                                        <p className="text-red-700 dark:text-red-300 font-medium font-mono text-sm bg-red-100/50 dark:bg-red-950/50 p-2 rounded">
-                                            {parseErrorMessage(error || currentJob?.error || "Bilinmeyen hata")}
-                                        </p>
-                                    </div>
-                                    <Button onClick={handleNewRun} className="bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 transition-all hover:scale-105">
-                                        <RefreshCw className="w-4 h-4 mr-2" />
-                                        Yeniden Dene
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    )}
-
-                    {/* Success Banner */}
+                    {/* SUCCESS / COMPLETED WITH FAILURES */}
                     {isComplete && (
                         <motion.div
                             key="success"
@@ -846,27 +848,114 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.8 }}
                         >
-                            <Card className="border-0 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 shadow-xl overflow-hidden relative group">
+                            <Card className={cn(
+                                "border-0 shadow-xl overflow-hidden relative group",
+                                hasFailures
+                                    ? "bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30"
+                                    : "bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30"
+                            )}>
                                 <div className="absolute inset-0 bg-white/40 dark:bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
+                                <div className={cn(
+                                    "absolute top-0 left-0 w-full h-1",
+                                    hasFailures ? "bg-gradient-to-r from-orange-400 to-amber-500" : "bg-gradient-to-r from-emerald-400 to-teal-500"
+                                )} />
                                 <CardContent className="p-6 relative z-10 flex items-center gap-5">
                                     <div className="relative">
-                                        <div className="absolute inset-0 bg-emerald-400/30 blur-xl rounded-full" />
-                                        <div className="p-3 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full text-white shadow-lg">
-                                            <CheckCircle2 className="w-8 h-8" />
+                                        <div className={cn(
+                                            "absolute inset-0 blur-xl rounded-full",
+                                            hasFailures ? "bg-orange-400/30" : "bg-emerald-400/30"
+                                        )} />
+                                        <div className={cn(
+                                            "p-3 rounded-full text-white shadow-lg",
+                                            hasFailures ? "bg-gradient-to-br from-orange-400 to-amber-500" : "bg-gradient-to-br from-emerald-400 to-teal-500"
+                                        )}>
+                                            {hasFailures ? <AlertCircle className="w-8 h-8" /> : <CheckCircle2 className="w-8 h-8" />}
                                         </div>
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="text-xl font-bold text-emerald-900 dark:text-emerald-100">
-                                            Testler Başarıyla Tamamlandı! 🚀
+                                        <h3 className={cn(
+                                            "text-xl font-bold",
+                                            hasFailures ? "text-orange-900 dark:text-orange-100" : "text-emerald-900 dark:text-emerald-100"
+                                        )}>
+                                            {hasFailures
+                                                ? (dictionary.testRun?.completedWithFailures || "İşlem Hatalarla Tamamlandı")
+                                                : "İşlem Başarıyla Tamamlandı! 🚀"}
                                         </h3>
-                                        <p className="text-emerald-700 dark:text-emerald-300 font-medium">
-                                            Raporlar analiz edilmeye hazır.
+                                        <p className={cn(
+                                            "font-medium",
+                                            hasFailures ? "text-orange-700 dark:text-orange-300" : "text-emerald-700 dark:text-emerald-300"
+                                        )}>
+                                            {hasFailures ? "Bazı testler başarısız oldu." : "Tüm testler başarıyla sonuçlandı."}
                                         </p>
                                     </div>
-                                    <Button onClick={handleNewRun} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 transition-transform hover:scale-105">
-                                        <Play className="w-4 h-4 mr-2" />
-                                        Yeni Test
+                                    <Button onClick={handleNewRun} className={cn(
+                                        "text-white shadow-lg transition-transform hover:scale-105",
+                                        hasFailures ? "bg-orange-600 hover:bg-orange-700 shadow-orange-500/30" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30"
+                                    )}>
+                                        <Rocket className="w-4 h-4 mr-2" />
+                                        {dictionary.testRun?.newRun || "Yeni Test"}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+
+                    {/* ABORTED (STOPPED) */}
+                    {isStopped && (
+                        <motion.div
+                            key="aborted"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, height: 0 }}
+                        >
+                            <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900 overflow-hidden relative">
+                                <div className="absolute left-0 top-0 w-1 h-full bg-orange-500" />
+                                <CardContent className="p-6 flex items-start gap-4">
+                                    <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl text-orange-600">
+                                        <AlertCircle className="w-8 h-8" />
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <h3 className="text-lg font-bold text-orange-800 dark:text-orange-200">
+                                            {dictionary.testRun?.aborted || "İşlem İptal Edildi"}
+                                        </h3>
+                                        <p className="text-orange-700 dark:text-orange-300 font-medium">
+                                            {dictionary.testRun?.readyToExecuteDesc || "Test yürütme durduruldu."}
+                                        </p>
+                                    </div>
+                                    <Button onClick={handleNewRun} variant="outline" className="border-orange-200 hover:bg-orange-100 text-orange-800 transition-all hover:scale-105">
+                                        <RefreshCw className="w-4 h-4 mr-2" />
+                                        {dictionary.testRun?.newRun || "Yeni Test"}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+
+                    {/* FAILED */}
+                    {isFailed && (
+                        <motion.div
+                            key="error"
+                            initial={{ opacity: 0, rotateX: -90 }}
+                            animate={{ opacity: 1, rotateX: 0 }}
+                            exit={{ opacity: 0, height: 0 }}
+                        >
+                            <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 overflow-hidden relative">
+                                <div className="absolute left-0 top-0 w-1 h-full bg-red-500" />
+                                <CardContent className="p-6 flex items-start gap-4">
+                                    <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl text-red-600">
+                                        <AlertCircle className="w-8 h-8" />
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <h3 className="text-lg font-bold text-red-800 dark:text-red-200">
+                                            {dictionary.testRun?.testRunFailed || "İşlem Başarısız"}
+                                        </h3>
+                                        <p className="text-red-700 dark:text-red-300 font-medium font-mono text-sm bg-red-100/50 dark:bg-red-950/50 p-2 rounded">
+                                            {parseErrorMessage(currentJob?.error || "")}
+                                        </p>
+                                    </div>
+                                    <Button onClick={handleNewRun} className="bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 transition-all hover:scale-105">
+                                        <RefreshCw className="w-4 h-4 mr-2" />
+                                        {dictionary.testRun?.retry || "Yeniden Dene"}
                                     </Button>
                                 </CardContent>
                             </Card>

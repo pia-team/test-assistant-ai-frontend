@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useJobs, useCancelJob, isJobInProgress, isJobComplete, isJobFailed, isJobStopped } from "@/lib/use-job";
 import { useSocket } from "@/context/SocketContext";
+import { cn } from "@/lib/utils";
 import {
     Card,
     CardContent,
@@ -21,14 +22,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, XCircle, Clock, Square, User, Ban, Wifi, WifiOff, ChevronLeft, ChevronRight, Activity } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Clock, Square, User, Ban, Wifi, WifiOff, ChevronLeft, ChevronRight, Activity, AlertCircle } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useLocale } from "@/components/locale-context";
+import { parseLogsToDashboardData } from "@/lib/log-parser";
 
 function getJobStatusIcon(status: string) {
     switch (status) {
         case "PENDING":
+        case "NOT_STARTED":
             return <Clock className="w-4 h-4 text-yellow-500" />;
         case "RUNNING":
             return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
@@ -37,9 +40,9 @@ function getJobStatusIcon(status: string) {
         case "FAILED":
             return <XCircle className="w-4 h-4 text-red-500" />;
         case "STOPPED":
-            return <Ban className="w-4 h-4 text-gray-500" />;
+            return <Ban className="w-4 h-4 text-orange-500" />;
         default:
-            return null;
+            return <Clock className="w-4 h-4 text-gray-400" />;
     }
 }
 
@@ -177,6 +180,36 @@ export function JobDashboard() {
                                 </TableHeader>
                                 <TableBody>
                                     {jobs.map((job: any) => {
+                                        // Safe result parsing
+                                        const getParsedResult = () => {
+                                            if (!job.result) return null;
+                                            try {
+                                                return typeof job.result === 'string' ? JSON.parse(job.result) : job.result;
+                                            } catch (e) {
+                                                return null;
+                                            }
+                                        };
+
+                                        const parsedResult = getParsedResult();
+                                        const hasFailures = (() => {
+                                            if (job.type !== 'RUN_TESTS' || !parsedResult) return false;
+
+                                            // 1. Check direct status within result (if available)
+                                            if (parsedResult.status === 'FAILED') return true;
+
+                                            // 2. Check direct tests array (if exists)
+                                            if (parsedResult.tests && Array.isArray(parsedResult.tests)) {
+                                                return parsedResult.tests.some((t: any) => t.status === 'failed');
+                                            }
+
+                                            // 3. Check logs if available
+                                            if (parsedResult.logs) {
+                                                const dashboardData = parseLogsToDashboardData(parsedResult.logs, "");
+                                                return dashboardData ? dashboardData.summary.failed > 0 : false;
+                                            }
+
+                                            return false;
+                                        })();
                                         const startDate = job.createdAt ? new Date(job.createdAt) : new Date();
                                         const endDate = job.completedAt ? new Date(job.completedAt) : new Date();
                                         const isValidStartDate = !isNaN(startDate.getTime());
@@ -233,18 +266,46 @@ export function JobDashboard() {
                                                             </span>
                                                         </div>
                                                     ) : (
-                                                        `${durationSeconds} sn`
+                                                        <div className="flex flex-col gap-1">
+                                                            <Progress
+                                                                value={100}
+                                                                className={cn(
+                                                                    "h-1.5",
+                                                                    isJobFailed(job) ? "bg-red-200 dark:bg-red-900/30" :
+                                                                        isJobStopped(job) ? "bg-orange-200 dark:bg-orange-900/30" :
+                                                                            hasFailures ? "bg-orange-200 dark:bg-orange-900/30" :
+                                                                                "bg-green-100 dark:bg-green-900/20"
+                                                                )}
+                                                            />
+                                                            <span className="text-xs opacity-70">{durationSeconds} sn</span>
+                                                        </div>
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
                                                     {isJobFailed(job) ? (
-                                                        <span className="text-red-500 text-sm max-w-[200px] truncate block" title={job.error || ""}>
-                                                            {parseErrorMessage(job.error || "")}
+                                                        <span className="text-red-500 text-sm font-medium flex items-center gap-1">
+                                                            <XCircle className="w-3.5 h-3.5" />
+                                                            <span className="truncate max-w-[150px]" title={job.error || ""}>
+                                                                {parseErrorMessage(job.error || "")}
+                                                            </span>
                                                         </span>
                                                     ) : isJobStopped(job) ? (
-                                                        <span className="text-gray-500 text-sm">{dictionary.jobDashboard.stopped}</span>
+                                                        <span className="text-orange-500 text-sm font-medium flex items-center gap-1">
+                                                            <Ban className="w-3.5 h-3.5" />
+                                                            {dictionary.jobDashboard.aborted || dictionary.jobDashboard.stopped}
+                                                        </span>
                                                     ) : isJobComplete(job) ? (
-                                                        <span className="text-green-500 text-sm">{dictionary.jobDashboard.successful}</span>
+                                                        hasFailures ? (
+                                                            <span className="text-orange-600 dark:text-orange-400 text-sm font-medium flex items-center gap-1">
+                                                                <AlertCircle className="w-3.5 h-3.5" />
+                                                                {dictionary.jobDashboard.completedWithFailures || "Hatalarla Tamamlandı"}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-green-600 dark:text-green-400 text-sm font-medium flex items-center gap-1">
+                                                                <CheckCircle className="w-3.5 h-3.5" />
+                                                                {dictionary.jobDashboard.successful}
+                                                            </span>
+                                                        )
                                                     ) : (
                                                         <span className="text-muted-foreground text-sm">-</span>
                                                     )}

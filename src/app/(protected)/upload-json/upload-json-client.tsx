@@ -42,8 +42,10 @@ import {
     isJobInProgress,
     isJobComplete,
     isJobFailed,
+    isJobStopped,
     type Job,
 } from "@/lib/use-job";
+import { cn } from "@/lib/utils";
 import { useSocket } from "@/context/SocketContext";
 import { useLocale } from "@/components/locale-context";
 
@@ -105,6 +107,10 @@ interface UploadJsonClientProps {
             takingLonger?: string;
             checkConnection?: string;
             cancel?: string;
+            retry?: string;
+        };
+        testRun?: {
+            aborted?: string;
             retry?: string;
         };
         common: {
@@ -197,6 +203,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
     const isProcessing = isJobInProgress(displayedJob);
     const isComplete = isJobComplete(displayedJob);
     const isFailed = isJobFailed(displayedJob);
+    const isStopped = isJobStopped(displayedJob);
 
     // Stuck detection logic
     const [isStuck, setIsStuck] = useState(false);
@@ -229,7 +236,11 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
             shownToastRef.current = `failed-${currentJob.id}`;
             toast.error(parseErrorMessage(currentJob.error || "") || dictionary.uploadJson.uploadFailure || "Upload failed");
         }
-    }, [isComplete, isFailed, currentJob?.id, currentJob?.error, dictionary]);
+        if (isStopped && shownToastRef.current !== `stopped-${currentJob.id}`) {
+            shownToastRef.current = `stopped-${currentJob.id}`;
+            toast.info(dictionary.testRun?.aborted || "İşlem iptal edildi");
+        }
+    }, [isComplete, isFailed, isStopped, currentJob?.id, currentJob?.error, dictionary]);
 
     // File Handling with Auto-fill
     const processSelectedFile = useCallback((file: File) => {
@@ -443,6 +454,37 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                         </motion.div>
                     )}
 
+                    {/* ABORTED (STOPPED) */}
+                    {isStopped && (
+                        <motion.div
+                            key="aborted"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, height: 0 }}
+                        >
+                            <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900 overflow-hidden relative shadow-lg">
+                                <div className="absolute left-0 top-0 w-1 h-full bg-orange-500" />
+                                <CardContent className="p-6 flex items-start gap-4">
+                                    <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl text-orange-600">
+                                        <AlertCircle className="w-8 h-8" />
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <h3 className="text-lg font-bold text-orange-800 dark:text-orange-200">
+                                            {dictionary.testRun?.aborted || "İşlem İptal Edildi"}
+                                        </h3>
+                                        <p className="text-orange-700 dark:text-orange-300 font-medium">
+                                            İşlem durduruldu.
+                                        </p>
+                                    </div>
+                                    <Button onClick={handleNewUpload} variant="outline" className="border-orange-200 hover:bg-orange-100 text-orange-800 transition-all hover:scale-105">
+                                        <RefreshCw className="w-4 h-4 mr-2" />
+                                        Yeni İşlem
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+
                     {/* FAILED */}
                     {isFailed && (
                         <motion.div
@@ -451,7 +493,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                             animate={{ opacity: 1, rotateX: 0 }}
                             exit={{ opacity: 0, height: 0 }}
                         >
-                            <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 overflow-hidden relative">
+                            <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 overflow-hidden relative shadow-lg">
                                 <div className="absolute left-0 top-0 w-1 h-full bg-red-500" />
                                 <CardContent className="p-6 flex items-start gap-4">
                                     <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl text-red-600">
@@ -459,7 +501,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                                     </div>
                                     <div className="flex-1 space-y-2">
                                         <h3 className="text-lg font-bold text-red-800 dark:text-red-200">
-                                            {dictionary.common.error || "Hata"}
+                                            {dictionary.uploadJson.uploadFailure || "İşlem Başarısız"}
                                         </h3>
                                         <p className="text-red-700 dark:text-red-300 font-medium font-mono text-sm bg-red-100/50 dark:bg-red-950/50 p-2 rounded">
                                             {parseErrorMessage(displayedJob?.error || "")}
@@ -467,7 +509,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                                     </div>
                                     <Button onClick={handleNewUpload} className="bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 transition-all hover:scale-105">
                                         <RefreshCw className="w-4 h-4 mr-2" />
-                                        {dictionary.uploadJson.uploadFailure && dictionary.uploadJson.uploadFailure.includes("tekrar") ? dictionary.uploadJson.uploadFailure : "Tekrar Dene"}
+                                        {dictionary.testRun?.retry || "Tekrar Dene"}
                                     </Button>
                                 </CardContent>
                             </Card>
@@ -494,10 +536,10 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
                                     </div>
                                     <div className="flex-1">
                                         <h3 className="text-xl font-bold text-emerald-900 dark:text-emerald-100">
-                                            {dictionary.common.success} 🚀
+                                            {dictionary.common.success || "İşlem Başarıyla Tamamlandı!"} 🚀
                                         </h3>
                                         <p className="text-emerald-700 dark:text-emerald-300 font-medium">
-                                            Dosyalar başarıyla oluşturuldu.
+                                            {dictionary.uploadJson.filesCreatedSuccess || "Dosyalar başarıyla oluşturuldu."}
                                         </p>
                                     </div>
                                     <Button onClick={handleNewUpload} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 transition-transform hover:scale-105">

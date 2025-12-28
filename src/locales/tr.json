@@ -149,6 +149,9 @@
         "error": "Hata",
         "selectBrowser": "Tarayıcı Seç",
         "noResultsDescription": "Soldaki panelden proje ve etiket seçerek ilk testinizi başlatın.",
+        "testRunFailed": "Test Çalıştırma Başarısız",
+        "completedWithFailures": "Hatalarla Tamamlandı",
+        "aborted": "İptal Edildi",
         "selectEnvironment": "Ortam Seç",
         "selectTags": "Etiket Seç",
         "selectTagsDescription": "Test etiketlerini seçin",
@@ -266,6 +269,8 @@
         "successful": "Başarılı",
         "stop": "Durdur",
         "completed": "tamamlandı",
+        "completedWithFailures": "hatalarla tamamlandı",
+        "aborted": "iptal edildi",
         "showing": "Gösterilen"
     },
     "backgroundProcess": {

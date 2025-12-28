@@ -40,8 +40,10 @@ import {
     isJobInProgress,
     isJobComplete,
     isJobFailed,
+    isJobStopped,
 } from "@/lib/use-job";
 import { useSocket } from "@/context/SocketContext";
+import { cn } from "@/lib/utils";
 
 // Zod schema for generate tests form validation
 const generateTestsFormSchema = z.object({
@@ -81,6 +83,10 @@ interface GenerateTestsClientProps {
             jobAlreadyRunning?: string;
             newGenerate?: string;
             urlExample?: string;
+        };
+        testRun?: {
+            aborted?: string;
+            retry?: string;
         };
         common: {
             error: string;
@@ -176,6 +182,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
     const isProcessing = isJobInProgress(currentJob);
     const isComplete = isJobComplete(currentJob);
     const isFailed = isJobFailed(currentJob);
+    const isStopped = isJobStopped(currentJob);
 
     // Extract result from completed job
     const result: GeneratedResult | null = isComplete && currentJob?.result
@@ -210,7 +217,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
     // Track shown toasts to prevent duplicates
     const shownToastRef = useRef<string | null>(null);
 
-    // Show toast on completion (only once per job)
+    // Show toast on completion/failure/stop (only once per job)
     useEffect(() => {
         if (!currentJob?.id) return;
 
@@ -222,7 +229,11 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
             shownToastRef.current = `failed-${currentJob.id}`;
             toast.error(parseErrorMessage(currentJob.error || "") || dictionary.generateTests.errorGeneratingTests || dictionary.common.error);
         }
-    }, [isComplete, isFailed, currentJob?.id, currentJob?.error, dictionary]);
+        if (isStopped && shownToastRef.current !== `stopped-${currentJob.id}`) {
+            shownToastRef.current = `stopped-${currentJob.id}`;
+            toast.info(dictionary.testRun?.aborted || "İşlem iptal edildi");
+        }
+    }, [isComplete, isFailed, isStopped, currentJob?.id, currentJob?.error, dictionary]);
 
     // Handle URL change with validation
     const handleUrlChange = (value: string) => {
@@ -382,7 +393,38 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                         </motion.div>
                     )}
 
-                    {/* Error Banner */}
+                    {/* ABORTED (STOPPED) */}
+                    {isStopped && (
+                        <motion.div
+                            key="aborted"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, height: 0 }}
+                        >
+                            <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900 overflow-hidden relative shadow-lg">
+                                <div className="absolute left-0 top-0 w-1 h-full bg-orange-500" />
+                                <CardContent className="p-6 flex items-start gap-4">
+                                    <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl text-orange-600">
+                                        <AlertCircle className="w-8 h-8" />
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <h3 className="text-lg font-bold text-orange-800 dark:text-orange-200">
+                                            {dictionary.testRun?.aborted || "İşlem İptal Edildi"}
+                                        </h3>
+                                        <p className="text-orange-700 dark:text-orange-300 font-medium">
+                                            Test üretimi durduruldu.
+                                        </p>
+                                    </div>
+                                    <Button onClick={handleNewGeneration} variant="outline" className="border-orange-200 hover:bg-orange-100 text-orange-800 transition-all hover:scale-105">
+                                        <RefreshCw className="w-4 h-4 mr-2" />
+                                        Yeni Üretim
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+
+                    {/* FAILED */}
                     {isFailed && (
                         <motion.div
                             key="error"
@@ -390,7 +432,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                             animate={{ opacity: 1, rotateX: 0 }}
                             exit={{ opacity: 0, height: 0 }}
                         >
-                            <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 overflow-hidden relative">
+                            <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 overflow-hidden relative shadow-lg">
                                 <div className="absolute left-0 top-0 w-1 h-full bg-red-500" />
                                 <CardContent className="p-6 flex items-start gap-4">
                                     <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl text-red-600">
@@ -398,7 +440,7 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                     </div>
                                     <div className="flex-1 space-y-2">
                                         <h3 className="text-lg font-bold text-red-800 dark:text-red-200">
-                                            İşlem Başarısız
+                                            {dictionary.generateTests.errorGeneratingTests || "İşlem Başarısız"}
                                         </h3>
                                         <p className="text-red-700 dark:text-red-300 font-medium font-mono text-sm bg-red-100/50 dark:bg-red-950/50 p-2 rounded">
                                             {parseErrorMessage(currentJob?.error || "")}
@@ -406,14 +448,14 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                     </div>
                                     <Button onClick={handleNewGeneration} className="bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 transition-all hover:scale-105">
                                         <RefreshCw className="w-4 h-4 mr-2" />
-                                        Yeniden Dene
+                                        {dictionary.testRun?.retry || "Yeniden Dene"}
                                     </Button>
                                 </CardContent>
                             </Card>
                         </motion.div>
                     )}
 
-                    {/* Success Banner */}
+                    {/* SUCCESS */}
                     {isComplete && (
                         <motion.div
                             key="success"
@@ -433,15 +475,15 @@ export function GenerateTestsClient({ dictionary }: GenerateTestsClientProps) {
                                     </div>
                                     <div className="flex-1">
                                         <h3 className="text-xl font-bold text-emerald-900 dark:text-emerald-100">
-                                            İşlem Başarıyla Tamamlandı! 🚀
+                                            {dictionary.generateTests.testsGeneratedSuccess || "İşlem Başarıyla Tamamlandı! 🚀"}
                                         </h3>
                                         <p className="text-emerald-700 dark:text-emerald-300 font-medium">
-                                            Testler üretildi.
+                                            Testler üretildi ve kaydedildi.
                                         </p>
                                     </div>
                                     <Button onClick={handleNewGeneration} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 transition-transform hover:scale-105">
                                         <Rocket className="w-4 h-4 mr-2" />
-                                        Yeni Test
+                                        {dictionary.generateTests?.newGenerate || "Yeni Üretim"}
                                     </Button>
                                 </CardContent>
                             </Card>

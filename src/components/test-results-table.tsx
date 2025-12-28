@@ -30,6 +30,7 @@ import {
     Terminal,
     Video,
     BarChart2,
+    AlertCircle,
 } from "lucide-react";
 import { useLocale } from "@/components/locale-context";
 import { useSocket } from "@/context/SocketContext";
@@ -50,7 +51,7 @@ export interface TestItem {
 export interface TestCreation {
     id: string;
     name: string;
-    status: "completed" | "running" | "failed" | "pending" | "stopped" | "unknown";
+    status: "completed" | "completed_with_failures" | "running" | "failed" | "pending" | "stopped" | "unknown";
     environment: string;
     project?: string;
     reportUrl?: string;
@@ -68,16 +69,17 @@ interface TestResultsTableProps {
     isLoading?: boolean;
 }
 
-const statusConfig: Record<string, { icon: typeof CheckCircle2; color: string; bg: string; label: string; animate?: boolean }> = {
-    completed: { icon: CheckCircle2, color: "text-green-500", bg: "bg-green-500/10", label: "Completed" },
-    running: { icon: Loader2, color: "text-blue-500", bg: "bg-blue-500/10", label: "Running", animate: true },
-    failed: { icon: XCircle, color: "text-red-500", bg: "bg-red-500/10", label: "Failed" },
-    pending: { icon: Clock, color: "text-yellow-500", bg: "bg-yellow-500/10", label: "Pending" },
-    passed: { icon: CheckCircle2, color: "text-green-500", bg: "bg-green-500/10", label: "Passed" },
-    skipped: { icon: Clock, color: "text-gray-500", bg: "bg-gray-500/10", label: "Skipped" },
-    stopped: { icon: XCircle, color: "text-orange-500", bg: "bg-orange-500/10", label: "Stopped" },
-    unknown: { icon: Clock, color: "text-gray-400", bg: "bg-gray-400/10", label: "Unknown" },
-};
+const getStatusConfig = (dictionary: any) => ({
+    completed: { icon: CheckCircle2, color: "text-green-500", bg: "bg-green-500/10", label: dictionary.jobDashboard?.successful || "Completed" },
+    completed_with_failures: { icon: AlertCircle, color: "text-orange-500", bg: "bg-orange-500/10", label: dictionary.testRun?.completedWithFailures || "Completed with Failures" },
+    running: { icon: Loader2, color: "text-blue-500", bg: "bg-blue-500/10", label: dictionary.testRun?.running || "Running", animate: true },
+    failed: { icon: XCircle, color: "text-red-500", bg: "bg-red-500/10", label: dictionary.testRun?.error || "Failed" },
+    pending: { icon: Clock, color: "text-yellow-500", bg: "bg-yellow-500/10", label: dictionary.backgroundProcess?.pending || "Pending" },
+    passed: { icon: CheckCircle2, color: "text-green-500", bg: "bg-green-500/10", label: dictionary.testDetail?.pass || "Passed" },
+    skipped: { icon: Clock, color: "text-gray-500", bg: "bg-gray-500/10", label: dictionary.testList?.skipped || "Skipped" },
+    stopped: { icon: XCircle, color: "text-orange-500", bg: "bg-orange-500/10", label: dictionary.testRun?.aborted || "Stopped" },
+    unknown: { icon: Clock, color: "text-gray-400", bg: "bg-gray-400/10", label: dictionary.jobDashboard?.unknown || "Unknown" },
+});
 
 const LogViewer = React.memo(({ logs, status }: { logs: string[]; status: string }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -188,7 +190,7 @@ export function TestResultsTable({
     };
 
     const StatusBadge = ({ status }: { status: string }) => {
-        const config = statusConfig[status] || statusConfig.unknown;
+        const config = (getStatusConfig(dictionary) as Record<string, any>)[status] || getStatusConfig(dictionary).unknown;
         const Icon = config.icon;
         return (
             <Badge variant="outline" className={cn("gap-1", config.color, config.bg)}>
