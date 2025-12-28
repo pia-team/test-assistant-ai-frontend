@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -78,6 +78,65 @@ const statusConfig: Record<string, { icon: typeof CheckCircle2; color: string; b
     stopped: { icon: XCircle, color: "text-orange-500", bg: "bg-orange-500/10", label: "Stopped" },
     unknown: { icon: Clock, color: "text-gray-400", bg: "bg-gray-400/10", label: "Unknown" },
 };
+
+const LogViewer = React.memo(({ logs, status }: { logs: string[]; status: string }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [logs]);
+
+    return (
+        <div className="mt-4 rounded-md border bg-zinc-900/50">
+            <div className="px-4 py-2 border-b border-zinc-700 flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    Execution Logs
+                    {status === "running" && (
+                        <div className="flex gap-0.5 ml-1">
+                            <motion.span
+                                animate={{ opacity: [0, 1, 0] }}
+                                transition={{ repeat: Infinity, duration: 1.5, delay: 0 }}
+                                className="w-1 h-1 bg-muted-foreground rounded-full"
+                            />
+                            <motion.span
+                                animate={{ opacity: [0, 1, 0] }}
+                                transition={{ repeat: Infinity, duration: 1.5, delay: 0.2 }}
+                                className="w-1 h-1 bg-muted-foreground rounded-full"
+                            />
+                            <motion.span
+                                animate={{ opacity: [0, 1, 0] }}
+                                transition={{ repeat: Infinity, duration: 1.5, delay: 0.4 }}
+                                className="w-1 h-1 bg-muted-foreground rounded-full"
+                            />
+                        </div>
+                    )}
+                </span>
+            </div>
+            <div ref={scrollRef} className="p-4 max-h-[300px] overflow-y-auto space-y-1">
+                {logs.map((log, idx) => (
+                    <div
+                        key={idx}
+                        className={cn(
+                            "text-sm font-mono py-1 px-2 rounded break-all whitespace-pre-wrap",
+                            log.includes("✓") || log.includes("PASS") ? "text-green-400 bg-green-500/10" :
+                                log.includes("✗") || log.includes("FAIL") || log.includes("Error") ? "text-red-400 bg-red-500/10" :
+                                    log.includes("▶") || log.includes("➡") ? "text-blue-400 bg-blue-500/10" :
+                                        log.includes("🎥") ? "text-purple-400 bg-purple-500/10" :
+                                            log.includes("📸") ? "text-yellow-400 bg-yellow-500/10" :
+                                                "text-zinc-400"
+                        )}
+                    >
+                        {log}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+});
+LogViewer.displayName = "LogViewer";
 
 export function TestResultsTable({
     creations,
@@ -210,7 +269,12 @@ export function TestResultsTable({
                                     <React.Fragment key={creation.id}>
                                         {/* Main Row */}
                                         <TableRow
-                                            className="cursor-pointer hover:bg-muted/50"
+                                            className={cn(
+                                                "cursor-pointer transition-colors",
+                                                creation.status === "running"
+                                                    ? "bg-blue-500/5 hover:bg-blue-500/10 border-l-4 border-l-blue-500 shadow-sm"
+                                                    : "hover:bg-muted/50 border-l-4 border-l-transparent"
+                                            )}
                                             onClick={() => toggleRow(creation.id)}
                                         >
                                             <TableCell>
@@ -350,34 +414,10 @@ export function TestResultsTable({
 
                                                                 {/* Execution Logs Section */}
                                                                 {creation.tests.some(t => t.logs && t.logs.length > 0) && (
-                                                                    <div className="mt-4 rounded-md border bg-zinc-900/50">
-                                                                        <div className="px-4 py-2 border-b border-zinc-700 flex items-center gap-2">
-                                                                            <Terminal className="w-4 h-4 text-muted-foreground" />
-                                                                            <span className="text-sm font-medium text-muted-foreground">
-                                                                                Execution Logs
-                                                                            </span>
-                                                                        </div>
-                                                                        <div className="p-4 max-h-[300px] overflow-y-auto space-y-1">
-                                                                            {creation.tests.flatMap((test) =>
-                                                                                (test.logs || []).map((log, idx) => (
-                                                                                    <div
-                                                                                        key={`${test.id}-log-${idx}`}
-                                                                                        className={cn(
-                                                                                            "text-sm font-mono py-1 px-2 rounded",
-                                                                                            log.includes("✓") || log.includes("PASS") ? "text-green-400 bg-green-500/10" :
-                                                                                                log.includes("✗") || log.includes("FAIL") || log.includes("Error") ? "text-red-400 bg-red-500/10" :
-                                                                                                    log.includes("▶") || log.includes("➡") ? "text-blue-400 bg-blue-500/10" :
-                                                                                                        log.includes("🎥") ? "text-purple-400 bg-purple-500/10" :
-                                                                                                            log.includes("📸") ? "text-yellow-400 bg-yellow-500/10" :
-                                                                                                                "text-zinc-400"
-                                                                                        )}
-                                                                                    >
-                                                                                        {log}
-                                                                                    </div>
-                                                                                ))
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
+                                                                    <LogViewer
+                                                                        logs={creation.tests.flatMap((test) => test.logs || [])}
+                                                                        status={creation.status}
+                                                                    />
                                                                 )}
                                                             </div>
                                                         </motion.div>

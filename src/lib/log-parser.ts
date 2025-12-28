@@ -129,11 +129,15 @@ export const parseLogsToDashboardData = (
                 currentTest = createNewTest(defaultTitle);
                 testCases.push(currentTest);
             }
-            currentTest.steps.push({
-                type: "info",
-                content: "Cucumber yapılandırması yüklendi",
-                status: "INFO",
-            });
+            // Avoid duplicate config logs
+            const alreadyExists = currentTest.steps.some((s) => s.content === "Cucumber yapılandırması yüklendi");
+            if (!alreadyExists) {
+                currentTest.steps.push({
+                    type: "info",
+                    content: "Cucumber yapılandırması yüklendi",
+                    status: "INFO",
+                });
+            }
         }
         // Step Start (➡ STEP START: ...)
         else if (line.includes("STEP START:") || line.includes("➡")) {

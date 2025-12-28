@@ -35,6 +35,12 @@ export interface JobCreatedPayload {
   createdAt: string;
 }
 
+export interface JobLogPayload {
+  id: string;
+  log: string;
+  timestamp: number;
+}
+
 export interface ConnectedPayload {
   sessionId: string;
   serverTime: string;
@@ -132,6 +138,7 @@ class SocketService {
     onCompleted?: (data: JobCompletedPayload) => void;
     onFailed?: (data: JobFailedPayload) => void;
     onStopped?: (data: { id: string; cancelledBy: string; completedAt: string }) => void;
+    onLog?: (data: JobLogPayload) => void;
   }) {
     if (!this.socket) return;
 
@@ -155,6 +162,9 @@ class SocketService {
     if (callbacks.onStopped) {
       this.socket.on('job:stopped', callbacks.onStopped);
     }
+    if (callbacks.onLog) {
+      this.socket.on('job:log', callbacks.onLog);
+    }
   }
 
   unsubscribeFromJob(jobId: string) {
@@ -167,6 +177,7 @@ class SocketService {
     this.socket.off('job:completed');
     this.socket.off('job:failed');
     this.socket.off('job:stopped');
+    this.socket.off('job:log');
   }
 
   subscribeToUserEvents(userId: string, callbacks: {
@@ -274,6 +285,14 @@ class SocketService {
     this.socket?.on('job:stopped', callback);
   }
 
+  onJobLog(callback: (data: JobLogPayload) => void) {
+    this.socket?.on('job:log', callback);
+  }
+
+  offJobLog() {
+    this.socket?.off('job:log');
+  }
+
   offAllJobEvents() {
     if (!this.socket) return;
     this.socket.off('job:created');
@@ -282,6 +301,7 @@ class SocketService {
     this.socket.off('job:completed');
     this.socket.off('job:failed');
     this.socket.off('job:stopped');
+    this.socket.off('job:log');
   }
 
   // Code Injection Events

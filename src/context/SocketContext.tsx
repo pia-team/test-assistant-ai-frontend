@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode, useRef } from 'react';
 import { useKeycloak } from '@/providers/keycloak-provider';
 import { useQueryClient } from '@tanstack/react-query';
-import { socketService, JobProgressPayload, JobCompletedPayload, JobFailedPayload, JobCreatedPayload } from '@/lib/socket';
+import { socketService, JobProgressPayload, JobCompletedPayload, JobFailedPayload, JobCreatedPayload, JobLogPayload } from '@/lib/socket';
 import { getKeycloakIdFromToken } from '@/lib/jwt-utils';
 import type { Job } from '@/app/actions/job-actions';
 
@@ -13,6 +13,9 @@ interface SocketContextType {
   disconnect: () => void;
   subscribeToJob: (jobId: string, callbacks: JobCallbacks) => void;
   unsubscribeFromJob: (jobId: string) => void;
+  // Log listener
+  onJobLog: (callback: (data: JobLogPayload) => void) => void;
+  offJobLog: () => void;
   // Injection listeners
   onInjectionStart: (callback: (data: { jobId: string; totalFiles: number }) => void) => void;
   onInjectionProgress: (callback: (data: { jobId: string; currentFile: string; currentIndex: number; totalFiles: number; progress: number }) => void) => void;
@@ -29,6 +32,7 @@ interface JobCallbacks {
   onCompleted?: (data: JobCompletedPayload) => void;
   onFailed?: (data: JobFailedPayload) => void;
   onStopped?: (data: { id: string; cancelledBy: string; completedAt: string }) => void;
+  onLog?: (data: JobLogPayload) => void;
 }
 
 interface SocketProviderProps {
@@ -285,6 +289,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
         disconnect,
         subscribeToJob,
         unsubscribeFromJob,
+        onJobLog: (callback) => socketService.onJobLog(callback),
+        offJobLog: () => socketService.offJobLog(),
         onInjectionStart: (callback) => socketService.onInjectionStart(callback),
         onInjectionProgress: (callback) => socketService.onInjectionProgress(callback),
         onInjectionCompleted: (callback) => socketService.onInjectionCompleted(callback),

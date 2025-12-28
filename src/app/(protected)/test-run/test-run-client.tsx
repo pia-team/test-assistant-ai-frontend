@@ -229,6 +229,9 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const [selectedFeatureFiles, setSelectedFeatureFiles] = useState<string[]>([]);
     const [filesLoading, setFilesLoading] = useState(false);
 
+    // Real-time logs
+    const [liveLogs, setLiveLogs] = useState<string[]>([]);
+
     // Fetch paginated test run jobs from backend
     const { data: testRunsData, isLoading: testRunsLoading } = useTestRuns(currentPage, 10);
 
@@ -243,10 +246,16 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                 const result = (job as any).result || (job as any).resultData;
                 const jobTags = request?.tags || "";
 
+                // Use liveLogs if this is the currently viewed job and it's running
+                const isViewing = viewJobId === job.id;
+                const effectiveLogs = isViewing && liveLogs.length > 0
+                    ? liveLogs.join("\n")
+                    : (result?.logs || "");
+
                 // Parse logs if available
                 let tests: TestItem[] = [];
-                if (result?.logs) {
-                    const dashboardData = parseLogsToDashboardData(result.logs, jobTags);
+                if (effectiveLogs) {
+                    const dashboardData = parseLogsToDashboardData(effectiveLogs, jobTags);
                     if (dashboardData) {
                         tests = dashboardData.testCases.map((tc) => ({
                             id: tc.id,
@@ -273,7 +282,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                     tests: tests,
                 };
             });
-    }, [testRunsData]);
+    }, [testRunsData, liveLogs, viewJobId]);
 
     // Handle page change
     const handlePageChange = (page: number) => {
@@ -306,7 +315,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
 
     // Job hooks - socket updates the cache automatically
     const { data: activeJob } = useActiveJob("RUN_TESTS");
-    const { isConnected, subscribeToJob, unsubscribeFromJob } = useSocket();
+    const { isConnected, subscribeToJob, unsubscribeFromJob, onJobLog, offJobLog } = useSocket();
 
     // Fetch projects on mount
     useEffect(() => {
@@ -480,9 +489,37 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         };
     }, [viewJobId, subscribeToJob, unsubscribeFromJob]);
 
-    // Sync viewJobId with activeJob if running
+    // Listen for real-time logs
     useEffect(() => {
-        if (activeJob?.id && !viewJobId) {
+        if (!viewJobId && !activeJob) return;
+
+        const jobId = viewJobId || activeJob?.id;
+        if (!jobId) return;
+
+        const handleLog = (data: { id: string; log: string; timestamp: number }) => {
+            if (data.id === jobId) {
+                setLiveLogs((prev) => [...prev, data.log]);
+            }
+        };
+
+        // If we are using the detailed subscription via SocketContext
+        onJobLog(handleLog);
+
+        return () => {
+            offJobLog();
+        };
+    }, [viewJobId, activeJob, onJobLog, offJobLog]);
+
+    // Clear logs when starting new job
+    useEffect(() => {
+        if (viewJobId) {
+            setLiveLogs([]);
+        }
+    }, [viewJobId]);
+
+    // Handle initial state from active job
+    useEffect(() => {
+        if (activeJob && !viewJobId) {
             setViewJobId(activeJob.id);
         }
     }, [activeJob, viewJobId]);
