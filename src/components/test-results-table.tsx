@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     ChevronDown,
     ChevronRight,
@@ -27,6 +28,7 @@ import {
     Clock,
     Loader2,
     Eye,
+    EyeOff,
     Terminal,
     Video,
     BarChart2,
@@ -34,6 +36,13 @@ import {
 } from "lucide-react";
 import { useLocale } from "@/components/locale-context";
 import { useSocket } from "@/context/SocketContext";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export interface TestItem {
@@ -44,6 +53,8 @@ export interface TestItem {
     modifiedAt: string;
     createdBy: string;
     videoUrl?: string;
+    screenshotUrl?: string;
+    duration?: string;
     error?: string;
     logs?: string[];
 }
@@ -81,7 +92,7 @@ const getStatusConfig = (dictionary: any) => ({
     unknown: { icon: Clock, color: "text-gray-400", bg: "bg-gray-400/10", label: dictionary.jobDashboard?.unknown || "Unknown" },
 });
 
-const LogViewer = React.memo(({ logs, status }: { logs: string[]; status: string }) => {
+const LogViewer = React.memo(({ logs, status, compact = false }: { logs: string[]; status: string; compact?: boolean }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -91,49 +102,43 @@ const LogViewer = React.memo(({ logs, status }: { logs: string[]; status: string
     }, [logs]);
 
     return (
-        <div className="mt-4 rounded-md border bg-zinc-900/50">
-            <div className="px-4 py-2 border-b border-zinc-700 flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                    Execution Logs
-                    {status === "running" && (
-                        <div className="flex gap-0.5 ml-1">
-                            <motion.span
-                                animate={{ opacity: [0, 1, 0] }}
-                                transition={{ repeat: Infinity, duration: 1.5, delay: 0 }}
-                                className="w-1 h-1 bg-muted-foreground rounded-full"
-                            />
-                            <motion.span
-                                animate={{ opacity: [0, 1, 0] }}
-                                transition={{ repeat: Infinity, duration: 1.5, delay: 0.2 }}
-                                className="w-1 h-1 bg-muted-foreground rounded-full"
-                            />
-                            <motion.span
-                                animate={{ opacity: [0, 1, 0] }}
-                                transition={{ repeat: Infinity, duration: 1.5, delay: 0.4 }}
-                                className="w-1 h-1 bg-muted-foreground rounded-full"
-                            />
+        <div className={cn(
+            "rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-950 overflow-hidden",
+            compact ? "mt-2" : "mt-4"
+        )}>
+            {!compact && (
+                <div className="px-3 py-1.5 border-b border-zinc-800 bg-zinc-900/50 flex items-center gap-2">
+                    <Terminal className="w-3.5 h-3.5 text-zinc-400" />
+                    <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                        Execution Logs
+                    </span>
+                </div>
+            )}
+            <div ref={scrollRef} className={cn(
+                "p-3 overflow-y-auto font-mono text-[12px] custom-scrollbar space-y-0.5",
+                compact ? "max-h-[300px]" : "max-h-[500px]"
+            )}>
+                {logs && logs.length > 0 ? (
+                    logs.map((log, idx) => (
+                        <div
+                            key={idx}
+                            className={cn(
+                                "py-0.5 px-2 rounded-sm break-all",
+                                log.includes("✓") || log.includes("PASS") ? "text-emerald-400 bg-emerald-500/5" :
+                                    log.includes("✗") || log.includes("FAIL") || log.includes("Error") ? "text-rose-400 bg-rose-500/5" :
+                                        log.includes("▶") || log.includes("➡") ? "text-sky-400" :
+                                            "text-zinc-400"
+                            )}
+                        >
+                            <span className="opacity-20 mr-2 select-none inline-block w-6 text-right border-r border-white/5 pr-2">
+                                {idx + 1}
+                            </span>
+                            {log}
                         </div>
-                    )}
-                </span>
-            </div>
-            <div ref={scrollRef} className="p-4 max-h-[300px] overflow-y-auto space-y-1">
-                {logs.map((log, idx) => (
-                    <div
-                        key={idx}
-                        className={cn(
-                            "text-sm font-mono py-1 px-2 rounded break-all whitespace-pre-wrap",
-                            log.includes("✓") || log.includes("PASS") ? "text-green-400 bg-green-500/10" :
-                                log.includes("✗") || log.includes("FAIL") || log.includes("Error") ? "text-red-400 bg-red-500/10" :
-                                    log.includes("▶") || log.includes("➡") ? "text-blue-400 bg-blue-500/10" :
-                                        log.includes("🎥") ? "text-purple-400 bg-purple-500/10" :
-                                            log.includes("📸") ? "text-yellow-400 bg-yellow-500/10" :
-                                                "text-zinc-400"
-                        )}
-                    >
-                        {log}
-                    </div>
-                ))}
+                    ))
+                ) : (
+                    <div className="text-zinc-600 italic text-[11px] py-1">No logs available for this feature yet...</div>
+                )}
             </div>
         </div>
     );
@@ -154,6 +159,7 @@ export function TestResultsTable({
     const { isConnected } = useSocket();
     const [searchQuery, setSearchQuery] = useState("");
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+    const [selectedTest, setSelectedTest] = useState<TestItem | null>(null);
 
     const filteredCreations = useMemo(() => {
         if (!searchQuery.trim()) return creations;
@@ -178,24 +184,22 @@ export function TestResultsTable({
     };
 
     const handleViewVideo = (testId: string, creationId: string, test?: TestItem) => {
-        if (onViewVideo) {
+        if (test) {
+            setSelectedTest(test);
+        } else if (onViewVideo) {
             onViewVideo(testId, creationId, test);
         } else {
-            // Store test data in sessionStorage for the video page to access
-            if (test) {
-                sessionStorage.setItem(`test-${testId}`, JSON.stringify(test));
-            }
             router.push(`/test-run/video/${creationId}/${testId}`);
         }
     };
 
-    const StatusBadge = ({ status }: { status: string }) => {
+    const StatusBadge = ({ status, compact = false }: { status: string, compact?: boolean }) => {
         const config = (getStatusConfig(dictionary) as Record<string, any>)[status] || getStatusConfig(dictionary).unknown;
         const Icon = config.icon;
         return (
-            <Badge variant="outline" className={cn("gap-1", config.color, config.bg)}>
-                <Icon className={cn("w-3 h-3", config.animate && "animate-spin")} />
-                {config.label}
+            <Badge variant="outline" className={cn("gap-1", config.color, config.bg, compact && "px-1.5 py-0")}>
+                <Icon className={cn(compact ? "w-2.5 h-2.5" : "w-3 h-3", config.animate && "animate-spin")} />
+                {!compact && config.label}
             </Badge>
         );
     };
@@ -259,7 +263,7 @@ export function TestResultsTable({
                                 <TableRow>
                                     <TableHead className="w-[40px]"></TableHead>
                                     <TableHead>Creation Name</TableHead>
-                                    <TableHead className="w-[120px]">Project</TableHead>
+                                    <TableHead className="w-[120px]">Feature</TableHead>
                                     <TableHead className="w-[120px]">Environment</TableHead>
                                     <TableHead className="w-[150px]">Status</TableHead>
                                     <TableHead className="w-[180px]">Created At</TableHead>
@@ -291,7 +295,7 @@ export function TestResultsTable({
                                             <TableCell className="font-medium">{creation.name}</TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className="text-[10px] truncate max-w-[100px]" title={creation.project}>
-                                                    {creation.project || "N/A"}
+                                                    {creation.project || "Global"}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
@@ -320,8 +324,6 @@ export function TestResultsTable({
                                                             if (rawUrl.startsWith('http')) {
                                                                 url = rawUrl;
                                                             } else if (rawUrl.startsWith('file://')) {
-                                                                // If it's a file URL, we can't open it from browser, 
-                                                                // but we should at least not prepend the baseUrl to it
                                                                 url = rawUrl;
                                                             } else {
                                                                 url = `${baseUrl}${rawUrl}`;
@@ -340,7 +342,7 @@ export function TestResultsTable({
                                         <AnimatePresence>
                                             {expandedRows.has(creation.id) && (
                                                 <TableRow key={`${creation.id}-detail`}>
-                                                    <TableCell colSpan={7} className="p-0 bg-muted/30">
+                                                    <TableCell colSpan={7} className="p-0 bg-muted/10 border-y">
                                                         <motion.div
                                                             initial={{ opacity: 0, height: 0 }}
                                                             animate={{ opacity: 1, height: "auto" }}
@@ -348,79 +350,78 @@ export function TestResultsTable({
                                                             transition={{ duration: 0.2 }}
                                                             className="overflow-hidden"
                                                         >
-                                                            <div className="p-4 space-y-4">
-                                                                {/* Tests Table */}
-                                                                <Table>
-                                                                    <TableHeader>
-                                                                        <TableRow>
-                                                                            <TableHead>Test Name</TableHead>
-                                                                            <TableHead className="w-[100px]">Type</TableHead>
-                                                                            <TableHead className="w-[120px]">Latest Status</TableHead>
-                                                                            <TableHead className="w-[150px]">Modified At</TableHead>
-                                                                            <TableHead className="w-[120px]">Created By</TableHead>
-                                                                            <TableHead className="w-[100px]">Actions</TableHead>
-                                                                        </TableRow>
-                                                                    </TableHeader>
-                                                                    <TableBody>
-                                                                        {creation.tests.map((test) => (
-                                                                            <React.Fragment key={test.id}>
-                                                                                <TableRow
-                                                                                    className="cursor-pointer hover:bg-background/50"
-                                                                                >
-                                                                                    <TableCell className="font-medium">
-                                                                                        {test.name}
-                                                                                    </TableCell>
-                                                                                    <TableCell>
-                                                                                        <Badge variant="secondary" className="text-xs">
-                                                                                            {test.type}
-                                                                                        </Badge>
-                                                                                    </TableCell>
-                                                                                    <TableCell>
-                                                                                        <StatusBadge status={test.status} />
-                                                                                    </TableCell>
-                                                                                    <TableCell className="text-sm text-muted-foreground">
-                                                                                        {test.modifiedAt}
-                                                                                    </TableCell>
-                                                                                    <TableCell className="text-sm text-muted-foreground">
-                                                                                        {test.createdBy}
-                                                                                    </TableCell>
-                                                                                    <TableCell>
-                                                                                        <Button
-                                                                                            variant="ghost"
-                                                                                            size="sm"
-                                                                                            className="gap-1 text-xs"
-                                                                                            onClick={(e) => {
-                                                                                                e.stopPropagation();
-                                                                                                handleViewVideo(test.id, creation.id, test);
-                                                                                            }}
-                                                                                        >
-                                                                                            <Video className="w-3 h-3" />
-                                                                                            View
-                                                                                        </Button>
-                                                                                    </TableCell>
-                                                                                </TableRow>
-                                                                                {test.status === 'failed' && test.error && (
-                                                                                    <TableRow key={`${test.id}-error`} className="bg-red-500/5">
-                                                                                        <TableCell colSpan={6} className="py-2 px-4 border-b">
-                                                                                            <div className="flex items-start gap-2 text-xs text-red-500 bg-red-500/10 p-2 rounded border border-red-500/20">
-                                                                                                <span className="font-bold flex-shrink-0">ERROR:</span>
-                                                                                                <pre className="whitespace-pre-wrap font-mono">{test.error}</pre>
-                                                                                            </div>
-                                                                                        </TableCell>
-                                                                                    </TableRow>
-                                                                                )}
-                                                                            </React.Fragment>
-                                                                        ))}
-                                                                    </TableBody>
-                                                                </Table>
+                                                            <div className="p-4">
+                                                                <Tabs defaultValue={creation.tests[0]?.id || "logs"} className="w-full">
+                                                                    <div className="flex items-center justify-between mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2">
+                                                                        <TabsList className="bg-transparent h-auto p-0 flex gap-2 overflow-x-auto custom-scrollbar">
+                                                                            {creation.tests.map((test) => (
+                                                                                <div key={test.id} className="flex items-center gap-1 bg-zinc-100/50 dark:bg-zinc-800/20 rounded-lg p-1">
+                                                                                    <TabsTrigger
+                                                                                        value={test.id}
+                                                                                        className="data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-md px-4 py-1.5 flex items-center gap-2 transition-all"
+                                                                                    >
+                                                                                        <StatusBadge status={test.status} compact={true} />
+                                                                                        <span className="text-sm font-semibold whitespace-nowrap">{test.name}</span>
+                                                                                    </TabsTrigger>
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="icon"
+                                                                                        className="h-8 w-8 hover:bg-zinc-200 dark:hover:bg-zinc-700/50 text-indigo-500"
+                                                                                        onClick={(e) => {
+                                                                                            e.preventDefault();
+                                                                                            e.stopPropagation();
+                                                                                            handleViewVideo(test.id, creation.id, test);
+                                                                                        }}
+                                                                                    >
+                                                                                        <Video className="w-4 h-4" />
+                                                                                    </Button>
+                                                                                </div>
+                                                                            ))}
+                                                                            {creation.tests.length === 0 && (
+                                                                                <TabsTrigger value="logs" className="px-4 py-2">Execution Logs</TabsTrigger>
+                                                                            )}
+                                                                        </TabsList>
+                                                                    </div>
 
-                                                                {/* Execution Logs Section */}
-                                                                {creation.tests.some(t => t.logs && t.logs.length > 0) && (
-                                                                    <LogViewer
-                                                                        logs={creation.tests.flatMap((test) => test.logs || [])}
-                                                                        status={creation.status}
-                                                                    />
-                                                                )}
+                                                                    {creation.tests.map((test) => (
+                                                                        <TabsContent key={test.id} value={test.id} className="mt-0 focus-visible:ring-0">
+                                                                            <div className="space-y-4">
+                                                                                <div className="flex items-center justify-between px-2">
+                                                                                    <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
+                                                                                        <Badge variant="secondary" className="text-[10px]">{test.type.toUpperCase()}</Badge>
+                                                                                        <span>{test.modifiedAt}</span>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <LogViewer
+                                                                                    logs={test.logs || []}
+                                                                                    status={test.status}
+                                                                                />
+
+                                                                                {test.status === 'failed' && test.error && (
+                                                                                    <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-xl">
+                                                                                        <div className="flex items-center gap-2 text-rose-500 font-bold text-[10px] uppercase mb-2">
+                                                                                            <AlertCircle className="w-3.5 h-3.5" />
+                                                                                            Error Details
+                                                                                        </div>
+                                                                                        <pre className="text-xs font-mono text-rose-600 dark:text-rose-400 whitespace-pre-wrap bg-white dark:bg-zinc-950 p-3 rounded-lg border border-rose-100 dark:border-rose-900/30">
+                                                                                            {test.error}
+                                                                                        </pre>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </TabsContent>
+                                                                    ))}
+
+                                                                    {creation.tests.length === 0 && (
+                                                                        <TabsContent value="logs">
+                                                                            <div className="flex flex-col items-center justify-center py-12 text-slate-400 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+                                                                                <Loader2 className="w-8 h-8 mb-4 animate-spin opacity-20" />
+                                                                                <p className="text-sm font-medium">Waiting for feature-specific logs...</p>
+                                                                            </div>
+                                                                        </TabsContent>
+                                                                    )}
+                                                                </Tabs>
                                                             </div>
                                                         </motion.div>
                                                     </TableCell>
@@ -493,7 +494,124 @@ export function TestResultsTable({
                         </div>
                     </div>
                 )}
+
+                <TestResultDetailsModal
+                    test={selectedTest}
+                    isOpen={!!selectedTest}
+                    onClose={() => setSelectedTest(null)}
+                />
             </CardContent>
         </Card >
+    );
+}
+
+interface TestResultDetailsModalProps {
+    test: TestItem | null;
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+function TestResultDetailsModal({ test, isOpen, onClose }: TestResultDetailsModalProps) {
+    const { dictionary } = useLocale();
+    if (!test) return null;
+
+    const config = (getStatusConfig(dictionary) as Record<string, any>)[test.status] || getStatusConfig(dictionary).unknown;
+    const StatusIcon = config.icon;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-6xl w-[95vw] bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden shadow-2xl">
+                <DialogHeader className="p-6 border-b border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/20">
+                    <div className="flex items-center justify-between w-full pr-8">
+                        <div className="space-y-1">
+                            <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+                                {test.name}
+                                <ModalStatusBadge status={test.status} dictionary={dictionary} />
+                            </DialogTitle>
+                            <DialogDescription className="text-zinc-500 font-mono text-sm">
+                                {test.type.toUpperCase()} • {test.modifiedAt}
+                            </DialogDescription>
+                        </div>
+                    </div>
+                </DialogHeader>
+
+                <div className="p-6 space-y-8 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                    {/* Video Section - Primary in modal */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                                <Video className="w-5 h-5 text-indigo-500" />
+                                Execution Recording
+                            </h3>
+                            {test.duration && (
+                                <Badge variant="secondary" className="font-mono px-3 py-1">
+                                    Duration: {test.duration}
+                                </Badge>
+                            )}
+                        </div>
+                        <div className="aspect-video bg-black rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-zinc-200/50 dark:ring-zinc-800/50">
+                            {test.videoUrl ? (
+                                <video
+                                    src={test.videoUrl.startsWith('http') ? test.videoUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}${test.videoUrl}`}
+                                    controls
+                                    autoPlay
+                                    className="w-full h-full object-contain"
+                                />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full gap-4 text-zinc-500">
+                                    <Video className="w-16 h-16 opacity-10" />
+                                    <p className="text-sm font-mono opacity-50">No video recording available for this session</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Screenshot Section - If available */}
+                    {test.screenshotUrl && (
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                                <Eye className="w-5 h-5 text-emerald-500" />
+                                Final State Screenshot
+                            </h3>
+                            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-lg group cursor-zoom-in">
+                                <img
+                                    src={test.screenshotUrl.startsWith('http') ? test.screenshotUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}${test.screenshotUrl}`}
+                                    alt="Test Screenshot"
+                                    className="w-full h-auto object-contain transition-transform duration-500 group-hover:scale-[1.02]"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Logs Section */}
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                            <Terminal className="w-5 h-5 text-primary" />
+                            Detailed Execution Logs
+                        </h3>
+                        <LogViewer logs={test.logs || []} status={test.status} />
+                    </div>
+                </div>
+
+                <div className="p-4 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/20 flex justify-between items-center px-8">
+                    <span className="text-xs text-zinc-500 font-mono">ID: {test.id}</span>
+                    <Button variant="secondary" size="lg" onClick={onClose} className="px-12 font-bold transition-all hover:bg-zinc-200 dark:hover:bg-zinc-800">
+                        Close
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+// Helper component for status badges in the modal
+function ModalStatusBadge({ status, dictionary }: { status: string; dictionary: any }) {
+    const config = (getStatusConfig(dictionary) as Record<string, any>)[status] || getStatusConfig(dictionary).unknown;
+    const Icon = config.icon;
+    return (
+        <Badge variant="outline" className={cn("gap-2 py-1 px-3 border-2", config.color, config.bg)}>
+            <Icon className={cn("w-4 h-4", config.animate && "animate-spin")} />
+            <span className="text-[12px] font-bold uppercase tracking-wider">{config.label}</span>
+        </Badge>
     );
 }

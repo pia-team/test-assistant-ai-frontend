@@ -171,13 +171,9 @@ class SocketService {
     if (!this.socket) return;
 
     this.socket.emit('unsubscribe', { room: `job:${jobId}` });
-    this.socket.off('job:created');
-    this.socket.off('job:started');
-    this.socket.off('job:progress');
-    this.socket.off('job:completed');
-    this.socket.off('job:failed');
-    this.socket.off('job:stopped');
-    this.socket.off('job:log');
+    // We do NOT call socket.off() here because it would remove the global 
+    // listeners established in SocketContext.tsx that we need for app-wide 
+    // progress updates. Only the room subscription is terminated.
   }
 
   subscribeToUserEvents(userId: string, callbacks: {

@@ -34,72 +34,48 @@ export const parseLogsToDashboardData = (
     if (!logs) return null;
 
     const lines = logs.split("\n");
-    const testCases: TestCase[] = [];
-    let currentTest: TestCase | null = null;
-    const globalVideos: string[] = [];
+    const testCasesMap = new Map<string, TestCase>();
+    const knownFeatures: string[] = [];
+    const globalSteps: TestStep[] = [];
 
-    const defaultTitle = tags ? `Test Run (${tags})` : "Test Run";
-    let detectedBrowser = "Chrome"; // Default, will be overwritten if found in logs
+    let lastActiveTitle: string | null = null;
+    let detectedBrowser = "Chrome";
 
-    const createNewTest = (title: string = defaultTitle): TestCase => {
-        return {
-            id: `test-${Date.now()}-${Math.random()}`,
-            title: title,
-            status: "PASSED",
-            duration: "0s",
-            browser: detectedBrowser,
-            steps: [],
-            video: null,
-            videos: [],
-            errors: [],
-            screenshots: [],
-        };
+    const getOrCreateTest = (title: string): TestCase => {
+        if (!testCasesMap.has(title)) {
+            testCasesMap.set(title, {
+                id: `test-${title}-${Math.random().toString(36).substr(2, 9)}`,
+                title: title,
+                status: "PASSED",
+                duration: "0s",
+                browser: detectedBrowser,
+                steps: [],
+                video: null,
+                videos: [],
+                errors: [],
+                screenshots: [],
+            });
+            if (!knownFeatures.includes(title)) {
+                knownFeatures.push(title);
+            }
+        }
+        return testCasesMap.get(title)!;
     };
+
+    // First pass: identify features explicitly
+    lines.forEach(line => {
+        if (line.includes("Feature:") || line.includes("Scenario:")) {
+            const name = line.split(":")[1]?.trim();
+            if (name) getOrCreateTest(name);
+        }
+    });
 
     lines.forEach((line) => {
         const trimmed = line.trim();
         if (!trimmed) return;
 
-        // ====== Cucumber-JS Output Format ======
-        // Starting test run info
-        if (line.includes("Starting test run with tags:")) {
-            if (!currentTest) {
-                currentTest = createNewTest(defaultTitle);
-                testCases.push(currentTest);
-            }
-            currentTest.steps.push({
-                type: "info",
-                content: line,
-                status: "INFO",
-            });
-        }
-        // Browser info from Playwright (🌐 Browser: firefox | Headless: true | SlowMo: 200ms)
-        else if (line.includes("Browser:") && (line.includes("🌐") || line.includes("Headless") || line.includes("SlowMo"))) {
-            const browserMatch = line.match(/Browser:\s*(\w+)/i);
-            if (browserMatch) {
-                const browserName = browserMatch[1].toLowerCase();
-                if (browserName === "chromium") detectedBrowser = "Chrome";
-                else if (browserName === "firefox") detectedBrowser = "Firefox";
-                else if (browserName === "webkit") detectedBrowser = "Safari";
-                else detectedBrowser = browserMatch[1];
-
-                // Update current test's browser if it exists
-                if (currentTest) {
-                    currentTest.browser = detectedBrowser;
-                }
-            }
-            if (!currentTest) {
-                currentTest = createNewTest(defaultTitle);
-                testCases.push(currentTest);
-            }
-            currentTest.steps.push({
-                type: "config",
-                content: line,
-                status: "INFO",
-            });
-        }
-        // Browser info from Backend logs (Browser: chromium)
-        else if (line.toLowerCase().includes("browser:")) {
+        // Browser detection (global)
+        if (line.toLowerCase().includes("browser:")) {
             const browserMatch = line.match(/browser:\s*(\w+)/i);
             if (browserMatch) {
                 const browserName = browserMatch[1].toLowerCase();
@@ -107,189 +83,129 @@ export const parseLogsToDashboardData = (
                 else if (browserName === "firefox") detectedBrowser = "Firefox";
                 else if (browserName === "webkit") detectedBrowser = "Safari";
                 else detectedBrowser = browserMatch[1];
+            }
+        }
 
-                if (currentTest) {
-                    currentTest.browser = detectedBrowser;
-                }
-            }
-        }
-        // Environment info
-        else if (line.includes("Environment:") || line.includes("Parallel Execution:") || line.includes("Thread Count:")) {
-            if (currentTest) {
-                currentTest.steps.push({
-                    type: "config",
-                    content: line,
-                    status: "INFO",
-                });
-            }
-        }
-        // Cucumber config loaded
-        else if (line.includes("CUCUMBER CONFIG LOADED")) {
-            if (!currentTest) {
-                currentTest = createNewTest(defaultTitle);
-                testCases.push(currentTest);
-            }
-            // Avoid duplicate config logs
-            const alreadyExists = currentTest.steps.some((s) => s.content === "Cucumber yapılandırması yüklendi");
-            if (!alreadyExists) {
-                currentTest.steps.push({
-                    type: "info",
-                    content: "Cucumber yapılandırması yüklendi",
-                    status: "INFO",
-                });
-            }
-        }
-        // Step Start (➡ STEP START: ...)
-        else if (line.includes("STEP START:") || line.includes("➡")) {
-            if (!currentTest) {
-                currentTest = createNewTest(defaultTitle);
-                testCases.push(currentTest);
-            }
-            const stepName = line.replace(/.*STEP START:\s*/, "").replace(/➡\s*/, "").trim();
-            currentTest.steps.push({
-                type: "step",
-                content: `▶ ${stepName}`,
-                status: "INFO",
+        // Check if it's a global line (Starting test run, Parallel, Thread count, Browser config)
+        const isGlobal = line.includes("Starting test run") ||
+            line.includes("Parallel Execution:") ||
+            line.includes("Thread Count:") ||
+            line.includes("Environment:") ||
+            (line.includes("Browser:") && (line.includes("🌐") || line.includes("Headless"))) ||
+            line.includes("Cucumber yapılandırması yüklendi");
+
+        if (isGlobal) {
+            globalSteps.push({
+                type: "info",
+                content: line,
+                status: "INFO"
             });
+            return; // Skip further processing for this line in the loop
         }
-        // Step Pass (✓ STEP PASS: ...)
-        else if (line.includes("STEP PASS:") || line.includes("✓")) {
-            if (currentTest) {
+
+        // Logic to find which test this line belongs to
+        let targetTest: TestCase | null = null;
+
+        for (const feature of knownFeatures) {
+            if (line.toLowerCase().includes(feature.toLowerCase())) {
+                targetTest = getOrCreateTest(feature);
+                lastActiveTitle = feature;
+                break;
+            }
+        }
+
+        // Special case for mentioning common feature names as mentioned by user
+        if (!targetTest) {
+            if (line.toLowerCase().includes("dcmuiv2")) {
+                targetTest = getOrCreateTest("dcmuiv2");
+                lastActiveTitle = "dcmuiv2";
+            } else if (line.toLowerCase().includes("demoqa")) {
+                targetTest = getOrCreateTest("demoqa");
+                lastActiveTitle = "demoqa";
+            }
+        }
+
+        // Use last active title for step/success/fail lines if unmatched
+        if (!targetTest && (line.includes("▶") || line.includes("✓") || line.includes("✗") || line.includes("❌") || line.includes("STEP START") || line.includes("STEP PASS") || line.includes("STEP FAIL"))) {
+            if (lastActiveTitle) {
+                targetTest = getOrCreateTest(lastActiveTitle);
+            }
+        }
+
+        // If it's a generic line and we have an active test, add to it
+        if (!targetTest && lastActiveTitle) {
+            targetTest = getOrCreateTest(lastActiveTitle);
+        }
+
+        // If we found a target test, parse the line content
+        if (targetTest) {
+            if (line.includes("STEP START:") || line.includes("▶")) {
+                const stepName = line.replace(/.*STEP START:\s*/, "").replace(/▶\s*/, "").trim();
+                targetTest.steps.push({ type: "step", content: `▶ ${stepName}`, status: "INFO" });
+            } else if (line.includes("STEP PASS:") || line.includes("✓")) {
                 const stepName = line.replace(/.*STEP PASS:\s*/, "").replace(/✓\s*/, "").trim();
-                currentTest.steps.push({
-                    type: "success",
-                    content: `✓ ${stepName}`,
-                    status: "PASS",
-                });
-            }
-        }
-        // Step Fail (✗ STEP FAIL: ... or ❌)
-        else if (line.includes("STEP FAIL:") || line.includes("✗") || line.includes("❌")) {
-            if (currentTest) {
+                targetTest.steps.push({ type: "success", content: `✓ ${stepName}`, status: "PASS" });
+            } else if (line.includes("STEP FAIL:") || line.includes("✗") || line.includes("❌")) {
                 const stepName = line.replace(/.*STEP FAIL:\s*/, "").replace(/[✗❌]\s*/, "").trim();
-                currentTest.status = "FAILED";
-                currentTest.errors.push(stepName);
-                currentTest.steps.push({
-                    type: "error",
-                    content: `✗ ${stepName}`,
-                    status: "FAIL",
-                });
-            }
-        }
-        // Video recording (🎥 Video kaydedildi: ...)
-        else if (line.includes("Video kaydedildi:") || (line.includes("🎥") && !line.includes("Screenshot"))) {
-            const fullPath = line.split("Video kaydedildi:")[1]?.trim() || line.split("🎥")[1]?.trim() || "";
-            const filename = fullPath.split("\\").pop()?.split("/").pop() || "";
-            if (filename) {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-                const videoUrl = `${apiUrl}/videos/${filename}`;
-                if (currentTest) {
-                    currentTest.video = videoUrl;
-                    currentTest.videos.push(videoUrl);
+                targetTest.status = "FAILED";
+                targetTest.errors.push(stepName);
+                targetTest.steps.push({ type: "error", content: `✗ ${stepName}`, status: "FAIL" });
+            } else if (line.includes("Video kaydedildi:") || line.includes("🎥")) {
+                const fullPath = line.split("Video kaydedildi:")[1]?.trim() || line.split("🎥")[1]?.trim() || "";
+                const filename = fullPath.split("\\").pop()?.split("/").pop() || "";
+                if (filename) {
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+                    const videoUrl = `${apiUrl}/videos/${filename}`;
+                    targetTest.video = videoUrl;
+                    targetTest.videos.push(videoUrl);
+                    targetTest.steps.push({ type: "video", content: `🎥 Video kaydedildi: ${filename}`, status: "PASS" });
                 }
-                globalVideos.push(videoUrl);
-                if (currentTest) {
-                    currentTest.steps.push({
-                        type: "video",
-                        content: `🎥 Video kaydedildi: ${filename}`,
-                        status: "PASS",
-                    });
+            } else if (line.includes("Screenshot kaydedildi:") || line.includes("📸")) {
+                const fullPath = line.split("Screenshot kaydedildi:")[1]?.trim() || line.split("📸")[1]?.trim() || "";
+                const filename = fullPath.split("\\").pop()?.split("/").pop() || "";
+                if (filename && filename.endsWith(".png")) {
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+                    const screenshotUrl = `${apiUrl}/screenshots/${filename}`;
+                    targetTest.screenshots.push(screenshotUrl);
                 }
-            }
-        }
-        // Screenshot recording (📸 Screenshot kaydedildi: ...)
-        else if (line.includes("Screenshot kaydedildi:") || line.includes("📸")) {
-            const fullPath = line.split("Screenshot kaydedildi:")[1]?.trim() || line.split("📸")[1]?.trim() || "";
-            const filename = fullPath.split("\\").pop()?.split("/").pop() || "";
-            if (filename && filename.endsWith(".png")) {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-                const screenshotUrl = `${apiUrl}/screenshots/${filename}`;
-                if (currentTest) {
-                    currentTest.screenshots.push(screenshotUrl);
-                }
-            }
-        }
-        // Test completed successfully
-        else if (line.includes("Test run completed successfully")) {
-            if (currentTest) {
-                currentTest.steps.push({
-                    type: "success",
-                    content: "✓ Test çalıştırması başarıyla tamamlandı",
-                    status: "PASS",
-                });
-            }
-        }
-        // Test failed
-        else if (line.includes("Test run failed") || line.includes("failed with exit code")) {
-            if (currentTest) {
-                currentTest.status = "FAILED";
-                currentTest.errors.push(line);
-                currentTest.steps.push({
-                    type: "error",
-                    content: line,
-                    status: "FAIL",
-                });
-            }
-        }
-        // ====== Legacy Format Support ======
-        // Detect Feature and Scenario
-        else if (line.includes("Feature:")) {
-            const featureName = line.split("Feature:")[1]?.trim() || "";
-            if (currentTest && ["Test Run", "Test Execution", "User Journey"].includes(currentTest.title)) {
-                currentTest.title = featureName;
-            }
-        } else if (line.includes("Scenario:") || line.includes("Test Case:")) {
-            const scenarioName = line.split(":")[1]?.trim() || "";
-            if (currentTest && currentTest.steps.length === 0) {
-                currentTest.title = scenarioName;
+            } else if (line.includes("Error:") || line.includes("Exception") || line.includes("AssertionError")) {
+                targetTest.status = "FAILED";
+                targetTest.errors.push(line);
+                targetTest.steps.push({ type: "error", content: line, status: "FAIL" });
             } else {
-                if (currentTest && currentTest.steps.length > 0) {
-                    currentTest = createNewTest(scenarioName);
-                    testCases.push(currentTest);
-                } else {
-                    if (currentTest) {
-                        currentTest.title = scenarioName;
-                    } else {
-                        currentTest = createNewTest(scenarioName);
-                        testCases.push(currentTest);
-                    }
+                if (!line.includes("Feature:") && !line.includes("Scenario:")) {
+                    targetTest.steps.push({ type: "log", content: line, status: "INFO" });
                 }
-            }
-        }
-        // General Errors
-        else if (line.includes("Error:") || line.includes("Exception") || line.includes("TimeoutError")) {
-            if (currentTest) {
-                currentTest.status = "FAILED";
-                currentTest.errors.push(line);
-                currentTest.steps.push({ type: "error", content: line, status: "FAIL" });
-            }
-        }
-        // Assertion errors
-        else if (line.includes("AssertionError") || line.includes("expect(") || line.includes("toBeVisible")) {
-            if (currentTest) {
-                currentTest.status = "FAILED";
-                currentTest.errors.push(line);
-                currentTest.steps.push({ type: "error", content: line, status: "FAIL" });
             }
         }
     });
 
-    // Fallback if no specific steps parsed but we have logs
-    if (!currentTest && lines.length > 0) {
-        currentTest = createNewTest("Raw Execution Log");
-        currentTest.steps = lines.map((l) => ({ type: "log", content: l, status: "INFO" as const }));
-        testCases.push(currentTest);
-    }
+    const testCases = Array.from(testCasesMap.values());
 
-    if (currentTest) {
-        if (currentTest.videos.length === 0 && globalVideos.length > 0) {
-            currentTest.videos = [...globalVideos];
-            currentTest.video = globalVideos[0];
-        } else if (!currentTest.video && currentTest.videos.length > 0) {
-            currentTest.video = currentTest.videos[0];
-        }
-        currentTest.duration = `${currentTest.steps.length * 2}s`;
-        if (!testCases.includes(currentTest)) testCases.push(currentTest);
+    // Merge global steps into ALL detected test cases
+    if (testCases.length > 0) {
+        testCases.forEach(tc => {
+            tc.steps = [...globalSteps, ...tc.steps];
+            tc.duration = `${tc.steps.length * 1.5}s`;
+            tc.browser = detectedBrowser; // Sync final detected browser
+        });
+    } else if (lines.length > 0) {
+        // Fallback ONLY if absolutely no features were found.
+        // User says they DON'T want generic tabs, but we need to show SOMETHING if logs exist.
+        // Let's create one "Execution Log" as a last resort, but we try to avoid it.
+        const fallback = {
+            id: `test-raw-${Date.now()}`,
+            title: "Execution Log",
+            status: "PASSED" as const,
+            duration: "0s",
+            browser: detectedBrowser,
+            steps: lines.map(l => ({ type: "log", content: l, status: "INFO" as const })),
+            video: null,
+            videos: [],
+            errors: [],
+            screenshots: [],
+        };
+        testCases.push(fallback);
     }
 
     const total = testCases.length;

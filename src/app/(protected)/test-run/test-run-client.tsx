@@ -11,6 +11,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -104,7 +105,7 @@ import { useWindowSize } from 'react-use';
 
 // Zod schema for test run form validation
 const testRunFormSchema = z.object({
-    tags: z.string().min(1, "En az bir tag girilmelidir"),
+    tags: z.string(), // Empty allowed - validation handled by button disabled logic
     env: z.string().min(1, "Ortam seçilmelidir"),
     browser: z.string().min(1, "Tarayıcı seçilmelidir"),
     headless: z.boolean(),
@@ -232,6 +233,14 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const [selectedFeatureFiles, setSelectedFeatureFiles] = useState<string[]>([]);
     const [filesLoading, setFilesLoading] = useState(false);
 
+
+    // Execution Mode
+    const [executionMode, setExecutionMode] = useState<"specific" | "global">("specific");
+
+    // Global Tag Mode State
+    const [globalTags, setGlobalTags] = useState<string[]>([]);
+    const [globalTagInput, setGlobalTagInput] = useState("");
+
     // Real-time logs
     const [liveLogs, setLiveLogs] = useState<string[]>([]);
 
@@ -290,7 +299,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                     name: jobTags ? (jobTags.startsWith('@') ? jobTags : `@${jobTags}`) : (request?.env?.toUpperCase() || 'Test Run'),
                     status: tableStatus as any,
                     environment: request?.env || "dev",
-                    project: request?.project || request?.groupName || "N/A",
+                    project: request?.project || request?.groupName || "Global",
                     reportUrl: result?.reportUrl,
                     createdAt: job.createdAt ? new Date(job.createdAt).toLocaleString('tr-TR') : "N/A",
                     tests: tests,
@@ -434,11 +443,17 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
 
         // Reset form fields to default values
         setValue("tags", "", { shouldValidate: true });
-        setValue("env", "dev", { shouldValidate: true });
-        setValue("browser", "chromium", { shouldValidate: true });
-        setValue("headless", true, { shouldValidate: true });
-        setValue("isParallel", true, { shouldValidate: true });
-        setValue("threads", 5, { shouldValidate: true });
+        // Keep other settings
+    };
+
+    const handleModeChange = (value: "specific" | "global") => {
+        setExecutionMode(value);
+        // Clear tags when switching modes to prevent confusion
+        setValue("tags", "", { shouldValidate: true });
+        setSelectedTags([]);
+        // Clear global tags too
+        setGlobalTags([]);
+        setGlobalTagInput("");
     };
 
     // All available tags without filtering
@@ -481,24 +496,37 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
             setValue("tags", "", { shouldValidate: true });
         }
     };
+
+    // Global Tag Management Functions
+    const handleAddGlobalTag = () => {
+        if (!globalTagInput.trim()) return;
+        let tagToAdd = globalTagInput.trim();
+        if (tagToAdd.includes(" ")) {
+            toast.error("Tag'lerde boşluk kullanılamaz");
+            return;
+        }
+        if (!tagToAdd.startsWith("@")) {
+            tagToAdd = "@" + tagToAdd;
+        }
+        if (!globalTags.includes(tagToAdd)) {
+            setGlobalTags([...globalTags, tagToAdd]);
+        }
+        setGlobalTagInput("");
+    };
+
+    const handleRemoveGlobalTag = (tag: string) => {
+        setGlobalTags(globalTags.filter(t => t !== tag));
+    };
+
+    const clearGlobalTags = () => {
+        setGlobalTags([]);
+        setGlobalTagInput("");
+    };
     // Subscribe to job updates for real-time status updates
     useEffect(() => {
         if (!viewJobId) return;
 
-        subscribeToJob(viewJobId, {
-            onStarted: () => {
-                // Status updates are now handled by React Query cache invalidation
-            },
-            onProgress: (data) => {
-                console.log("[TestRun] Job progress:", data);
-            },
-            onCompleted: () => {
-                // Status updates are now handled by React Query cache invalidation
-            },
-            onFailed: () => {
-                // Status updates are now handled by React Query cache invalidation
-            },
-        });
+        subscribeToJob(viewJobId, {});
 
         return () => {
             unsubscribeFromJob(viewJobId);
@@ -668,6 +696,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
 
     const onSubmit = async (data: TestRunFormValues) => {
         setError(null);
+        setViewJobId(null); // Reset view job ID immediately to clear UI state for a fresh run
 
         // Save config first
         try {
@@ -686,12 +715,17 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         // Clear previous job state before starting a new one to prevent UI sticking
         clearJob(currentJob?.id);
 
+        // Determine which tags to use based on execution mode
+        const tagsToUse = executionMode === 'global'
+            ? globalTags.join(' or ')  // Global mode: OR join all tags
+            : data.tags;               // Specific mode: use form tags
+
         startJobMutation.mutate(
             {
-                tags: data.tags,
+                tags: tagsToUse,
                 env: data.env,
-                groupName: selectedProject,
-                featureFiles: selectedFeatureFiles,
+                groupName: executionMode === 'specific' ? selectedProject : undefined,
+                featureFiles: executionMode === 'specific' ? selectedFeatureFiles : undefined,
                 isParallel: data.isParallel,
                 threads: data.isParallel ? data.threads : null,
                 browser: data.browser,
@@ -984,268 +1018,421 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                     <Separator className="bg-slate-100 dark:bg-slate-800" />
                     <CardContent className="space-y-6 pt-6">
                         <Form {...form}>
-                            <form className="space-y-6">
-                                {/* Project & Tags Section */}
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-sm">
-                                            <FolderClosed className="w-4 h-4 text-indigo-500" />
-                                            {dictionary.testRun.projectAndTags || "PROJE & ETİKETLER"}
-                                        </Label>
-
-                                        <Select
-                                            value={selectedProject}
-                                            onValueChange={handleProjectChange}
-                                            disabled={isProcessing || projectsLoading}
+                            <form onSubmit={handleRun} className="space-y-6">
+                                {/* Execution Mode Tabs */}
+                                <Tabs value={executionMode} onValueChange={(v) => handleModeChange(v as any)} className="w-full">
+                                    <TabsList className="grid w-full grid-cols-2 mb-6 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                                        <TabsTrigger
+                                            value="specific"
+                                            className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm transition-all duration-300 font-medium"
                                         >
-                                            <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-indigo-500/20 hover:border-indigo-300 transition-colors">
-                                                <SelectValue placeholder={dictionary.testRun.selectProject || "Proje Seçin"} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {projects.map((p) => (
-                                                    <SelectItem key={p} value={p} className="cursor-pointer">{p}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+                                            <FolderClosed className="w-4 h-4 mr-2 text-indigo-500" />
+                                            Dosya Bazlı
+                                        </TabsTrigger>
+                                        <TabsTrigger
+                                            value="global"
+                                            className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm transition-all duration-300 font-medium"
+                                        >
+                                            <Globe className="w-4 h-4 mr-2 text-blue-500" />
+                                            Global Tag
+                                        </TabsTrigger>
+                                    </TabsList>
 
-                                    {/* Feature File Selection */}
-                                    {selectedProject && (
+                                    <TabsContent value="specific" className="space-y-6 mt-0">
+                                        {/* Project Selection */}
                                         <div className="space-y-2">
                                             <Label className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-sm">
-                                                <FileJson className="w-4 h-4 text-emerald-500" />
-                                                Feature Dosyası
+                                                <FolderClosed className="w-4 h-4 text-indigo-500" />
+                                                {dictionary.testRun.projectAndTags || "PROJE & ETİKETLER"}
                                             </Label>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild disabled={isProcessing || filesLoading}>
-                                                    <Button
-                                                        variant="outline"
-                                                        className="w-full h-11 justify-between bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-indigo-500/20 hover:border-emerald-300 transition-colors px-3 font-normal"
-                                                    >
-                                                        <div className="flex items-center gap-2 overflow-hidden">
-                                                            <div className="flex-shrink-0">
-                                                                {filesLoading ? (
-                                                                    <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                                                                ) : (
-                                                                    <FileJson className="w-4 h-4 text-emerald-500" />
-                                                                )}
-                                                            </div>
-                                                            <span className="truncate text-sm">
-                                                                {selectedFeatureFiles.length === 0
-                                                                    ? "Dosya Seçin"
-                                                                    : selectedFeatureFiles.length === 1
-                                                                        ? selectedFeatureFiles[0]
-                                                                        : `${selectedFeatureFiles.length} Dosya Seçildi`}
-                                                            </span>
-                                                        </div>
-                                                        <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-[300px] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl p-2 z-[100]">
-                                                    <DropdownMenuLabel className="text-xs font-bold text-slate-500 uppercase px-2 py-1.5 flex items-center justify-between">
-                                                        <span>Feature Dosyaları</span>
-                                                        {selectedFeatureFiles.length > 0 && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setSelectedFeatureFiles([]);
-                                                                }}
-                                                                className="h-6 px-1.5 text-[10px] text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                                            >
-                                                                Temizle
-                                                            </Button>
-                                                        )}
-                                                    </DropdownMenuLabel>
-                                                    <DropdownMenuSeparator className="bg-slate-200 dark:bg-slate-700 my-1" />
-                                                    {availableFeatureFiles.map((file) => (
-                                                        <DropdownMenuCheckboxItem
-                                                            key={file}
-                                                            checked={selectedFeatureFiles.includes(file)}
-                                                            onCheckedChange={() => toggleFeatureFile(file)}
-                                                            className="cursor-pointer rounded-lg mb-0.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors data-[state=checked]:text-indigo-600 dark:data-[state=checked]:text-indigo-400 font-mono text-sm"
-                                                            onSelect={(e) => e.preventDefault()}
-                                                        >
-                                                            {file}
-                                                        </DropdownMenuCheckboxItem>
-                                                    ))}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
 
-                                            {/* Selected Files Badge Area */}
-                                            {selectedFeatureFiles.length > 0 && (
-                                                <div className="flex flex-wrap gap-1.5 mt-2 max-h-[100px] overflow-y-auto p-1 custom-scrollbar">
-                                                    {selectedFeatureFiles.map((file) => (
-                                                        <Badge
-                                                            key={file}
-                                                            variant="secondary"
-                                                            className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50 flex items-center gap-1 py-0.5 pr-1 pl-2 text-[11px]"
+                                            <Select
+                                                value={selectedProject}
+                                                onValueChange={handleProjectChange}
+                                                disabled={isProcessing || projectsLoading}
+                                            >
+                                                <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-indigo-500/20 hover:border-indigo-300 transition-colors">
+                                                    <SelectValue placeholder={dictionary.testRun.selectProject || "Proje Seçin"} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {projects.map((p) => (
+                                                        <SelectItem key={p} value={p} className="cursor-pointer">{p}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {/* Feature File Selection */}
+                                        {selectedProject && (
+                                            <div className="space-y-2">
+                                                <Label className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-sm">
+                                                    <FileJson className="w-4 h-4 text-emerald-500" />
+                                                    Feature Dosyası
+                                                </Label>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild disabled={isProcessing || filesLoading}>
+                                                        <Button
+                                                            variant="outline"
+                                                            className="w-full h-11 justify-between bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-indigo-500/20 hover:border-emerald-300 transition-colors px-3 font-normal"
                                                         >
-                                                            {file}
-                                                            <button
-                                                                onClick={() => toggleFeatureFile(file)}
-                                                                className="hover:bg-emerald-200 dark:hover:bg-emerald-800 rounded-full p-0.5 transition-colors"
+                                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                                <div className="flex-shrink-0">
+                                                                    {filesLoading ? (
+                                                                        <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                                                                    ) : (
+                                                                        <FileJson className="w-4 h-4 text-emerald-500" />
+                                                                    )}
+                                                                </div>
+                                                                <span className="truncate text-sm">
+                                                                    {selectedFeatureFiles.length === 0
+                                                                        ? "Dosya Seçin"
+                                                                        : selectedFeatureFiles.length === 1
+                                                                            ? selectedFeatureFiles[0]
+                                                                            : `${selectedFeatureFiles.length} Dosya Seçildi`}
+                                                                </span>
+                                                            </div>
+                                                            <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-[300px] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl p-2 z-[100]">
+                                                        <DropdownMenuLabel className="text-xs font-bold text-slate-500 uppercase px-2 py-1.5 flex items-center justify-between">
+                                                            <span>Feature Dosyaları</span>
+                                                            {selectedFeatureFiles.length > 0 && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setSelectedFeatureFiles([]);
+                                                                    }}
+                                                                    className="h-6 px-1.5 text-[10px] text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                                >
+                                                                    Temizle
+                                                                </Button>
+                                                            )}
+                                                        </DropdownMenuLabel>
+                                                        <DropdownMenuSeparator className="bg-slate-200 dark:bg-slate-700 my-1" />
+                                                        {availableFeatureFiles.map((file) => (
+                                                            <DropdownMenuCheckboxItem
+                                                                key={file}
+                                                                checked={selectedFeatureFiles.includes(file)}
+                                                                onCheckedChange={() => toggleFeatureFile(file)}
+                                                                className="cursor-pointer rounded-lg mb-0.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors data-[state=checked]:text-indigo-600 dark:data-[state=checked]:text-indigo-400 font-mono text-sm"
+                                                                onSelect={(e) => e.preventDefault()}
                                                             >
-                                                                <XCircle className="w-3 h-3" />
-                                                            </button>
+                                                                {file}
+                                                            </DropdownMenuCheckboxItem>
+                                                        ))}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+
+                                                {/* Selected Files Badge Area */}
+                                                {selectedFeatureFiles.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1.5 mt-2 max-h-[100px] overflow-y-auto p-1 custom-scrollbar">
+                                                        {selectedFeatureFiles.map((file) => (
+                                                            <Badge
+                                                                key={file}
+                                                                variant="secondary"
+                                                                className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50 flex items-center gap-1 py-0.5 pr-1 pl-2 text-[11px]"
+                                                            >
+                                                                {file}
+                                                                <button
+                                                                    onClick={() => toggleFeatureFile(file)}
+                                                                    className="hover:bg-emerald-200 dark:hover:bg-emerald-800 rounded-full p-0.5 transition-colors"
+                                                                >
+                                                                    <XCircle className="w-3 h-3" />
+                                                                </button>
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {availableFeatureFiles.length === 0 && !filesLoading && (
+                                                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                                        <AlertCircle className="w-3 h-3" />
+                                                        Bu grupta henüz feature dosyası yok
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Modern Tag Selector */}
+                                        <div className="space-y-3 bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{dictionary.testRun.selectTags || "Etiketler"}</Label>
+                                                    <Dialog>
+                                                        <DialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-4 w-4 text-slate-400 hover:text-indigo-500">
+                                                                <Info className="w-3 h-3" />
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent>
+                                                            <DialogHeader>
+                                                                <DialogTitle>{dictionary.testRun.tagsGuide}</DialogTitle>
+                                                                <DialogDescription>{dictionary.testRun.readyToExecuteDesc}</DialogDescription>
+                                                            </DialogHeader>
+                                                            <div className="space-y-3 mt-4">
+                                                                <div className="p-3 bg-muted rounded-lg space-y-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <code className="px-2 py-1 bg-background rounded text-sm font-mono">@smoke</code>
+                                                                        <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideSmoke || "Smoke testlerini çalıştır"}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <code className="px-2 py-1 bg-background rounded text-sm font-mono">@regression and not @slow</code>
+                                                                        <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideComplex || "Karmaşık mantık"}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <code className="px-2 py-1 bg-background rounded text-sm font-mono">@login or @signup</code>
+                                                                        <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideAny || "Eşleşen herhangi biri"}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                </div>
+                                                <div className="flex gap-1">
+                                                    {['and', 'or', 'custom'].map((mode) => (
+                                                        <button
+                                                            key={mode}
+                                                            type="button"
+                                                            onClick={() => setTagLogic(mode as any)}
+                                                            className={`text-[10px] uppercase font-bold px-2 py-1 rounded-md transition-all ${tagLogic === mode
+                                                                ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 shadow-sm'
+                                                                : 'text-slate-400 hover:text-slate-600'
+                                                                }`}
+                                                        >
+                                                            {mode}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {tagLogic !== 'custom' ? (
+                                                <>
+                                                    <div className="relative">
+                                                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                                        <Input
+                                                            placeholder={dictionary.testRun.searchTags || "Etiket ara..."}
+                                                            className="w-full pl-9 h-9 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus-visible:ring-indigo-500/20"
+                                                            value={tagSearch}
+                                                            onChange={(e) => setTagSearch(e.target.value)}
+                                                        />
+                                                    </div>
+
+                                                    <div className="max-h-[140px] overflow-y-auto pr-1 flex flex-wrap gap-2 pt-1 custom-scrollbar min-h-[60px]">
+                                                        {tagsLoading ? (
+                                                            <div className="w-full h-full flex items-center justify-center p-4">
+                                                                <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
+                                                            </div>
+                                                        ) : filteredTags.length > 0 ? (
+                                                            filteredTags
+                                                                .filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()))
+                                                                .map(tag => (
+                                                                    <Badge
+                                                                        key={tag}
+                                                                        variant="outline"
+                                                                        onClick={() => toggleTag(tag)}
+                                                                        className={`cursor-pointer px-2.5 py-1 text-xs border transition-all duration-200 select-none ${selectedTags.includes(tag)
+                                                                            ? 'bg-indigo-500 text-white border-indigo-600 shadow-md shadow-indigo-500/20 hover:bg-indigo-600'
+                                                                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-300 hover:text-indigo-600'
+                                                                            }`}
+                                                                    >
+                                                                        {tag}
+                                                                    </Badge>
+                                                                ))
+                                                        ) : (
+                                                            <p className="w-full text-center text-xs text-slate-400 py-4 italic">
+                                                                {selectedProject ? (dictionary.testRun.noTagsFound || "Etiket bulunamadı.") : (dictionary.testRun.selectProjectFirst || "Proje seçin.")}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <FormField<TestRunFormValues>
+                                                    control={control}
+                                                    name="tags"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormControl>
+                                                                <Input {...field} value={String(field.value)} placeholder="@custom and @query" className="w-full font-mono text-sm bg-white dark:bg-slate-900" />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            )}
+
+                                            {/* Selected Tags Preview */}
+                                            {selectedTags.length > 0 && tagLogic !== 'custom' && (
+                                                <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                                                    {selectedTags.map((tag, i) => (
+                                                        <Badge
+                                                            key={tag}
+                                                            variant="secondary"
+                                                            className="flex items-center gap-1.5 py-1 px-2 text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800/50"
+                                                        >
+                                                            {tag}
+                                                            {i < selectedTags.length - 1 && (
+                                                                <span className="ml-1 px-1 rounded bg-slate-200 dark:bg-slate-700 text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest">{tagLogic}</span>
+                                                            )}
                                                         </Badge>
                                                     ))}
+                                                    <Button variant="ghost" size="sm" onClick={clearSelection} className="ml-auto h-6 px-2 text-[10px] text-red-500 hover:bg-red-50 hover:text-red-600 self-center">
+                                                        {dictionary.testRun.clear || "Temizle"}
+                                                    </Button>
                                                 </div>
                                             )}
-                                            {availableFeatureFiles.length === 0 && !filesLoading && (
-                                                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                                                    <AlertCircle className="w-3 h-3" />
-                                                    Bu grupta henüz feature dosyası yok
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="global" className="space-y-6 mt-0">
+                                        <div className="space-y-4 bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                            <div className="space-y-1">
+                                                <Label className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-sm">
+                                                    <Globe className="w-4 h-4 text-blue-500" />
+                                                    Global Tag
+                                                </Label>
+                                                <p className="text-[10px] text-slate-400">
+                                                    Proje veya dosya ayrımı olmaksızın, bu etiketlere sahip tüm testleri çalıştırır. (OR mantığı ile)
                                                 </p>
+                                            </div>
+
+                                            {/* Tag Input */}
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                                <Input
+                                                    value={globalTagInput}
+                                                    onChange={(e) => setGlobalTagInput(e.target.value)}
+                                                    placeholder="Etiket ekleyin (örn: smoke, regression)..."
+                                                    className="w-full h-10 pl-9 pr-12 font-mono text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus-visible:ring-blue-500/20"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter") {
+                                                            e.preventDefault();
+                                                            handleAddGlobalTag();
+                                                        }
+                                                    }}
+                                                    disabled={isProcessing}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="absolute right-1 top-1 h-8 w-8 p-0 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500"
+                                                    onClick={handleAddGlobalTag}
+                                                    disabled={isProcessing}
+                                                >
+                                                    <Zap className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+
+                                            {/* Selected Tags Display */}
+                                            <div className="min-h-[80px] p-3 bg-white dark:bg-slate-900/50 rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-700">
+                                                {globalTags.length === 0 ? (
+                                                    <div className="h-full flex flex-col items-center justify-center text-slate-400 text-sm italic py-4">
+                                                        <Globe className="w-6 h-6 mb-2 opacity-30" />
+                                                        Henüz etiket eklenmedi
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <AnimatePresence>
+                                                            {globalTags.map(tag => (
+                                                                <motion.div
+                                                                    key={tag}
+                                                                    initial={{ scale: 0, opacity: 0 }}
+                                                                    animate={{ scale: 1, opacity: 1 }}
+                                                                    exit={{ scale: 0, opacity: 0 }}
+                                                                    transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                                                                >
+                                                                    <Badge
+                                                                        className="pl-3 pr-1 py-1.5 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800 border-blue-200 dark:border-blue-700 cursor-pointer flex items-center gap-1 group"
+                                                                        onClick={() => handleRemoveGlobalTag(tag)}
+                                                                    >
+                                                                        {tag}
+                                                                        <span className="p-0.5 rounded-full bg-blue-200/50 group-hover:bg-blue-300/50 dark:bg-blue-700/50 dark:group-hover:bg-blue-600/50 transition-colors ml-1">
+                                                                            <XCircle className="w-3 h-3" />
+                                                                        </span>
+                                                                    </Badge>
+                                                                </motion.div>
+                                                            ))}
+                                                        </AnimatePresence>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Clear All Button */}
+                                            {globalTags.length > 0 && (
+                                                <div className="flex justify-end">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={clearGlobalTags}
+                                                        className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                    >
+                                                        <XCircle className="w-3 h-3 mr-1" />
+                                                        Tümünü Temizle
+                                                    </Button>
+                                                </div>
                                             )}
                                         </div>
-                                    )}
+                                    </TabsContent>
+                                </Tabs>
 
-                                    {/* Modern Tag Selector */}
-                                    <div className="space-y-3 bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{dictionary.testRun.selectTags || "Etiketler"}</Label>
-                                                <Dialog>
-                                                    <DialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-4 w-4 text-slate-400 hover:text-indigo-500">
-                                                            <Info className="w-3 h-3" />
-                                                        </Button>
-                                                    </DialogTrigger>
-                                                    <DialogContent>
-                                                        <DialogHeader>
-                                                            <DialogTitle>{dictionary.testRun.tagsGuide}</DialogTitle>
-                                                            <DialogDescription>{dictionary.testRun.readyToExecuteDesc}</DialogDescription>
-                                                        </DialogHeader>
-                                                        <div className="space-y-3 mt-4">
-                                                            <div className="p-3 bg-muted rounded-lg space-y-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    <code className="px-2 py-1 bg-background rounded text-sm font-mono">@smoke</code>
-                                                                    <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideSmoke || "Smoke testlerini çalıştır"}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <code className="px-2 py-1 bg-background rounded text-sm font-mono">@regression and not @slow</code>
-                                                                    <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideComplex || "Karmaşık mantık"}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <code className="px-2 py-1 bg-background rounded text-sm font-mono">@login or @signup</code>
-                                                                    <span className="text-sm text-muted-foreground">{fullDict.testRun?.tagsGuideAny || "Eşleşen herhangi biri"}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </DialogContent>
-                                                </Dialog>
-                                            </div>
-                                            <div className="flex gap-1">
-                                                {['and', 'or', 'custom'].map((mode) => (
-                                                    <button
-                                                        key={mode}
-                                                        type="button"
-                                                        onClick={() => setTagLogic(mode as any)}
-                                                        className={`text-[10px] uppercase font-bold px-2 py-1 rounded-md transition-all ${tagLogic === mode
-                                                            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 shadow-sm'
-                                                            : 'text-slate-400 hover:text-slate-600'
-                                                            }`}
-                                                    >
-                                                        {mode}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                {/* Environment Configuration Inputs */}
+                                <div className="space-y-3 bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <Label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                        <Globe className="w-3.5 h-3.5" />
+                                        {fullDict.testRun?.environmentInfo || "Ortam Bilgileri"}
+                                    </Label>
+                                    {configLoading ? (
+                                        <div className="flex items-center justify-center py-2">
+                                            <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
                                         </div>
-
-                                        {tagLogic !== 'custom' ? (
-                                            <>
-                                                <div className="relative">
-                                                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                                                    <Input
-                                                        placeholder={dictionary.testRun.searchTags || "Etiket ara..."}
-                                                        className="w-full pl-9 h-9 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus-visible:ring-indigo-500/20"
-                                                        value={tagSearch}
-                                                        onChange={(e) => setTagSearch(e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="max-h-[140px] overflow-y-auto pr-1 flex flex-wrap gap-2 pt-1 custom-scrollbar min-h-[60px]">
-                                                    {tagsLoading ? (
-                                                        <div className="w-full h-full flex items-center justify-center p-4">
-                                                            <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
-                                                        </div>
-                                                    ) : filteredTags.length > 0 ? (
-                                                        filteredTags
-                                                            .filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()))
-                                                            .map(tag => (
-                                                                <Badge
-                                                                    key={tag}
-                                                                    variant="outline"
-                                                                    onClick={() => toggleTag(tag)}
-                                                                    className={`cursor-pointer px-2.5 py-1 text-xs border transition-all duration-200 select-none ${selectedTags.includes(tag)
-                                                                        ? 'bg-indigo-500 text-white border-indigo-600 shadow-md shadow-indigo-500/20 hover:bg-indigo-600'
-                                                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-300 hover:text-indigo-600'
-                                                                        }`}
-                                                                >
-                                                                    {tag}
-                                                                </Badge>
-                                                            ))
-                                                    ) : (
-                                                        <p className="w-full text-center text-xs text-slate-400 py-4 italic">
-                                                            {selectedProject ? (dictionary.testRun.noTagsFound || "Etiket bulunamadı.") : (dictionary.testRun.selectProjectFirst || "Proje seçin.")}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </>
-                                        ) : (
+                                    ) : (
+                                        <div className="space-y-3">
                                             <FormField<TestRunFormValues>
                                                 control={control}
-                                                name="tags"
+                                                name="baseLoginUrl"
                                                 render={({ field }) => (
                                                     <FormItem>
                                                         <FormControl>
-                                                            <Input {...field} value={String(field.value)} placeholder="@custom and @query" className="w-full font-mono text-sm bg-white dark:bg-slate-900" />
+                                                            <div className="relative">
+                                                                <Input
+                                                                    {...field}
+                                                                    value={String(field.value)}
+                                                                    placeholder="https://example.com/login"
+                                                                    className="h-9 text-xs bg-white dark:bg-slate-950 w-full"
+                                                                    disabled={isProcessing}
+                                                                />
+                                                                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                                                    <span className="text-[10px] text-slate-400">URL</span>
+                                                                </div>
+                                                            </div>
                                                         </FormControl>
-                                                        <FormMessage />
                                                     </FormItem>
                                                 )}
                                             />
-                                        )}
-
-                                        {/* Selected Tags Preview */}
-                                        {selectedTags.length > 0 && tagLogic !== 'custom' && (
-                                            <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-                                                {selectedTags.map((tag, i) => (
-                                                    <Badge
-                                                        key={tag}
-                                                        variant="secondary"
-                                                        className="flex items-center gap-1.5 py-1 px-2 text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800/50"
-                                                    >
-                                                        {tag}
-                                                        {i < selectedTags.length - 1 && (
-                                                            <span className="ml-1 px-1 rounded bg-slate-200 dark:bg-slate-700 text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest">{tagLogic}</span>
-                                                        )}
-                                                    </Badge>
-                                                ))}
-                                                <Button variant="ghost" size="sm" onClick={clearSelection} className="ml-auto h-6 px-2 text-[10px] text-red-500 hover:bg-red-50 hover:text-red-600 self-center">
-                                                    {dictionary.testRun.clear || "Temizle"}
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Environment Configuration Inputs */}
-                                    <div className="space-y-3 bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                                        <Label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                            <Globe className="w-3.5 h-3.5" />
-                                            {fullDict.testRun?.environmentInfo || "Ortam Bilgileri"}
-                                        </Label>
-                                        {configLoading ? (
-                                            <div className="flex items-center justify-center py-2">
-                                                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-3">
+                                            <div className="grid grid-cols-2 gap-3">
                                                 <FormField<TestRunFormValues>
                                                     control={control}
-                                                    name="baseLoginUrl"
+                                                    name="username"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormControl>
+                                                                <Input
+                                                                    {...field}
+                                                                    value={String(field.value)}
+                                                                    placeholder="Kullanıcı Adı"
+                                                                    className="h-9 text-xs bg-white dark:bg-slate-950 w-full"
+                                                                    disabled={isProcessing}
+                                                                />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField<TestRunFormValues>
+                                                    control={control}
+                                                    name="password"
                                                     render={({ field }) => (
                                                         <FormItem>
                                                             <FormControl>
@@ -1253,69 +1440,28 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                                                     <Input
                                                                         {...field}
                                                                         value={String(field.value)}
-                                                                        placeholder="https://example.com/login"
-                                                                        className="h-9 text-xs bg-white dark:bg-slate-950 w-full"
+                                                                        type={showPassword ? 'text' : 'password'}
+                                                                        placeholder="Şifre"
                                                                         disabled={isProcessing}
+                                                                        className="h-9 text-xs bg-white dark:bg-slate-950 pr-8 w-full"
                                                                     />
-                                                                    <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                                                                        <span className="text-[10px] text-slate-400">URL</span>
-                                                                    </div>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="absolute right-0 top-0 h-9 w-8 text-slate-400 hover:text-slate-600"
+                                                                        onClick={() => setShowPassword(!showPassword)}
+                                                                    >
+                                                                        {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                                                                    </Button>
                                                                 </div>
                                                             </FormControl>
                                                         </FormItem>
                                                     )}
                                                 />
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <FormField<TestRunFormValues>
-                                                        control={control}
-                                                        name="username"
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormControl>
-                                                                    <Input
-                                                                        {...field}
-                                                                        value={String(field.value)}
-                                                                        placeholder="Kullanıcı Adı"
-                                                                        className="h-9 text-xs bg-white dark:bg-slate-950 w-full"
-                                                                        disabled={isProcessing}
-                                                                    />
-                                                                </FormControl>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField<TestRunFormValues>
-                                                        control={control}
-                                                        name="password"
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormControl>
-                                                                    <div className="relative">
-                                                                        <Input
-                                                                            {...field}
-                                                                            value={String(field.value)}
-                                                                            type={showPassword ? 'text' : 'password'}
-                                                                            placeholder="Şifre"
-                                                                            disabled={isProcessing}
-                                                                            className="h-9 text-xs bg-white dark:bg-slate-950 pr-8 w-full"
-                                                                        />
-                                                                        <Button
-                                                                            type="button"
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="absolute right-0 top-0 h-9 w-8 text-slate-400 hover:text-slate-600"
-                                                                            onClick={() => setShowPassword(!showPassword)}
-                                                                        >
-                                                                            {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                                                                        </Button>
-                                                                    </div>
-                                                                </FormControl>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </div>
                                             </div>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <Separator className="bg-slate-100 dark:bg-slate-800" />
@@ -1456,7 +1602,12 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                 <Button
                                     onClick={handleRun}
                                     type="button"
-                                    disabled={isProcessing || (!tags.trim() && !isComplete && !isFailed) || !selectedProject || selectedFeatureFiles.length === 0 || startJobMutation.isPending}
+                                    disabled={
+                                        isProcessing ||
+                                        startJobMutation.isPending ||
+                                        (executionMode === 'specific' && (!selectedProject || selectedFeatureFiles.length === 0 || !tags.trim())) ||
+                                        (executionMode === 'global' && globalTags.length === 0)
+                                    }
                                     className="w-full h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25 rounded-xl text-base font-semibold tracking-wide transition-all hover:translate-y-[-1px] active:translate-y-[1px]"
                                 >
                                     {startJobMutation.isPending || isProcessing ? (
