@@ -57,11 +57,29 @@ import {
     FileInfo,
     CleanupResult,
 } from "@/app/actions/cleanup-actions";
-
-
+import { useJobs, type Job } from "@/lib/use-job";
+import { UploadJsonResponse } from "@/app/actions/upload-json-action";
+import { GeneratedFilesDisplay } from "@/components/generated-files-display";
+import { useLocale } from "@/components/locale-context";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { History, Eye, User as UserIcon, FileCode2, ChevronDown, ChevronRight } from "lucide-react";
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
 
 export function FileManagerPanel() {
     const { token } = useKeycloak();
+    const { dictionary } = useLocale();
     const [stats, setStats] = useState<StorageStats | null>(null);
     const [videos, setVideos] = useState<FileInfo[]>([]);
     const [reports, setReports] = useState<FileInfo[]>([]);
@@ -70,6 +88,11 @@ export function FileManagerPanel() {
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState(false);
     const [oldDays, setOldDays] = useState(30);
+
+    // History Tab State
+    const [historyPage, setHistoryPage] = useState(0);
+    const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+    const { data: jobsData, isLoading: jobsLoading } = useJobs(historyPage, 10, "", "UPLOAD_JSON");
 
     const loadData = useCallback(async () => {
         if (!token) return;
@@ -210,6 +233,14 @@ export function FileManagerPanel() {
         }
     };
 
+    const toggleJobExpansion = (jobId: string) => {
+        if (expandedJobId === jobId) {
+            setExpandedJobId(null);
+        } else {
+            setExpandedJobId(jobId);
+        }
+    };
+
     const formatBytes = (bytes: number): string => {
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
@@ -220,6 +251,15 @@ export function FileManagerPanel() {
 
     const formatDate = (dateStr: string): string => {
         return new Date(dateStr).toLocaleString("tr-TR");
+    };
+
+    const getFileNameFromJob = (job: Job) => {
+        try {
+            // @ts-ignore
+            return job.request?.fileBaseName || "Unnamed File";
+        } catch (e) {
+            return "Unknown";
+        }
     };
 
     if (loading) {
@@ -415,6 +455,10 @@ export function FileManagerPanel() {
                         <FileText className="mr-2 h-4 w-4" />
                         Raporlar ({reports.length})
                     </TabsTrigger>
+                    <TabsTrigger value="history">
+                        <History className="mr-2 h-4 w-4" />
+                        Geçmiş İşlemler
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="videos">
@@ -531,7 +575,7 @@ export function FileManagerPanel() {
                                                     onCheckedChange={selectAllReports}
                                                 />
                                             </TableHead>
-                                            <TableHead>Job ID</TableHead>
+                                            <TableHead>Dosya Adı</TableHead>
                                             <TableHead>Boyut</TableHead>
                                             <TableHead>Oluşturulma</TableHead>
                                         </TableRow>
@@ -560,6 +604,128 @@ export function FileManagerPanel() {
                                         ))}
                                     </TableBody>
                                 </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="history">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Geçmiş JSON Yüklemeleri</CardTitle>
+                            <CardDescription>
+                                Daha önce yapılan tüm yüklemeler ve oluşturulan dosyalar
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {jobsLoading ? (
+                                <div className="flex justify-center p-8">
+                                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                </div>
+                            ) : !jobsData?.content || jobsData.content.length === 0 ? (
+                                <div className="text-center py-8 text-muted-foreground">
+                                    Geçmiş işlem bulunamadı.
+                                </div>
+                            ) : (
+                                <>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="w-[50px]"></TableHead>
+                                                <TableHead>Dosya Adı</TableHead>
+                                                <TableHead>Kullanıcı</TableHead>
+                                                <TableHead>Durum</TableHead>
+                                                <TableHead className="text-right">Tarih</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {jobsData.content.map((job: Job) => (
+                                                <React.Fragment key={job.id}>
+                                                    <TableRow
+                                                        className="cursor-pointer hover:bg-muted/50"
+                                                        onClick={() => toggleJobExpansion(job.id)}
+                                                    >
+                                                        <TableCell>
+                                                            {expandedJobId === job.id ? (
+                                                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                                            ) : (
+                                                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="font-medium">
+                                                            <div className="flex items-center gap-2">
+                                                                <FileCode2 className="w-4 h-4 text-blue-500" />
+                                                                {getFileNameFromJob(job)}
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-2 text-muted-foreground">
+                                                                <UserIcon className="w-3 h-3" />
+                                                                {job.username || job.user?.fullName || "Bilinmiyor"}
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Badge
+                                                                variant={job.status === "COMPLETED" ? "default" : job.status === "FAILED" ? "destructive" : "secondary"}
+                                                                className={job.status === "COMPLETED" ? "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300" : ""}
+                                                            >
+                                                                {job.status}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-sm text-muted-foreground text-right">
+                                                            {formatDate(job.createdAt)}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                    {expandedJobId === job.id && (
+                                                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                                                            <TableCell colSpan={5} className="p-0">
+                                                                <div className="p-4 border-t">
+                                                                    {job.result ? (
+                                                                        <GeneratedFilesDisplay
+                                                                            data={job.result as UploadJsonResponse}
+                                                                            dictionary={dictionary}
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="text-center py-4 text-muted-foreground">
+                                                                            Sonuç verisi bulunamadı.
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </React.Fragment>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+
+                                    {/* Pagination */}
+                                    {jobsData.totalPages > 1 && (
+                                        <div className="mt-4 flex justify-center">
+                                            <Pagination>
+                                                <PaginationContent>
+                                                    <PaginationItem>
+                                                        <PaginationPrevious
+                                                            onClick={() => setHistoryPage(p => Math.max(0, p - 1))}
+                                                            className={historyPage === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                                        />
+                                                    </PaginationItem>
+                                                    <PaginationItem>
+                                                        <span className="px-4 text-sm text-muted-foreground">
+                                                            Sayfa {jobsData.number + 1} / {jobsData.totalPages}
+                                                        </span>
+                                                    </PaginationItem>
+                                                    <PaginationItem>
+                                                        <PaginationNext
+                                                            onClick={() => setHistoryPage(p => Math.min(jobsData.totalPages - 1, p + 1))}
+                                                            className={historyPage === jobsData.totalPages - 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                                        />
+                                                    </PaginationItem>
+                                                </PaginationContent>
+                                            </Pagination>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </CardContent>
                     </Card>
