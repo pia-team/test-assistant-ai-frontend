@@ -1622,22 +1622,6 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                         </>
                                     )}
                                 </Button>
-
-                                {/* View Reports Link */}
-                                {isComplete && result && (
-                                    <Button
-                                        variant="outline"
-                                        className="w-full h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
-                                        onClick={() => {
-                                            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-                                            const url = result.reportUrl?.startsWith('http') ? result.reportUrl : `${baseUrl}${result.reportUrl}`;
-                                            window.open(url, '_blank');
-                                        }}
-                                    >
-                                        <ExternalLink className="w-4 h-4 mr-2" />
-                                        {fullDict.testRun?.viewReport || "Raporu Görüntüle"}
-                                    </Button>
-                                )}
                             </form>
                         </Form>
                     </CardContent>

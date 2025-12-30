@@ -118,28 +118,53 @@ const LogViewer = React.memo(({ logs, status, compact = false }: { logs: string[
                 "p-3 overflow-y-auto font-mono text-[12px] custom-scrollbar space-y-0.5",
                 compact ? "max-h-[300px]" : "max-h-[500px]"
             )}>
-                {logs && logs.length > 0 ? (
-                    logs.map((log, idx) => (
-                        <div
-                            key={idx}
-                            className={cn(
-                                "py-0.5 px-2 rounded-sm break-all",
-                                log.includes("✓") || log.includes("PASS") ? "text-emerald-400 bg-emerald-500/5" :
-                                    log.includes("✗") || log.includes("FAIL") || log.includes("Error") ? "text-rose-400 bg-rose-500/5" :
-                                        log.includes("▶") || log.includes("➡") ? "text-sky-400" :
-                                            "text-zinc-400"
-                            )}
-                        >
-                            <span className="opacity-20 mr-2 select-none inline-block w-6 text-right border-r border-white/5 pr-2">
-                                {idx + 1}
-                            </span>
-                            {log}
-                        </div>
-                    ))
-                ) : (
-                    <div className="text-zinc-600 italic text-[11px] py-1">No logs available for this feature yet...</div>
-                )}
+                <AnimatePresence mode="popLayout">
+                    {logs && logs.length > 0 ? (
+                        logs.map((log, idx) => {
+                            const isLast = idx === logs.length - 1;
+                            const isRunning = status === "running" && isLast;
+
+                            return (
+                                <motion.div
+                                    key={`${idx}-${log.substring(0, 10)}`}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 0.2, ease: "easeOut" }}
+                                    className={cn(
+                                        "py-0.5 px-2 rounded-sm break-all flex items-start gap-2 relative group transition-colors",
+                                        log.includes("✓") || log.includes("PASS") ? "text-emerald-400 bg-emerald-500/5" :
+                                            log.includes("✗") || log.includes("FAIL") || log.includes("Error") ? "text-rose-400 bg-rose-500/5" :
+                                                log.includes("▶") || log.includes("➡") ? "text-sky-400" :
+                                                    "text-zinc-400 hover:bg-white/5"
+                                    )}
+                                >
+                                    <span className="opacity-20 select-none inline-block w-6 text-right border-r border-white/5 pr-2 shrink-0">
+                                        {idx + 1}
+                                    </span>
+                                    <span className="flex-1">{log}</span>
+                                    {isRunning && (
+                                        <motion.div
+                                            animate={{ opacity: [0.4, 1, 0.4] }}
+                                            transition={{ duration: 1.5, repeat: Infinity }}
+                                            className="w-1.5 h-3 bg-blue-500/50 rounded-full mt-0.5 shrink-0"
+                                        />
+                                    )}
+                                </motion.div>
+                            );
+                        })
+                    ) : (
+                        <div className="text-zinc-600 italic text-[11px] py-1">No logs available for this feature yet...</div>
+                    )}
+                </AnimatePresence>
             </div>
+            {status === "running" && (
+                <div className="px-3 py-1.5 bg-blue-500/5 border-t border-zinc-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                        <span className="text-[10px] text-blue-400 font-medium uppercase tracking-wider">Live Streaming...</span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 });
@@ -160,6 +185,21 @@ export function TestResultsTable({
     const [searchQuery, setSearchQuery] = useState("");
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [selectedTest, setSelectedTest] = useState<TestItem | null>(null);
+    const [activeTabs, setActiveTabs] = useState<Record<string, string>>({});
+
+    // Auto-repair active tab if the selected one is missing
+    useEffect(() => {
+        creations.forEach(creation => {
+            const currentTab = activeTabs[creation.id];
+            if (currentTab && creation.tests.length > 0) {
+                const tabExists = creation.tests.some(t => t.id === currentTab) || currentTab === "logs";
+                if (!tabExists) {
+                    // Fallback to first test if the previous tab (like "test-execution-log") is gone
+                    setActiveTabs(prev => ({ ...prev, [creation.id]: creation.tests[0].id }));
+                }
+            }
+        });
+    }, [creations, activeTabs]);
 
     const filteredCreations = useMemo(() => {
         if (!searchQuery.trim()) return creations;
@@ -178,6 +218,15 @@ export function TestResultsTable({
                 next.delete(id);
             } else {
                 next.add(id);
+                // Initialize active tab for this row if not set
+                if (!activeTabs[id]) {
+                    const creation = creations.find(c => c.id === id);
+                    if (creation && creation.tests.length > 0) {
+                        setActiveTabs(prev => ({ ...prev, [id]: creation.tests[0].id }));
+                    } else {
+                        setActiveTabs(prev => ({ ...prev, [id]: "logs" }));
+                    }
+                }
             }
             return next;
         });
@@ -351,27 +400,65 @@ export function TestResultsTable({
                                                             className="overflow-hidden"
                                                         >
                                                             <div className="p-4">
-                                                                <Tabs defaultValue={creation.tests[0]?.id || "logs"} className="w-full">
+                                                                <Tabs
+                                                                    value={activeTabs[creation.id] || creation.tests[0]?.id || "logs"}
+                                                                    onValueChange={(value) => setActiveTabs(prev => ({ ...prev, [creation.id]: value }))}
+                                                                    className="w-full"
+                                                                >
                                                                     <div className="flex items-center justify-between mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2">
                                                                         <TabsList className="bg-transparent h-auto p-0 flex gap-2 overflow-x-auto custom-scrollbar">
                                                                             {creation.tests.map((test) => (
-                                                                                <div key={test.id} className="flex items-center gap-1 bg-zinc-100/50 dark:bg-zinc-800/20 rounded-lg p-1">
+                                                                                <div key={test.id} className={cn(
+                                                                                    "relative flex items-center gap-1 rounded-lg p-1 overflow-hidden",
+                                                                                    test.status === "running" ? "bg-transparent" : "bg-zinc-100/50 dark:bg-zinc-800/20"
+                                                                                )}>
+                                                                                    {test.status === "running" && (
+                                                                                        <>
+                                                                                            <div className="absolute inset-0 z-0 pointer-events-none">
+                                                                                                <div className="absolute inset-[-200%] animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_0deg,#3b82f6,#60a5fa,#93c5fd,#60a5fa,#3b82f6)]" />
+                                                                                            </div>
+                                                                                            <div className="absolute inset-[2px] bg-zinc-100 dark:bg-zinc-800 rounded-[calc(0.5rem-2px)] z-[1]" />
+                                                                                        </>
+                                                                                    )}
                                                                                     <TabsTrigger
                                                                                         value={test.id}
-                                                                                        className="data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-md px-4 py-1.5 flex items-center gap-2 transition-all"
+                                                                                        className={cn(
+                                                                                            "relative z-10 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-md px-4 py-1.5 flex items-center gap-2 transition-all",
+                                                                                            test.status === "running" && "bg-white/80 dark:bg-zinc-800/80"
+                                                                                        )}
                                                                                     >
                                                                                         <StatusBadge status={test.status} compact={true} />
-                                                                                        <span className="text-sm font-semibold whitespace-nowrap">{test.name}</span>
+                                                                                        <span className="text-sm font-semibold whitespace-nowrap">
+                                                                                            {test.name}
+                                                                                            {test.status === "running" && (
+                                                                                                <motion.span
+                                                                                                    initial={{ opacity: 0 }}
+                                                                                                    animate={{ opacity: 1 }}
+                                                                                                    className="inline-flex ml-1.5 text-blue-500"
+                                                                                                >
+                                                                                                    <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.2, times: [0, 0.5, 1] }}>.</motion.span>
+                                                                                                    <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.2, delay: 0.2, times: [0, 0.5, 1] }}>.</motion.span>
+                                                                                                    <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.2, delay: 0.4, times: [0, 0.5, 1] }}>.</motion.span>
+                                                                                                </motion.span>
+                                                                                            )}
+                                                                                        </span>
                                                                                     </TabsTrigger>
                                                                                     <Button
                                                                                         variant="ghost"
                                                                                         size="icon"
-                                                                                        className="h-8 w-8 hover:bg-zinc-200 dark:hover:bg-zinc-700/50 text-indigo-500"
+                                                                                        className={cn(
+                                                                                            "h-8 w-8 text-indigo-500 z-10",
+                                                                                            (test.status === "running" || test.status === "pending")
+                                                                                                ? "opacity-40 cursor-not-allowed"
+                                                                                                : "hover:bg-zinc-200 dark:hover:bg-zinc-700/50"
+                                                                                        )}
+                                                                                        disabled={test.status === "running" || test.status === "pending"}
                                                                                         onClick={(e) => {
                                                                                             e.preventDefault();
                                                                                             e.stopPropagation();
                                                                                             handleViewVideo(test.id, creation.id, test);
                                                                                         }}
+                                                                                        title={test.status === "running" ? "Video henüz işlenmedi" : "Videoyu izle"}
                                                                                     >
                                                                                         <Video className="w-4 h-4" />
                                                                                     </Button>
@@ -496,7 +583,8 @@ export function TestResultsTable({
                 )}
 
                 <TestResultDetailsModal
-                    test={selectedTest}
+                    testId={selectedTest?.id || null}
+                    creations={creations}
                     isOpen={!!selectedTest}
                     onClose={() => setSelectedTest(null)}
                 />
@@ -506,13 +594,25 @@ export function TestResultsTable({
 }
 
 interface TestResultDetailsModalProps {
-    test: TestItem | null;
+    testId: string | null;
+    creations: TestCreation[];
     isOpen: boolean;
     onClose: () => void;
 }
 
-function TestResultDetailsModal({ test, isOpen, onClose }: TestResultDetailsModalProps) {
+function TestResultDetailsModal({ testId, creations, isOpen, onClose }: TestResultDetailsModalProps) {
     const { dictionary } = useLocale();
+
+    // Find the current test from creations to get live updates
+    const test = useMemo(() => {
+        if (!testId) return null;
+        for (const creation of creations) {
+            const found = creation.tests.find(t => t.id === testId);
+            if (found) return found;
+        }
+        return null;
+    }, [testId, creations]);
+
     if (!test) return null;
 
     const config = (getStatusConfig(dictionary) as Record<string, any>)[test.status] || getStatusConfig(dictionary).unknown;
@@ -520,8 +620,8 @@ function TestResultDetailsModal({ test, isOpen, onClose }: TestResultDetailsModa
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-6xl w-[95vw] bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden shadow-2xl">
-                <DialogHeader className="p-6 border-b border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/20">
+            <DialogContent className="w-[800px] sm:max-w-[800px] max-w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-zinc-200/50 dark:border-zinc-800/50 p-0 overflow-hidden shadow-2xl rounded-[24px]">
+                <DialogHeader className="px-6 py-5 border-b border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/20">
                     <div className="flex items-center justify-between w-full pr-8">
                         <div className="space-y-1">
                             <DialogTitle className="text-2xl font-bold flex items-center gap-3">
@@ -535,7 +635,7 @@ function TestResultDetailsModal({ test, isOpen, onClose }: TestResultDetailsModa
                     </div>
                 </DialogHeader>
 
-                <div className="p-6 space-y-8 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                <div className="flex-1 p-6 space-y-8 overflow-y-auto custom-scrollbar">
                     {/* Video Section - Primary in modal */}
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -550,19 +650,60 @@ function TestResultDetailsModal({ test, isOpen, onClose }: TestResultDetailsModa
                             )}
                         </div>
                         <div className="aspect-video bg-black rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-zinc-200/50 dark:ring-zinc-800/50">
-                            {test.videoUrl ? (
-                                <video
-                                    src={test.videoUrl.startsWith('http') ? test.videoUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}${test.videoUrl}`}
-                                    controls
-                                    autoPlay
-                                    className="w-full h-full object-contain"
-                                />
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full gap-4 text-zinc-500">
-                                    <Video className="w-16 h-16 opacity-10" />
-                                    <p className="text-sm font-mono opacity-50">No video recording available for this session</p>
-                                </div>
-                            )}
+                            {(() => {
+                                // Statuses where we expect a video eventually
+                                const expectsVideo = ["passed", "failed", "completed", "completed_with_failures"].includes(test.status);
+                                // Statuses where the test is definitely still going
+                                const isRunning = ["running", "pending", "unknown"].includes(test.status);
+
+                                // Show loading if:
+                                // 1. Test is running/pending
+                                // 2. Test is done (passed/failed) but video URL is not yet available (processing)
+                                const showLoading = isRunning || (expectsVideo && !test.videoUrl);
+
+                                if (showLoading) {
+                                    return (
+                                        <div className="flex flex-col items-center justify-center h-full gap-4 bg-gradient-to-br from-zinc-900 to-zinc-950">
+                                            <div className="relative">
+                                                <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl animate-pulse" />
+                                                <Loader2 className="w-16 h-16 text-blue-500 animate-spin relative z-10" />
+                                            </div>
+                                            <div className="text-center space-y-2">
+                                                <p className="text-sm font-semibold text-zinc-300">
+                                                    {isRunning ? "Test Çalışıyor..." : "Video İşleniyor..."}
+                                                </p>
+                                                <p className="text-xs text-zinc-500 font-mono">
+                                                    {isRunning ? "Video test tamamlandığında hazırlanacak" : "Kayıt tamamlanmak üzere, lütfen bekleyin"}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.2, times: [0, 0.5, 1] }} className="w-2 h-2 rounded-full bg-blue-500" />
+                                                <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.2, delay: 0.2, times: [0, 0.5, 1] }} className="w-2 h-2 rounded-full bg-blue-500" />
+                                                <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.2, delay: 0.4, times: [0, 0.5, 1] }} className="w-2 h-2 rounded-full bg-blue-500" />
+                                            </div>
+                                        </div>
+                                    );
+                                } else if (test.videoUrl) {
+                                    return (
+                                        <video
+                                            key={test.videoUrl}
+                                            src={test.videoUrl.startsWith('http') ? test.videoUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}${test.videoUrl.startsWith('/') ? '' : '/'}${test.videoUrl}`}
+                                            controls
+                                            autoPlay
+                                            playsInline
+                                            preload="auto"
+                                            className="w-full h-full object-contain"
+                                        />
+                                    );
+                                } else {
+                                    return (
+                                        <div className="flex flex-col items-center justify-center h-full gap-4 text-zinc-500">
+                                            <Video className="w-16 h-16 opacity-10" />
+                                            <p className="text-sm font-mono opacity-50">Video kaydı bu oturum için mevcut değil</p>
+                                        </div>
+                                    );
+                                }
+                            })()}
                         </div>
                     </div>
 
@@ -593,7 +734,7 @@ function TestResultDetailsModal({ test, isOpen, onClose }: TestResultDetailsModa
                     </div>
                 </div>
 
-                <div className="p-4 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/20 flex justify-between items-center px-8">
+                <div className="p-5 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/80 dark:bg-zinc-900/40 flex justify-between items-center px-8">
                     <span className="text-xs text-zinc-500 font-mono">ID: {test.id}</span>
                     <Button variant="secondary" size="lg" onClick={onClose} className="px-12 font-bold transition-all hover:bg-zinc-200 dark:hover:bg-zinc-800">
                         Close

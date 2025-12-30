@@ -44,7 +44,7 @@ export const parseLogsToDashboardData = (
     const getOrCreateTest = (title: string): TestCase => {
         if (!testCasesMap.has(title)) {
             testCasesMap.set(title, {
-                id: `test-${title}-${Math.random().toString(36).substr(2, 9)}`,
+                id: `test-${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`,
                 title: title,
                 status: "PASSED",
                 duration: "0s",
@@ -91,16 +91,23 @@ export const parseLogsToDashboardData = (
             line.includes("Parallel Execution:") ||
             line.includes("Thread Count:") ||
             line.includes("Environment:") ||
-            (line.includes("Browser:") && (line.includes("🌐") || line.includes("Headless"))) ||
-            line.includes("Cucumber yapılandırması yüklendi");
+            (line.includes("Browser:") && (line.includes("🌐") || line.includes("Headless") || line.includes("ğŸŒ"))) ||
+            line.includes("Cucumber yapılandırması yüklendi") ||
+            line.includes("CUCUMBER CONFIG LOADED");
 
         if (isGlobal) {
-            globalSteps.push({
-                type: "info",
-                content: line,
-                status: "INFO"
-            });
-            return; // Skip further processing for this line in the loop
+            // Deduplicate global lines (specifically for CUCUMBER CONFIG LOADED)
+            const cleanedLine = line.replace("ğŸŒ", "🌐").trim();
+            const alreadyExists = globalSteps.some(s => s.content === cleanedLine);
+
+            if (!alreadyExists) {
+                globalSteps.push({
+                    type: "info",
+                    content: cleanedLine,
+                    status: "INFO"
+                });
+            }
+            return;
         }
 
         // Logic to find which test this line belongs to
@@ -194,7 +201,7 @@ export const parseLogsToDashboardData = (
         // User says they DON'T want generic tabs, but we need to show SOMETHING if logs exist.
         // Let's create one "Execution Log" as a last resort, but we try to avoid it.
         const fallback = {
-            id: `test-raw-${Date.now()}`,
+            id: `test-execution-log`,
             title: "Execution Log",
             status: "PASSED" as const,
             duration: "0s",
