@@ -205,6 +205,54 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
     const isFailed = isJobFailed(displayedJob);
     const isStopped = isJobStopped(displayedJob);
 
+    // Unified Side Effects Logic (Confetti + Toasts)
+    const [showConfetti, setShowConfetti] = useState(false);
+    const prevJobIdRef = useRef<string | null>(null);
+    const prevStatusRef = useRef<string | undefined>(undefined);
+
+    useEffect(() => {
+        const currentId = displayedJob?.id;
+        const currentStatus = displayedJob?.status;
+
+        if (!currentId || !currentStatus) {
+            return;
+        }
+
+        // If job ID changed, we just update calls and DO NOT show confetti/toasts immediately 
+        if (currentId !== prevJobIdRef.current) {
+            prevJobIdRef.current = currentId;
+            prevStatusRef.current = currentStatus;
+            setShowConfetti(false);
+            return;
+        }
+
+        // Same job ID. Check for status transition.
+
+        // COMPLETED Transition
+        if (currentStatus === 'COMPLETED' && prevStatusRef.current !== 'COMPLETED') {
+            setShowConfetti(true);
+            toast.success(dictionary.common.success);
+        }
+
+        // FAILED Transition
+        if (currentStatus === 'FAILED' && prevStatusRef.current !== 'FAILED') {
+            const errorMsg = parseErrorMessage(displayedJob.error || "") || dictionary.uploadJson.uploadFailure || "Upload failed";
+            toast.error(errorMsg);
+        }
+
+        // STOPPED Transition
+        if (currentStatus === 'STOPPED' && prevStatusRef.current !== 'STOPPED') {
+            toast.info(dictionary.testRun?.aborted || "İşlem iptal edildi");
+        }
+
+        // If status went back to running, hide confetti
+        if (currentStatus !== 'COMPLETED') {
+            setShowConfetti(false);
+        }
+
+        prevStatusRef.current = currentStatus;
+    }, [displayedJob?.id, displayedJob?.status, displayedJob?.error, dictionary]);
+
     // Stuck detection logic
     const [isStuck, setIsStuck] = useState(false);
     useEffect(() => {
@@ -224,23 +272,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
         ? (displayedJob.result as UploadJsonResponse)
         : null;
 
-    // Toast logic
-    const shownToastRef = useRef<string | null>(null);
-    useEffect(() => {
-        if (!currentJob?.id) return;
-        if (isComplete && shownToastRef.current !== `complete-${currentJob.id}`) {
-            shownToastRef.current = `complete-${currentJob.id}`;
-            toast.success(dictionary.common.success);
-        }
-        if (isFailed && shownToastRef.current !== `failed-${currentJob.id}`) {
-            shownToastRef.current = `failed-${currentJob.id}`;
-            toast.error(parseErrorMessage(currentJob.error || "") || dictionary.uploadJson.uploadFailure || "Upload failed");
-        }
-        if (isStopped && shownToastRef.current !== `stopped-${currentJob.id}`) {
-            shownToastRef.current = `stopped-${currentJob.id}`;
-            toast.info(dictionary.testRun?.aborted || "İşlem iptal edildi");
-        }
-    }, [isComplete, isFailed, isStopped, currentJob?.id, currentJob?.error, dictionary]);
+
 
     // File Handling with Auto-fill
     const processSelectedFile = useCallback((file: File) => {
@@ -354,7 +386,7 @@ export function UploadJsonClient({ dictionary }: UploadJsonClientProps) {
 
     return (
         <div className="min-h-screen p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 transition-colors duration-500">
-            {isComplete && <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />}
+            {showConfetti && <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />}
 
             <motion.div
                 initial={{ opacity: 0, y: -20 }}

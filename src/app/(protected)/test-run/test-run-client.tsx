@@ -601,6 +601,88 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const isFailed = isJobFailed(currentJob);
     const isStopped = isJobStopped(currentJob);
 
+    // Unified Side Effects Logic (Confetti + Toasts)
+    const [showConfetti, setShowConfetti] = useState(false);
+    const prevJobIdRef = useRef<string | null>(null);
+    const prevStatusRef = useRef<string | undefined>(undefined);
+
+    // Dependencies need to be captured for effect
+    const dictionaryRef = useRef(dictionary);
+    dictionaryRef.current = dictionary;
+
+    useEffect(() => {
+        const currentId = currentJob?.id;
+        const currentStatus = currentJob?.status;
+
+        if (!currentId || !currentStatus) {
+            return;
+        }
+
+        // If job ID changed, we just update calls and DO NOT show confetti/toasts immediately
+        if (currentId !== prevJobIdRef.current) {
+            prevJobIdRef.current = currentId;
+            prevStatusRef.current = currentStatus;
+            setShowConfetti(false);
+            return;
+        }
+
+        // Same job ID. Check for status transition.
+
+        // COMPLETED Transition
+        if (currentStatus === 'COMPLETED' && prevStatusRef.current !== 'COMPLETED') {
+            setShowConfetti(true);
+
+            // Check for failures inside currentJob result if needed, or rely on hasFailures derived value if available in scope
+            // However, hasFailures depends on currentJob which is in scope.
+            // We need to be careful about closure staleness, but currentJob is in dependency.
+
+            // Re-evaluating failures here might be safer or using the prop if guaranteed fresh.
+            // Let's use the hasFailures logic derived earlier in the component if possible, 
+            // but we need to ensure it's calculated from the SAME render cycle or job state.
+
+            const jobHasFailures = currentJob.result && (currentJob.result as any).status === 'COMPLETED_WITH_FAILURES';
+            // Or check if error is null but logic says failures.
+            // Relying on existing 'hasFailures' memo if it's available in this scope.
+            // It is available: const hasFailures = useMemo(...) defined below in original file?
+            // Wait, hasFailures is defined LATER in the original file (line 639). 
+            // We can't access it here if we are at line 601.
+            // We should move hasFailures UP or duplicate logic.
+            // Let's duplicate simple check or check 'status' property if backend sends it.
+
+            // Actually, let's look at hasFailures definition:
+            // const hasFailures = useMemo(() => { if (!currentJob?.id) return false; return isJobComplete(currentJob) && ... }, [currentJob]);
+
+            // We can just implement a simple check here on currentJob.
+            const isFailure = currentJob.result && (
+                (currentJob.result as any).status === 'failed' ||
+                (currentJob.result as any).failed > 0
+            );
+
+            if (isFailure) {
+                toast.warning(dictionaryRef.current.testRun?.completedWithFailures || "İşlem hatalarla tamamlandı");
+            } else {
+                toast.success(dictionaryRef.current.common.success);
+            }
+        }
+
+        // FAILED Transition
+        if (currentStatus === 'FAILED' && prevStatusRef.current !== 'FAILED') {
+            toast.error(currentJob.error || dictionaryRef.current.common.error);
+        }
+
+        // STOPPED Transition
+        if (currentStatus === 'STOPPED' && prevStatusRef.current !== 'STOPPED') {
+            toast.info(dictionaryRef.current.testRun?.aborted || "İşlem iptal edildi");
+        }
+
+        // If status went back to running, hide confetti
+        if (currentStatus !== 'COMPLETED') {
+            setShowConfetti(false);
+        }
+
+        prevStatusRef.current = currentStatus;
+    }, [currentJob?.id, currentJob?.status, currentJob?.result, currentJob?.error]);
+
     // Refined status for display
     const hasFailures = useMemo(() => {
         if (!currentJob?.id) return false;
@@ -617,31 +699,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         ? (currentJob.result as TestRunResult)
         : null;
 
-    // Track shown toasts to prevent duplicates
-    const shownToastRef = useRef<string | null>(null);
 
-    // Show toast on completion/failure/stop (only once per job)
-    useEffect(() => {
-        if (!currentJob?.id) return;
-
-        if (isComplete && shownToastRef.current !== `complete-${currentJob.id}`) {
-            shownToastRef.current = `complete-${currentJob.id}`;
-            if (hasFailures) {
-                toast.warning(dictionary.testRun?.completedWithFailures || "İşlem hatalarla tamamlandı");
-            } else {
-                toast.success(dictionary.common.success);
-            }
-        }
-        if (isFailed && shownToastRef.current !== `failed-${currentJob.id}`) {
-            shownToastRef.current = `failed-${currentJob.id}`;
-            setError(currentJob.error || "Testler çalıştırılırken bir hata oluştu.");
-            toast.error(currentJob.error || dictionary.common.error);
-        }
-        if (isStopped && shownToastRef.current !== `stopped-${currentJob.id}`) {
-            shownToastRef.current = `stopped-${currentJob.id}`;
-            toast.info(dictionary.testRun?.aborted || "İşlem iptal edildi");
-        }
-    }, [isComplete, isFailed, isStopped, hasFailures, currentJob?.id, currentJob?.error, dictionary]);
 
     // Parse logs and update testCreations when job completes
     useEffect(() => {
@@ -771,7 +829,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
 
     return (
         <div className="min-h-screen p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 transition-colors duration-500">
-            {isComplete && <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />}
+            {showConfetti && <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />}
 
             {/* Header */}
             <motion.div
