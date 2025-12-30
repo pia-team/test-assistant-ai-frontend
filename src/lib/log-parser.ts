@@ -181,7 +181,8 @@ export const parseLogsToDashboardData = (
             const fullPath = line.split("Video kaydedildi:")[1]?.trim() || line.split("🎥")[1]?.trim() || "";
             const filename = fullPath.split("\\").pop()?.split("/").pop() || "";
             if (filename) {
-                const videoUrl = `http://localhost:8080/videos/${filename}`;
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+                const videoUrl = `${apiUrl}/videos/${filename}`;
                 if (currentTest) {
                     currentTest.video = videoUrl;
                     currentTest.videos.push(videoUrl);
@@ -201,7 +202,8 @@ export const parseLogsToDashboardData = (
             const fullPath = line.split("Screenshot kaydedildi:")[1]?.trim() || line.split("📸")[1]?.trim() || "";
             const filename = fullPath.split("\\").pop()?.split("/").pop() || "";
             if (filename && filename.endsWith(".png")) {
-                const screenshotUrl = `http://localhost:8080/screenshots/${filename}`;
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+                const screenshotUrl = `${apiUrl}/screenshots/${filename}`;
                 if (currentTest) {
                     currentTest.screenshots.push(screenshotUrl);
                 }
