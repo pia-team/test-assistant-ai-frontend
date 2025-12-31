@@ -96,6 +96,7 @@ export async function startRunTestsJob(params: {
     threads: number | null;
     browser?: string;
     headless?: boolean;
+    environmentId?: string;
 }, token?: string): Promise<Job> {
     const headers = await getAuthHeaders(token);
 

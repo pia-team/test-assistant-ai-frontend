@@ -40,6 +40,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
+    DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
@@ -64,6 +65,8 @@ import {
     FileJson,
     Check,
     ChevronDown,
+    Plus,
+    Settings,
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -89,11 +92,8 @@ import {
     isJobStopped,
 } from "@/lib/use-job";
 import { useSocket } from "@/context/SocketContext";
-import {
-    getPlaywrightConfig,
-    updatePlaywrightConfig,
-    type PlaywrightConfig
-} from "@/app/actions/playwright-config-actions";
+import { useRouter } from "next/navigation";
+
 
 import {
     getProjectsAction,
@@ -116,7 +116,17 @@ const testRunFormSchema = z.object({
     password: z.string().min(1, "Şifre zorunludur"),
 });
 
+const envFormSchema = z.object({
+    envKey: z.string().min(1, "Ortam tipi seçilmelidir"),
+    name: z.string().min(1, "Profil adı zorunludur"),
+    baseLoginUrl: z.string().min(1, "Domain (URL) zorunludur"),
+    username: z.string().min(1, "Kullanıcı adı zorunludur"),
+    password: z.string().min(1, "Şifre zorunludur"),
+});
+
 type TestRunFormValues = z.infer<typeof testRunFormSchema>;
+type EnvFormValues = z.infer<typeof envFormSchema>;
+
 
 interface TestRunClientProps {
     dictionary: {
@@ -191,6 +201,15 @@ interface TestRunResult {
     reportUrl: string;
 }
 
+interface Environment {
+    id: string;
+    envKey: string;
+    name: string;
+    baseLoginUrl: string;
+    username: string;
+    password: string;
+}
+
 const ENV_OPTIONS = [
     { value: "uat", label: "UAT" },
     { value: "test", label: "Test" },
@@ -198,6 +217,9 @@ const ENV_OPTIONS = [
     { value: "staging", label: "Staging" },
     { value: "prod", label: "Production" },
 ];
+
+
+
 
 const THREAD_OPTIONS = Array.from({ length: 11 }, (_, i) => ({
     value: i.toString(),
@@ -211,6 +233,7 @@ const BROWSER_OPTIONS = [
 ];
 
 export function TestRunClient({ dictionary }: TestRunClientProps) {
+    const router = useRouter();
     const { dictionary: fullDict } = useLocale();
     const { width, height } = useWindowSize();
     const [error, setError] = useState<string | null>(null);
@@ -229,9 +252,68 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     const [projectsLoading, setProjectsLoading] = useState(false);
     const [tagsLoading, setTagsLoading] = useState(false);
     const [tagSearch, setTagSearch] = useState("");
+    const [profileSearch, setProfileSearch] = useState("");
     const [availableFeatureFiles, setAvailableFeatureFiles] = useState<string[]>([]);
     const [selectedFeatureFiles, setSelectedFeatureFiles] = useState<string[]>([]);
     const [filesLoading, setFilesLoading] = useState(false);
+
+    // Environments state
+    const [environments, setEnvironments] = useState<Environment[]>([]);
+    const [environmentsLoading, setEnvironmentsLoading] = useState(false);
+    const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
+    const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+
+    const envForm = useForm<EnvFormValues>({
+        resolver: zodResolver(envFormSchema),
+        defaultValues: {
+            envKey: "uat",
+            name: "",
+            baseLoginUrl: "",
+            username: "",
+            password: "",
+        },
+    });
+
+
+
+
+    // Fetch Environments on mount
+    useEffect(() => {
+        const fetchEnvironments = async () => {
+            setEnvironmentsLoading(true);
+            try {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+                const response = await fetch(`${apiUrl}/api/environments`);
+                if (!response.ok) throw new Error("Failed to fetch environments");
+                const data = await response.json();
+
+                // Deduplicate by ID just in case
+                const uniqueData = Array.from(new Map(data.map((item: Environment) => [item.id, item])).values()) as Environment[];
+                setEnvironments(uniqueData);
+
+
+
+                // If current env is not in list (and list is not empty), select first
+                if (data.length > 0) {
+                    // Check if current 'env' value exists in data
+                    const currentEnv = form.getValues("env");
+                    const exists = data.some((e: Environment) => e.envKey === currentEnv);
+                    if (!exists) {
+                        const devEnv = data.find((e: Environment) => e.envKey === 'dev');
+                        form.setValue("env", devEnv ? devEnv.envKey : data[0].envKey);
+                    }
+                }
+
+            } catch (err: any) {
+                console.error("Failed to fetch environments:", err);
+                toast.error("Ortam bilgileri yüklenemedi");
+            } finally {
+                setEnvironmentsLoading(false);
+            }
+        };
+        fetchEnvironments();
+    }, []);
+
 
 
     // Execution Mode
@@ -433,6 +515,10 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
     }, [selectedProject]);
 
 
+
+
+
+
     // Handle project change with state reset
     const handleProjectChange = (project: string) => {
         setSelectedProject(project);
@@ -522,6 +608,47 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         setGlobalTags([]);
         setGlobalTagInput("");
     };
+
+    const onEnvSubmit = async (data: EnvFormValues) => {
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+            const response = await fetch(`${apiUrl}/api/environments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) throw new Error("Ortam profili oluşturulamadı");
+
+            const savedEnv = await response.json();
+            setEnvironments(prev => {
+                const index = prev.findIndex(e => e.id === savedEnv.id);
+                if (index >= 0) {
+                    const updated = [...prev];
+                    updated[index] = savedEnv;
+                    return updated;
+                } else {
+                    return [...prev, savedEnv];
+                }
+            });
+
+            envForm.reset();
+            setIsEnvModalOpen(false);
+
+            // Auto-select the newly created profile
+            setActiveProfileId(savedEnv.id);
+            setValue("env", savedEnv.envKey);
+            setValue("baseLoginUrl", savedEnv.baseLoginUrl || "");
+            setValue("username", savedEnv.username || "");
+            setValue("password", savedEnv.password || "");
+
+            toast.success(`${savedEnv.name} profili oluşturuldu ve seçildi`);
+        } catch (err: any) {
+            toast.error(err.message);
+        }
+    };
+
+
     // Subscribe to job updates for real-time status updates
     useEffect(() => {
         if (!viewJobId) return;
@@ -568,26 +695,22 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
         }
     }, [activeJob, viewJobId]);
 
-    // Load config when environment changes
+    // Load config when environment changes (FROM LOCAL STATE)
     useEffect(() => {
-        const loadConfig = async () => {
-            setConfigLoading(true);
-            try {
-                const data = await getPlaywrightConfig(env);
-                setValue("baseLoginUrl", data.baseLoginUrl || "");
-                setValue("username", data.username || "");
-                setValue("password", data.password || "");
-            } catch (error) {
-                // Config doesn't exist yet, use empty values
-                setValue("baseLoginUrl", "");
-                setValue("username", "");
-                setValue("password", "");
-            } finally {
-                setConfigLoading(false);
-            }
-        };
-        loadConfig();
-    }, [env, setValue]);
+        const selectedEnv = environments.find(e => e.envKey === env);
+        if (selectedEnv) {
+            setValue("baseLoginUrl", selectedEnv.baseLoginUrl || "");
+            setValue("username", selectedEnv.username || "");
+            setValue("password", selectedEnv.password || "");
+        } else {
+            // If manual entry or not found yet
+            // Maybe clear? Or keep?
+            // setValue("baseLoginUrl", "");
+            // setValue("username", "");
+            // setValue("password", "");
+        }
+    }, [env, environments, setValue]);
+
 
     const { data: jobStatus } = useJobStatus(viewJobId);
     const startJobMutation = useStartRunTestsJob();
@@ -754,70 +877,88 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
 
     const onSubmit = async (data: TestRunFormValues) => {
         setError(null);
-        setViewJobId(null); // Reset view job ID immediately to clear UI state for a fresh run
+        setViewJobId(null);
 
-        // Save config first
         try {
-            await updatePlaywrightConfig({
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+            const currentProfile = activeProfileId
+                ? environments.find(e => e.id === activeProfileId)
+                : environments.find(e => e.envKey === data.env);
+
+            const payload = {
+                id: currentProfile?.id,
+                envKey: data.env,
+                name: currentProfile?.name || data.env.toUpperCase(),
                 baseLoginUrl: data.baseLoginUrl,
                 username: data.username,
-                password: data.password,
-                environment: data.env,
+                password: data.password
+            };
+
+            const response = await fetch(`${apiUrl}/api/environments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
-            toast.success(`${data.env}.json config kaydedildi`);
+
+            if (!response.ok) throw new Error("Failed to save environment config");
+
+            const savedEnv = await response.json();
+
+            // Update local environments state
+            setEnvironments(prev => {
+                const index = prev.findIndex(e => e.id === savedEnv.id);
+                if (index >= 0) {
+                    const updated = [...prev];
+                    updated[index] = savedEnv;
+                    return updated;
+                } else {
+                    return [...prev, savedEnv];
+                }
+            });
+
+            // Determine tags
+            const tagsToUse = executionMode === 'global'
+                ? globalTags.join(' or ')
+                : data.tags;
+
+            // Start Job
+            startJobMutation.mutate(
+                {
+                    tags: tagsToUse,
+                    env: data.env,
+                    groupName: executionMode === 'specific' ? selectedProject : undefined,
+                    featureFiles: executionMode === 'specific' ? selectedFeatureFiles : undefined,
+                    isParallel: data.isParallel,
+                    threads: data.isParallel ? data.threads : null,
+                    browser: data.browser,
+                    headless: data.headless,
+                    environmentId: savedEnv.id
+                },
+                {
+                    onSuccess: (job) => {
+                        setViewJobId(job.id);
+                        toast.success(`${data.env} ortamı güncellendi ve testler başlatıldı`);
+                    },
+                    onError: (err: any) => {
+                        if (err.message?.startsWith("JOB_ALREADY_RUNNING:")) {
+                            const activeJobData = JSON.parse(err.message.replace("JOB_ALREADY_RUNNING:", ""));
+                            setViewJobId(activeJobData.id);
+                            toast.warning(dictionary.testRun.jobAlreadyRunning || "Bu işlem zaten çalışıyor");
+                        } else {
+                            const friendlyError = parseErrorMessage(err.message);
+                            setError(friendlyError);
+                            toast.error(friendlyError);
+                        }
+                    }
+                }
+            );
+
         } catch (err: any) {
             toast.error(`Config kaydedilemedi: ${err.message}`);
-            return;
         }
-
-        // Clear previous job state before starting a new one to prevent UI sticking
-        clearJob(currentJob?.id);
-
-        // Determine which tags to use based on execution mode
-        const tagsToUse = executionMode === 'global'
-            ? globalTags.join(' or ')  // Global mode: OR join all tags
-            : data.tags;               // Specific mode: use form tags
-
-        startJobMutation.mutate(
-            {
-                tags: tagsToUse,
-                env: data.env,
-                groupName: executionMode === 'specific' ? selectedProject : undefined,
-                featureFiles: executionMode === 'specific' ? selectedFeatureFiles : undefined,
-                isParallel: data.isParallel,
-                threads: data.isParallel ? data.threads : null,
-                browser: data.browser,
-                headless: data.headless,
-            },
-            {
-                onSuccess: (job) => {
-                    setViewJobId(job.id);
-                    // Add new test creation to the table
-                    const newCreation: TestCreation = {
-                        id: job.id,
-                        name: `${data.env.toUpperCase()} - ${data.tags} - ${new Date().toLocaleString()}`,
-                        status: "running",
-                        environment: data.env,
-                        project: selectedProject,
-                        createdAt: new Date().toISOString(),
-                        tests: [],
-                    };
-                    // New test creation is now handled by React Query cache invalidation
-                },
-                onError: (err) => {
-                    if (err.message.startsWith("JOB_ALREADY_RUNNING:")) {
-                        const activeJobData = JSON.parse(err.message.replace("JOB_ALREADY_RUNNING:", ""));
-                        setViewJobId(activeJobData.id);
-                        toast.warning(dictionary.testRun.jobAlreadyRunning || "Bu işlem zaten çalışıyor");
-                    } else {
-                        const friendlyError = parseErrorMessage(err.message);
-                        setError(friendlyError);
-                        toast.error(friendlyError);
-                    }
-                },
-            }
-        );
     };
+
 
     const handleRun = handleSubmit(onSubmit);
 
@@ -1436,7 +1577,183 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                     </TabsContent>
                                 </Tabs>
 
-                                {/* Environment Configuration Inputs */}
+                                <Separator className="bg-slate-100 dark:bg-slate-800" />
+
+                                {/* Saved Profiles - Moved to Top */}
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Label className="text-xs font-semibold text-slate-500 uppercase italic px-2 py-0.5 bg-indigo-50 border border-indigo-100 rounded-md">Kayıtlı Profil Seçin</Label>
+                                                <Button
+                                                    type="button"
+                                                    variant="link"
+                                                    className="h-auto p-0 text-[10px] text-indigo-600 hover:text-indigo-700 font-bold uppercase tracking-tighter"
+                                                    onClick={() => router.push("/environments")}
+                                                >
+                                                    Tümünü Yönet <ExternalLink className="w-2 h-2 ml-0.5" />
+                                                </Button>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                {activeProfileId && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-4 w-4 text-slate-400 hover:text-red-500"
+                                                        onClick={() => {
+                                                            setActiveProfileId(null);
+                                                            toast.info("Profil seçimi kaldırıldı");
+                                                        }}
+                                                    >
+                                                        <XCircle className="w-3 h-3" />
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-4 w-4 text-slate-400 hover:text-indigo-500"
+                                                    onClick={() => setIsEnvModalOpen(true)}
+                                                >
+                                                    <Plus className="w-3 h-3" />
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {/* Custom Searchable Select (Combobox) */}
+                                        <div className="relative group">
+                                            <Select
+                                                value={activeProfileId || ""}
+                                                onValueChange={(val) => {
+                                                    const profile = environments.find(e => e.id === val);
+                                                    if (profile) {
+                                                        setActiveProfileId(profile.id);
+                                                        setValue("baseLoginUrl", profile.baseLoginUrl);
+                                                        setValue("username", profile.username);
+                                                        setValue("password", profile.password);
+                                                        setValue("env", profile.envKey);
+                                                        toast.info(`${profile.name} profili yüklendi`);
+                                                    }
+                                                }}
+                                                disabled={isProcessing || environments.length === 0}
+                                            >
+                                                <SelectTrigger className="w-full h-11 text-xs bg-white dark:bg-slate-950 border-indigo-200 dark:border-indigo-900 shadow-sm transition-all hover:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20">
+                                                    <div className="flex items-center gap-2">
+                                                        <Rocket className="w-3.5 h-3.5 text-indigo-500" />
+                                                        <SelectValue placeholder={environments.length > 0 ? "Bir profil seçin veya arayın..." : "Henüz profil yok"} />
+                                                    </div>
+                                                </SelectTrigger>
+                                                <SelectContent className="min-w-[300px] p-0 shadow-2xl border-indigo-100">
+                                                    <div className="p-2 border-b border-slate-100 bg-slate-50/50">
+                                                        <div className="relative">
+                                                            <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
+                                                            <Input
+                                                                placeholder="Profil ara..."
+                                                                className="h-8 pl-8 text-xs bg-white border-slate-200 focus:ring-indigo-500/20"
+                                                                value={profileSearch}
+                                                                onChange={(e) => setProfileSearch(e.target.value)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                onKeyDown={(e) => e.stopPropagation()}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="max-h-[200px] overflow-y-auto p-1 custom-scrollbar">
+                                                        {environments
+                                                            .filter(e => e.name.toLowerCase().includes(profileSearch.toLowerCase()))
+                                                            .map((e) => (
+                                                                <SelectItem key={e.id} value={e.id} className="cursor-pointer py-2 focus:bg-indigo-50 dark:focus:bg-indigo-900/40">
+                                                                    <div className="flex items-center justify-between w-full">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                                                            <span className="font-semibold text-slate-700 dark:text-slate-200">{e.name}</span>
+                                                                        </div>
+                                                                        <Badge variant="outline" className="text-[9px] h-4 bg-slate-100 text-slate-600 border-slate-200">
+                                                                            {e.envKey}
+                                                                        </Badge>
+                                                                    </div>
+                                                                </SelectItem>
+                                                            ))}
+                                                        {environments.length > 0 && environments.filter(e => e.name.toLowerCase().includes(profileSearch.toLowerCase())).length === 0 && (
+                                                            <div className="px-4 py-8 text-center text-xs text-slate-400 italic">Sonuç bulunamadı</div>
+                                                        )}
+                                                    </div>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-xs font-semibold text-slate-500 uppercase">Ortam Tipi</Label>
+                                            <FormField<TestRunFormValues>
+                                                control={control}
+                                                name="env"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <Select
+                                                            value={field.value as string}
+                                                            onValueChange={field.onChange}
+                                                            disabled={isProcessing}
+                                                        >
+                                                            <FormControl>
+                                                                <SelectTrigger className="w-full h-10 text-xs">
+                                                                    <SelectValue placeholder="Seçiniz" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                {ENV_OPTIONS.map((opt) => (
+                                                                    <SelectItem key={opt.value} value={opt.value}>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className={`w-2 h-2 rounded-full ${opt.value === 'prod' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' :
+                                                                                opt.value === 'staging' ? 'bg-amber-400' :
+                                                                                    'bg-emerald-500'
+                                                                                }`} />
+                                                                            {opt.label}
+                                                                        </div>
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-xs font-semibold text-slate-500 uppercase">{fullDict.testRun?.browser || "Tarayıcı"}</Label>
+                                            <FormField<TestRunFormValues>
+                                                control={control}
+                                                name="browser"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <Select
+                                                            value={field.value as string}
+                                                            onValueChange={field.onChange}
+                                                            disabled={isProcessing}
+                                                        >
+                                                            <FormControl>
+                                                                <SelectTrigger className="w-full h-10 text-xs">
+                                                                    <SelectValue placeholder="Seçiniz" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                {BROWSER_OPTIONS.map(opt => (
+                                                                    <SelectItem key={opt.value} value={opt.value}>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-sm">{opt.icon}</span>
+                                                                            {opt.label}
+                                                                        </div>
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div className="space-y-3 bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                                     <Label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
                                         <Globe className="w-3.5 h-3.5" />
@@ -1520,78 +1837,6 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                                             </div>
                                         </div>
                                     )}
-                                </div>
-
-                                <Separator className="bg-slate-100 dark:bg-slate-800" />
-
-                                {/* Environment & Browser */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-xs font-semibold text-slate-500 uppercase">{dictionary.testRun.environment}</Label>
-                                        <FormField<TestRunFormValues>
-                                            control={control}
-                                            name="env"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <Select
-                                                        value={field.value as string}  // Cast to string to match expected type
-                                                        onValueChange={field.onChange}
-                                                        disabled={isProcessing}
-                                                    >
-                                                        <FormControl>
-                                                            <SelectTrigger className="w-full h-10 text-xs">
-                                                                <SelectValue placeholder={dictionary.testRun.selectEnvironment || "Ortam Seçin"} />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            {ENV_OPTIONS.map((opt) => (
-                                                                <SelectItem key={opt.value} value={opt.value}>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className={`w-2 h-2 rounded-full ${opt.value === 'prod' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' :
-                                                                            opt.value === 'staging' ? 'bg-amber-400' :
-                                                                                'bg-emerald-500'
-                                                                            }`} />
-                                                                        {opt.label}
-                                                                    </div>
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-xs font-semibold text-slate-500 uppercase">{fullDict.testRun?.browser || "Tarayıcı"}</Label>
-                                        <FormField<TestRunFormValues>
-                                            control={control}
-                                            name="browser"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <Select
-                                                        value={field.value as string}
-                                                        onValueChange={field.onChange}
-                                                        disabled={isProcessing}
-                                                    >
-                                                        <FormControl>
-                                                            <SelectTrigger className="w-full h-10 text-xs">
-                                                                <SelectValue placeholder={fullDict.testRun?.selectBrowser || "Tarayıcı Seçin"} />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            {BROWSER_OPTIONS.map(opt => (
-                                                                <SelectItem key={opt.value} value={opt.value}>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="text-base">{opt.icon}</span> {opt.label}
-                                                                    </div>
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </div>
                                 </div>
 
                                 {/* Additional Config Accordion style */}
@@ -1706,6 +1951,7 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                         />
 
                         {(!testCreations || testCreations.length === 0) && !testRunsLoading && (
+
                             <div className="text-center py-20">
                                 <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <Layers className="w-10 h-10 text-slate-300" />
@@ -1718,7 +1964,156 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
                         )}
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+
+            {/* Manage Environments Dialog */}
+            < Dialog open={isEnvModalOpen} onOpenChange={setIsEnvModalOpen} >
+                <DialogContent className="sm:max-w-[500px] overflow-hidden">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                            <Rocket className="w-6 h-6 text-indigo-500" />
+                            Yeni Ortam Profili Ekle
+                        </DialogTitle>
+                        <DialogDescription className="text-slate-500">
+                            Yeni bir test ortamı (domain) profili ekleyerek bilgileri kaydedebilirsiniz.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <Separator className="bg-slate-100 dark:bg-slate-800" />
+
+                    <Form {...envForm}>
+                        <form onSubmit={envForm.handleSubmit(onEnvSubmit)} className="space-y-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                    control={envForm.control}
+                                    name="envKey"
+                                    render={({ field }) => (
+                                        <FormItem className="space-y-1.5">
+                                            <Label className="text-xs font-bold text-slate-500 uppercase">Ortam Tipi</Label>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger className="h-10 transition-all border-slate-200 focus:ring-indigo-500 focus:border-indigo-500">
+                                                        <SelectValue placeholder="Seçiniz..." />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {ENV_OPTIONS.map((opt) => (
+                                                        <SelectItem key={opt.value} value={opt.value} className="focus:bg-indigo-50">
+                                                            {opt.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage className="text-[10px]" />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={envForm.control}
+                                    name="name"
+                                    render={({ field }) => (
+                                        <FormItem className="space-y-1.5">
+                                            <Label className="text-xs font-bold text-slate-500 uppercase">Profil Adı</Label>
+                                            <FormControl>
+                                                <Input
+                                                    {...field}
+                                                    placeholder="Örn: Müşteri Paneli / Test"
+                                                    className="h-10 border-slate-200"
+                                                />
+                                            </FormControl>
+                                            <FormMessage className="text-[10px]" />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+
+                            <FormField
+                                control={envForm.control}
+                                name="baseLoginUrl"
+                                render={({ field }) => (
+                                    <FormItem className="space-y-1.5">
+                                        <Label className="text-xs font-bold text-slate-500 uppercase">Domain (URL)</Label>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <Globe className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                                                <Input
+                                                    {...field}
+                                                    placeholder="https://test.example.com"
+                                                    className="h-10 pl-9 border-slate-200"
+                                                />
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage className="text-[10px]" />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                    control={envForm.control}
+                                    name="username"
+                                    render={({ field }) => (
+                                        <FormItem className="space-y-1.5">
+                                            <Label className="text-xs font-bold text-slate-500 uppercase">Kullanıcı Adı</Label>
+                                            <FormControl>
+                                                <Input
+                                                    {...field}
+                                                    placeholder="test_user"
+                                                    className="h-10 border-slate-200"
+                                                />
+                                            </FormControl>
+                                            <FormMessage className="text-[10px]" />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={envForm.control}
+                                    name="password"
+                                    render={({ field }) => (
+                                        <FormItem className="space-y-1.5">
+                                            <Label className="text-xs font-bold text-slate-500 uppercase">Şifre</Label>
+                                            <FormControl>
+                                                <Input
+                                                    {...field}
+                                                    type="password"
+                                                    placeholder="******"
+                                                    className="h-10 border-slate-200"
+                                                />
+                                            </FormControl>
+                                            <FormMessage className="text-[10px]" />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+
+                            <DialogFooter className="pt-4 mt-2 border-t border-slate-100">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setIsEnvModalOpen(false);
+                                        envForm.reset();
+                                    }}
+                                    className="text-slate-500"
+                                >
+                                    İptal
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-md transition-all active:scale-95"
+                                >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Profili Kaydet
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog >
+
+        </div >
+
     );
 }
