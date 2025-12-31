@@ -123,12 +123,12 @@ docker build \
 
 ### Build Arguments Reference
 
-| Argument | Description | Default                      |
-|----------|-------------|------------------------------|
-| `NEXT_PUBLIC_SOCKET_URL` | Socket.io server URL for real-time updates | `http://localhost:8080`      |
-| `NEXT_PUBLIC_KEYCLOAK_URL` | Keycloak authentication server URL | `https://diam.dnext-pia.com` |
-| `NEXT_PUBLIC_KEYCLOAK_REALM` | Keycloak realm name | `orbitant-realm`             |
-| `NEXT_PUBLIC_KEYCLOAK_CLIENT_ID` | Keycloak client ID | `orbitant-ui-client`         |
+| Argument                         | Description                                | Default                      |
+| -------------------------------- | ------------------------------------------ | ---------------------------- |
+| `NEXT_PUBLIC_SOCKET_URL`         | Socket.io server URL for real-time updates | `http://localhost:8080`      |
+| `NEXT_PUBLIC_KEYCLOAK_URL`       | Keycloak authentication server URL         | `https://diam.dnext-pia.com` |
+| `NEXT_PUBLIC_KEYCLOAK_REALM`     | Keycloak realm name                        | `orbitant-realm`             |
+| `NEXT_PUBLIC_KEYCLOAK_CLIENT_ID` | Keycloak client ID                         | `orbitant-ui-client`         |
 
 > **Important**: `NEXT_PUBLIC_*` variables are inlined at build time. You must rebuild the image to change these values.
 
@@ -138,12 +138,12 @@ docker build \
 
 Configure these variables in your CI/CD pipeline (GitLab CI, Jenkins, GitHub Actions, etc.):
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `SOCKET_URL` | Backend Socket.io URL | `https://test-asistant-ai-be.dnext-pia.com/socket` |
-| `KEYCLOAK_URL` | Keycloak server URL | `https://diam.dnext-pia.com` |
-| `KEYCLOAK_REALM` | Keycloak realm | `orbitant-realm` |
-| `KEYCLOAK_CLIENT_ID` | Keycloak client ID | `orbitant-ui-client` |
+| Variable             | Description           | Example                                            |
+| -------------------- | --------------------- | -------------------------------------------------- |
+| `SOCKET_URL`         | Backend Socket.io URL | `https://test-asistant-ai-be.dnext-pia.com/socket` |
+| `KEYCLOAK_URL`       | Keycloak server URL   | `https://diam.dnext-pia.com`                       |
+| `KEYCLOAK_REALM`     | Keycloak realm        | `orbitant-realm`                                   |
+| `KEYCLOAK_CLIENT_ID` | Keycloak client ID    | `orbitant-ui-client`                               |
 
 ### GitLab CI Example
 
@@ -155,11 +155,11 @@ build:
     - docker:24-dind
   script:
     - docker build
-        --build-arg NEXT_PUBLIC_SOCKET_URL=$SOCKET_URL
-        --build-arg NEXT_PUBLIC_KEYCLOAK_URL=$KEYCLOAK_URL
-        --build-arg NEXT_PUBLIC_KEYCLOAK_REALM=$KEYCLOAK_REALM
-        --build-arg NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=$KEYCLOAK_CLIENT_ID
-        -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
+      --build-arg NEXT_PUBLIC_SOCKET_URL=$SOCKET_URL
+      --build-arg NEXT_PUBLIC_KEYCLOAK_URL=$KEYCLOAK_URL
+      --build-arg NEXT_PUBLIC_KEYCLOAK_REALM=$KEYCLOAK_REALM
+      --build-arg NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=$KEYCLOAK_CLIENT_ID
+      -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
     - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
 ```
 
@@ -203,9 +203,9 @@ If issues occur after deployment:
 
 ## 📜 Scripts
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Starts the dev server with TurboPack |
+| Script          | Description                           |
+| --------------- | ------------------------------------- |
+| `npm run dev`   | Starts the dev server with TurboPack  |
 | `npm run build` | Builds the application for production |
-| `npm start` | Starts the production server |
-| `npm run lint` | Runs ESLint for code quality |
+| `npm start`     | Starts the production server          |
+| `npm run lint`  | Runs ESLint for code quality          |

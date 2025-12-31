@@ -1,29 +1,35 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRequestLogs } from '@/hooks/useRequestLogs';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useLocale } from '@/components/locale-context';
+import { useState } from "react";
+import { useRequestLogs } from "@/hooks/useRequestLogs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { useLocale } from "@/components/locale-context";
 
 function getStatusColor(status: number): string {
-  if (status >= 200 && status < 300) return 'bg-green-500';
-  if (status >= 300 && status < 400) return 'bg-blue-500';
-  if (status >= 400 && status < 500) return 'bg-yellow-500';
-  if (status >= 500) return 'bg-red-500';
-  return 'bg-gray-500';
+  if (status >= 200 && status < 300) return "bg-green-500";
+  if (status >= 300 && status < 400) return "bg-blue-500";
+  if (status >= 400 && status < 500) return "bg-yellow-500";
+  if (status >= 500) return "bg-red-500";
+  return "bg-gray-500";
 }
 
 function getMethodColor(method: string): string {
   switch (method.toUpperCase()) {
-    case 'GET': return 'bg-blue-500';
-    case 'POST': return 'bg-green-500';
-    case 'PUT': return 'bg-yellow-500';
-    case 'DELETE': return 'bg-red-500';
-    case 'PATCH': return 'bg-purple-500';
-    default: return 'bg-gray-500';
+    case "GET":
+      return "bg-blue-500";
+    case "POST":
+      return "bg-green-500";
+    case "PUT":
+      return "bg-yellow-500";
+    case "DELETE":
+      return "bg-red-500";
+    case "PATCH":
+      return "bg-purple-500";
+    default:
+      return "bg-gray-500";
   }
 }
 
@@ -52,25 +58,41 @@ export function RequestLogDashboard() {
           onClick={() => refetch()}
           disabled={isFetching}
         >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`}
+          />
           {dictionary.requestLog.refresh}
         </Button>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="text-center py-8">{dictionary.requestLog.loading}</div>
+          <div className="text-center py-8">
+            {dictionary.requestLog.loading}
+          </div>
         ) : (
           <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left p-2">{dictionary.requestLog.time}</th>
-                    <th className="text-left p-2">{dictionary.requestLog.method}</th>
-                    <th className="text-left p-2">{dictionary.requestLog.path}</th>
-                    <th className="text-left p-2">{dictionary.requestLog.status}</th>
-                    <th className="text-left p-2">{dictionary.requestLog.duration}</th>
-                    <th className="text-left p-2">{dictionary.requestLog.ip}</th>
+                    <th className="text-left p-2">
+                      {dictionary.requestLog.time}
+                    </th>
+                    <th className="text-left p-2">
+                      {dictionary.requestLog.method}
+                    </th>
+                    <th className="text-left p-2">
+                      {dictionary.requestLog.path}
+                    </th>
+                    <th className="text-left p-2">
+                      {dictionary.requestLog.status}
+                    </th>
+                    <th className="text-left p-2">
+                      {dictionary.requestLog.duration}
+                    </th>
+                    <th className="text-left p-2">
+                      {dictionary.requestLog.ip}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -106,24 +128,29 @@ export function RequestLogDashboard() {
 
             <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-muted-foreground">
-                {dictionary.requestLog.total.replace('{count}', String(data?.totalElements || 0))}
+                {dictionary.requestLog.total.replace(
+                  "{count}",
+                  String(data?.totalElements || 0),
+                )}
               </div>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <span className="text-sm py-1">
-                  {dictionary.requestLog.page.replace('{current}', String(page + 1)).replace('{total}', String(data?.totalPages || 1))}
+                  {dictionary.requestLog.page
+                    .replace("{current}", String(page + 1))
+                    .replace("{total}", String(data?.totalPages || 1))}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage(p => p + 1)}
+                  onClick={() => setPage((p) => p + 1)}
                   disabled={page >= (data?.totalPages || 1) - 1}
                 >
                   <ChevronRight className="h-4 w-4" />

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useSocket } from '@/context/SocketContext';
-import { Wifi, WifiOff } from 'lucide-react';
-import { useLocale } from '@/components/locale-context';
+import { useSocket } from "@/context/SocketContext";
+import { Wifi, WifiOff } from "lucide-react";
+import { useLocale } from "@/components/locale-context";
 
 export function ConnectionStatus() {
   const { isConnected } = useSocket();
@@ -13,12 +13,16 @@ export function ConnectionStatus() {
       {isConnected ? (
         <>
           <Wifi className="h-4 w-4 text-green-500" />
-          <span className="text-xs text-green-500">{dictionary.connection.connected}</span>
+          <span className="text-xs text-green-500">
+            {dictionary.connection.connected}
+          </span>
         </>
       ) : (
         <>
           <WifiOff className="h-4 w-4 text-red-500" />
-          <span className="text-xs text-red-500">{dictionary.connection.disconnected}</span>
+          <span className="text-xs text-red-500">
+            {dictionary.connection.disconnected}
+          </span>
         </>
       )}
     </div>

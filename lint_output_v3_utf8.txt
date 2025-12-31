@@ -1,0 +1,160 @@
+﻿
+> cotesterai-frontend@0.1.0 lint
+> eslint
+
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\app\(protected)\activities\job-dashboard.tsx
+   70:7   warning  'ITEMS_PER_PAGE' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   83:16  warning  'setSize' is assigned a value but never used         @typescript-eslint/no-unused-vars
+  138:14  warning  'e' is defined but never used                        @typescript-eslint/no-unused-vars
+  221:32  warning  'e' is defined but never used                        @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\app\(protected)\activities\page.tsx
+  3:29  warning  'CardHeader' is defined but never used  @typescript-eslint/no-unused-vars
+  3:41  warning  'CardTitle' is defined but never used   @typescript-eslint/no-unused-vars
+  4:10  warning  'Button' is defined but never used      @typescript-eslint/no-unused-vars
+  5:42  warning  'Wifi' is defined but never used        @typescript-eslint/no-unused-vars
+  5:48  warning  'WifiOff' is defined but never used     @typescript-eslint/no-unused-vars
+  7:10  warning  'Badge' is defined but never used       @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\app\(protected)\environments\environments-client.tsx
+   38:10  warning  'Separator' is defined but never used     @typescript-eslint/no-unused-vars
+   43:3   warning  'Rocket' is defined but never used        @typescript-eslint/no-unused-vars
+   48:3   warning  'ExternalLink' is defined but never used  @typescript-eslint/no-unused-vars
+   97:38  warning  'dictionary' is defined but never used    @typescript-eslint/no-unused-vars
+  167:14  warning  'error' is defined but never used         @typescript-eslint/no-unused-vars
+  190:14  warning  'error' is defined but never used         @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\app\(protected)\generate-tests\generate-tests-client.tsx
+   14:10  warning  'Badge' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+   15:10  warning  'Progress' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   27:3   warning  'Upload' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+   46:10  warning  'cn' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  172:15  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\app\(protected)\generate-tests\generate-tests-client.tsx:172:15
+  170 |     formState: { errors },
+  171 |   } = form;
+> 172 |   const url = watch("url");
+      |               ^^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  173 |   const hasFeatureFile = watch("hasFeatureFile");
+  174 |   const hasAPITests = watch("hasAPITests");
+  175 |   const hasTestPayload = watch("hasTestPayload");  react-hooks/incompatible-library
+  183:11  warning  'isConnected' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+  276:14  warning  'e' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\app\(protected)\overview\overview-client.tsx
+  54:34  warning  'dictionary' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\app\(protected)\test-run\components\AddEnvironmentDialog.tsx
+  15:3  warning  'FormLabel' is defined but never used        @typescript-eslint/no-unused-vars
+  18:3  warning  'FormDescription' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\app\(protected)\test-run\components\TagSelectorSection.tsx
+   3:10  warning  'useState' is defined but never used  @typescript-eslint/no-unused-vars
+  22:33  warning  'XCircle' is defined but never used   @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\app\(protected)\test-run\test-run-client.tsx
+   45:10  warning  'useRouter' is defined but never used                     @typescript-eslint/no-unused-vars
+  180:27  warning  'setConfigLoading' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  181:12  warning  'activeTab' is assigned a value but never used            @typescript-eslint/no-unused-vars
+  181:23  warning  'setActiveTab' is assigned a value but never used         @typescript-eslint/no-unused-vars
+  204:12  warning  'environmentsLoading' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  334:22  warning  'errors' is assigned a value but never used               @typescript-eslint/no-unused-vars
+  379:11  warning  'headless' is assigned a value but never used             @typescript-eslint/no-unused-vars
+  821:18  warning  '_e' is defined but never used                            @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\app\(protected)\upload-json\upload-json-client.tsx
+   16:10  warning  'Progress' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+   31:3   warning  'Rocket' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+   72:10  warning  'cn' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   73:10  warning  'useSocket' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+  212:14  warning  'e' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+  305:6   warning  React Hook useEffect has a missing dependency: 'parseErrorMessage'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react-hooks/exhaustive-deps
+  859:31  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\app\(protected)\upload-json\upload-json-client.tsx:859:31
+  857 |                           <FormItem
+  858 |                             className={
+> 859 |                               form.watch("customFolderName")
+      |                               ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  860 |                                 ? "opacity-50 pointer-events-none transition-opacity"
+  861 |                                 : "transition-opacity"
+  862 |                             }  react-hooks/incompatible-library
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\app\auth\error\page.tsx
+  13:10  warning  'Link' is defined but never used      @typescript-eslint/no-unused-vars
+  16:10  warning  'LogoIcon' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\components\file-manager-panel.tsx
+   66:3   warning  'Eye' is defined but never used             @typescript-eslint/no-unused-vars
+   76:3   warning  'PaginationLink' is defined but never used  @typescript-eslint/no-unused-vars
+  272:14  warning  '_e' is defined but never used              @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\components\generated-files-display.tsx
+   17:3  warning  'Save' is defined but never used                   @typescript-eslint/no-unused-vars
+   18:8  warning  'CloseIcon' is defined but never used              @typescript-eslint/no-unused-vars
+   19:3  warning  'AlertCircle' is defined but never used            @typescript-eslint/no-unused-vars
+  109:5  warning  'hasConflicts' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\components\inject-to-project-button.tsx
+   5:39  warning  'AlertCircle' is defined but never used            @typescript-eslint/no-unused-vars
+  57:5   warning  'hasConflicts' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  58:5   warning  'result' is assigned a value but never used        @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\components\injection-progress-modal.tsx
+  13:10  warning  'Button' is defined but never used              @typescript-eslint/no-unused-vars
+  14:42  warning  'X' is defined but never used                   @typescript-eslint/no-unused-vars
+  36:3   warning  'totalFiles' is defined but never used          @typescript-eslint/no-unused-vars
+  40:9   warning  'stepCount' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\components\playwright-config-form.tsx
+  30:8  warning  'PlaywrightConfig' is defined but never used                                                                   @typescript-eslint/no-unused-vars
+  77:6  warning  React Hook useEffect has a missing dependency: 'loadConfig'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\components\report-section.tsx
+  3:3  warning  'Card' is defined but never used             @typescript-eslint/no-unused-vars
+  4:3  warning  'CardContent' is defined but never used      @typescript-eslint/no-unused-vars
+  5:3  warning  'CardHeader' is defined but never used       @typescript-eslint/no-unused-vars
+  6:3  warning  'CardTitle' is defined but never used        @typescript-eslint/no-unused-vars
+  7:3  warning  'CardDescription' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\components\test-detail-panel.tsx
+   27:3   warning  'Clock' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   28:3   warning  'FileText' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+   31:10  warning  'motion' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+   46:9   warning  The 'steps' logical expression could make the dependencies of useMemo Hook (at line 68) change on every render. To fix this, wrap the initialization of 'steps' in its own useMemo() Hook                                                                                                react-hooks/exhaustive-deps
+  451:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\components\test-results-table.tsx
+    31:3   warning  'Play' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+    37:3   warning  'EyeOff' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+   855:9   warning  'StatusIcon' is assigned a value but never used                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+  1001:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\components\test-video-viewer.tsx
+  35:3   warning  'creationId' is defined but never used           @typescript-eslint/no-unused-vars
+  44:11  warning  'dictionary' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\components\ui\logo.tsx
+  34:42  warning  'props' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\hooks\useCodeInjection.ts
+  65:10  warning  'injectionResult' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  65:27  warning  'setInjectionResult' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\lib\log-parser.ts
+  49:3  warning  'tags' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\lib\socket.ts
+  75:16  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\90506\Desktop\ai-projects\test-assistant-ai-frontend\src\lib\use-job.ts
+  17:3  warning  'getAllJobs' is defined but never used  @typescript-eslint/no-unused-vars
+
+Ô£û 83 problems (0 errors, 83 warnings)
+

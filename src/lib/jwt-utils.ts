@@ -10,18 +10,20 @@
 export function getKeycloakIdFromToken(token: string): string | null {
   try {
     // JWT format: header.payload.signature
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length < 2) {
       return null;
     }
 
     // Decode payload (second part) - handle URL-safe base64
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-    
+    const payload = JSON.parse(
+      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")),
+    );
+
     // Return 'sub' claim (Keycloak subject ID)
     return payload.sub || null;
   } catch (error) {
-    console.error('[JWT] Failed to extract keycloakId from token:', error);
+    console.error("[JWT] Failed to extract keycloakId from token:", error);
     return null;
   }
 }
@@ -33,12 +35,14 @@ export function getKeycloakIdFromToken(token: string): string | null {
  */
 export function getUsernameFromToken(token: string): string | null {
   try {
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length < 2) {
       return null;
     }
 
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const payload = JSON.parse(
+      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")),
+    );
     return payload.preferred_username || payload.name || null;
   } catch {
     return null;
@@ -52,12 +56,14 @@ export function getUsernameFromToken(token: string): string | null {
  */
 export function isTokenExpired(token: string): boolean | null {
   try {
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length < 2) {
       return null;
     }
 
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const payload = JSON.parse(
+      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")),
+    );
     if (!payload.exp) {
       return null;
     }

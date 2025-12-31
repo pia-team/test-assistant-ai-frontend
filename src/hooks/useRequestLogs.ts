@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from "@tanstack/react-query";
 
 interface RequestLog {
   id: string;
@@ -22,22 +22,26 @@ interface RequestLogsResponse {
   size: number;
 }
 
-async function fetchRequestLogs(page: number, size: number, method?: string): Promise<RequestLogsResponse> {
+async function fetchRequestLogs(
+  page: number,
+  size: number,
+  method?: string,
+): Promise<RequestLogsResponse> {
   const params = new URLSearchParams({
     page: page.toString(),
     size: size.toString(),
   });
-  
+
   if (method) {
-    params.append('method', method);
+    params.append("method", method);
   }
 
   const response = await fetch(`/api/request-logs?${params}`, {
-    credentials: 'include',
+    credentials: "include",
   });
 
   if (!response.ok) {
-    throw new Error('Failed to fetch request logs');
+    throw new Error("Failed to fetch request logs");
   }
 
   return response.json();
@@ -45,7 +49,7 @@ async function fetchRequestLogs(page: number, size: number, method?: string): Pr
 
 export function useRequestLogs(page = 0, size = 50, method?: string) {
   return useQuery({
-    queryKey: ['requestLogs', page, size, method],
+    queryKey: ["requestLogs", page, size, method],
     queryFn: () => fetchRequestLogs(page, size, method),
     refetchInterval: 5000,
   });
@@ -53,13 +57,13 @@ export function useRequestLogs(page = 0, size = 50, method?: string) {
 
 export function useRequestLog(id: string) {
   return useQuery({
-    queryKey: ['requestLog', id],
+    queryKey: ["requestLog", id],
     queryFn: async () => {
       const response = await fetch(`/api/request-logs/${id}`, {
-        credentials: 'include',
+        credentials: "include",
       });
       if (!response.ok) {
-        throw new Error('Failed to fetch request log');
+        throw new Error("Failed to fetch request log");
       }
       return response.json();
     },

@@ -1,9 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useCallback } from 'react';
-import { useSocket } from '@/context/SocketContext';
+import { useEffect, useState, useCallback } from "react";
+import { useSocket } from "@/context/SocketContext";
 
-export type JobStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'STOPPED';
+export type JobStatus =
+  | "PENDING"
+  | "RUNNING"
+  | "COMPLETED"
+  | "FAILED"
+  | "STOPPED";
 
 export interface JobState {
   id: string | null;
@@ -18,7 +23,7 @@ export interface JobState {
 
 const initialState: JobState = {
   id: null,
-  status: 'PENDING',
+  status: "PENDING",
   progress: 0,
   message: null,
   result: null,
@@ -40,21 +45,21 @@ export function useJobWithSocket(jobId: string | null) {
       return;
     }
 
-    setJobState(prev => ({ ...prev, id: jobId }));
+    setJobState((prev) => ({ ...prev, id: jobId }));
 
     subscribeToJob(jobId, {
       onStarted: (data) => {
         if (data.id === jobId) {
-          setJobState(prev => ({
+          setJobState((prev) => ({
             ...prev,
-            status: 'RUNNING',
+            status: "RUNNING",
             startedAt: data.startedAt,
           }));
         }
       },
       onProgress: (data) => {
         if (data.id === jobId) {
-          setJobState(prev => ({
+          setJobState((prev) => ({
             ...prev,
             progress: data.progress,
             message: data.message || prev.message,
@@ -63,9 +68,9 @@ export function useJobWithSocket(jobId: string | null) {
       },
       onCompleted: (data) => {
         if (data.id === jobId) {
-          setJobState(prev => ({
+          setJobState((prev) => ({
             ...prev,
-            status: 'COMPLETED',
+            status: "COMPLETED",
             progress: 100,
             result: data.resultData,
             completedAt: data.completedAt,
@@ -74,9 +79,9 @@ export function useJobWithSocket(jobId: string | null) {
       },
       onFailed: (data) => {
         if (data.id === jobId) {
-          setJobState(prev => ({
+          setJobState((prev) => ({
             ...prev,
-            status: 'FAILED',
+            status: "FAILED",
             error: data.errorMessage,
             completedAt: data.completedAt,
           }));
@@ -84,9 +89,9 @@ export function useJobWithSocket(jobId: string | null) {
       },
       onStopped: (data) => {
         if (data.id === jobId) {
-          setJobState(prev => ({
+          setJobState((prev) => ({
             ...prev,
-            status: 'STOPPED',
+            status: "STOPPED",
             error: `Cancelled by ${data.cancelledBy}`,
             completedAt: data.completedAt,
           }));
@@ -101,10 +106,10 @@ export function useJobWithSocket(jobId: string | null) {
 
   return {
     ...jobState,
-    isRunning: jobState.status === 'RUNNING' || jobState.status === 'PENDING',
-    isCompleted: jobState.status === 'COMPLETED',
-    isFailed: jobState.status === 'FAILED',
-    isStopped: jobState.status === 'STOPPED',
+    isRunning: jobState.status === "RUNNING" || jobState.status === "PENDING",
+    isCompleted: jobState.status === "COMPLETED",
+    isFailed: jobState.status === "FAILED",
+    isStopped: jobState.status === "STOPPED",
     resetState,
   };
 }

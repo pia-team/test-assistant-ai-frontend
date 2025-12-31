@@ -1,14 +1,14 @@
 export default function TestRunLayout({
-    children,
-    modal,
+  children,
+  modal,
 }: {
-    children: React.ReactNode;
-    modal: React.ReactNode;
+  children: React.ReactNode;
+  modal: React.ReactNode;
 }) {
-    return (
-        <>
-            {children}
-            {modal}
-        </>
-    );
+  return (
+    <>
+      {children}
+      {modal}
+    </>
+  );
 }
