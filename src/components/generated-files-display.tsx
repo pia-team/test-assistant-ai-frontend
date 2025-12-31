@@ -103,7 +103,8 @@ export function GeneratedFilesDisplay({ data, dictionary, onSuccessAll }: Genera
         reset: resetInjection
     } = useCodeInjection({
         onSuccess: () => {
-            toast.success(fullDict.injection.allFilesAdded);
+            toast.success(fullDict.injection.allFilesAdded, { id: 'bulk-injection-success' });
+            setExpanded(null);
             // Auto close after success
             setTimeout(() => {
                 setShowPreviewModal(false);

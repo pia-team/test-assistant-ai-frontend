@@ -27,13 +27,30 @@ export interface DashboardData {
     testCases: TestCase[];
 }
 
+// Helper to clean garbled characters from logs
+const cleanLogLine = (line: string): string => {
+    if (!line) return "";
+    return line
+        .replace(/ğŸŒ/g, "🌐")
+        .replace(/â¡/g, "▶")
+        .replace(/âœ“/g, "✓")
+        .replace(/âœ"/g, "✓") // Alternative check mark
+        .replace(/✗/g, "✗")
+        .replace(/âœ˜/g, "✗") // Alternative cross
+        .replace(/❌/g, "❌")
+        .replace(/ğŸ¥/g, "🎥")
+        .replace(/ğŸ“¸/g, "📸")
+        .replace(/â˜/g, "☁") // Generic cleanup for other potential artifacts
+        .trim();
+};
+
 export const parseLogsToDashboardData = (
     logs: string,
     tags: string
 ): DashboardData | null => {
     if (!logs) return null;
 
-    const lines = logs.split("\n");
+    const rawLines = logs.split("\n");
     const testCasesMap = new Map<string, TestCase>();
     const knownFeatures: string[] = [];
     const globalSteps: TestStep[] = [];
@@ -62,17 +79,18 @@ export const parseLogsToDashboardData = (
         return testCasesMap.get(title)!;
     };
 
-    // First pass: identify features explicitly
-    lines.forEach(line => {
+    // First pass: identify features explicitly from standard Feature/Scenario lines
+    rawLines.forEach(rawLine => {
+        const line = cleanLogLine(rawLine);
         if (line.includes("Feature:") || line.includes("Scenario:")) {
             const name = line.split(":")[1]?.trim();
             if (name) getOrCreateTest(name);
         }
     });
 
-    lines.forEach((line) => {
-        const trimmed = line.trim();
-        if (!trimmed) return;
+    rawLines.forEach((rawLine) => {
+        const line = cleanLogLine(rawLine);
+        if (!line) return;
 
         // Browser detection (global)
         if (line.toLowerCase().includes("browser:")) {
@@ -96,14 +114,13 @@ export const parseLogsToDashboardData = (
             line.includes("CUCUMBER CONFIG LOADED");
 
         if (isGlobal) {
-            // Deduplicate global lines (specifically for CUCUMBER CONFIG LOADED)
-            const cleanedLine = line.replace("ğŸŒ", "🌐").trim();
-            const alreadyExists = globalSteps.some(s => s.content === cleanedLine);
+            // Deduplicate global lines
+            const alreadyExists = globalSteps.some(s => s.content === line);
 
             if (!alreadyExists) {
                 globalSteps.push({
                     type: "info",
-                    content: cleanedLine,
+                    content: line,
                     status: "INFO"
                 });
             }
@@ -121,7 +138,17 @@ export const parseLogsToDashboardData = (
             }
         }
 
-        // Special case for mentioning common feature names as mentioned by user
+        // Dynamic detection of test names from filenames (e.g. login.spec.ts, checkout.feature)
+        if (!targetTest) {
+            const fileMatch = line.match(/([a-zA-Z0-9\-_]+)\.(spec\.ts|test\.ts|feature)/i);
+            if (fileMatch) {
+                const detectedName = fileMatch[1];
+                targetTest = getOrCreateTest(detectedName);
+                lastActiveTitle = detectedName;
+            }
+        }
+
+        // Special case for mentioning common feature names as mentioned by user (Legacy support)
         if (!targetTest) {
             if (line.toLowerCase().includes("dcmuiv2")) {
                 targetTest = getOrCreateTest("dcmuiv2");
@@ -136,6 +163,12 @@ export const parseLogsToDashboardData = (
         if (!targetTest && (line.includes("▶") || line.includes("✓") || line.includes("✗") || line.includes("❌") || line.includes("STEP START") || line.includes("STEP PASS") || line.includes("STEP FAIL"))) {
             if (lastActiveTitle) {
                 targetTest = getOrCreateTest(lastActiveTitle);
+            } else {
+                // FALLBACK: If we have a step but NO test case yet (missing headers), create a generic one
+                // This ensures we parse the video/steps properly instead of falling back to raw text "Execution Log"
+                const genericTitle = "Test Execution";
+                targetTest = getOrCreateTest(genericTitle);
+                lastActiveTitle = genericTitle;
             }
         }
 
@@ -144,7 +177,17 @@ export const parseLogsToDashboardData = (
             targetTest = getOrCreateTest(lastActiveTitle);
         }
 
-        // If we found a target test, parse the line content
+        // If after all attempts we still don't have a target test, 
+        // AND the line looks important (error, video), force it into the last active or a default
+        if (!targetTest) {
+            if (line.includes("Video kaydedildi:") || line.includes("🎥") || line.includes("Screenshot kaydedildi:") || line.includes("📸")) {
+                const fallbackTitle = lastActiveTitle || "Test Execution";
+                targetTest = getOrCreateTest(fallbackTitle);
+                lastActiveTitle = fallbackTitle;
+            }
+        }
+
+        // Processing Logic
         if (targetTest) {
             if (line.includes("STEP START:") || line.includes("▶")) {
                 const stepName = line.replace(/.*STEP START:\s*/, "").replace(/▶\s*/, "").trim();
@@ -158,8 +201,12 @@ export const parseLogsToDashboardData = (
                 targetTest.errors.push(stepName);
                 targetTest.steps.push({ type: "error", content: `✗ ${stepName}`, status: "FAIL" });
             } else if (line.includes("Video kaydedildi:") || line.includes("🎥")) {
-                const fullPath = line.split("Video kaydedildi:")[1]?.trim() || line.split("🎥")[1]?.trim() || "";
+                // Handle complex paths and clean up
+                const parts = line.split("Video kaydedildi:");
+                const pathPart = parts.length > 1 ? parts[1] : line.split("🎥")[1] || "";
+                const fullPath = pathPart.replace(/ğŸ¥/g, "").trim();
                 const filename = fullPath.split("\\").pop()?.split("/").pop() || "";
+
                 if (filename) {
                     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
                     const videoUrl = `${apiUrl}/videos/${filename}`;
@@ -168,9 +215,12 @@ export const parseLogsToDashboardData = (
                     targetTest.steps.push({ type: "video", content: `🎥 Video kaydedildi: ${filename}`, status: "PASS" });
                 }
             } else if (line.includes("Screenshot kaydedildi:") || line.includes("📸")) {
-                const fullPath = line.split("Screenshot kaydedildi:")[1]?.trim() || line.split("📸")[1]?.trim() || "";
+                const parts = line.split("Screenshot kaydedildi:");
+                const pathPart = parts.length > 1 ? parts[1] : line.split("📸")[1] || "";
+                const fullPath = pathPart.replace(/ğŸ“¸/g, "").trim();
+
                 const filename = fullPath.split("\\").pop()?.split("/").pop() || "";
-                if (filename && filename.endsWith(".png")) {
+                if (filename && (filename.endsWith(".png") || filename.endsWith(".jpg"))) {
                     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
                     const screenshotUrl = `${apiUrl}/screenshots/${filename}`;
                     targetTest.screenshots.push(screenshotUrl);
@@ -184,6 +234,13 @@ export const parseLogsToDashboardData = (
                     targetTest.steps.push({ type: "log", content: line, status: "INFO" });
                 }
             }
+        } else {
+            // Truly orphaned lines that aren't global and we couldn't create a test for (should be rare now)
+            // Just drop them to avoid "Execution Log" junk unless explicitly desired.
+            // If they are not empty, log them to the LAST detected test if available
+            if (line.trim().length > 0 && lastActiveTitle) {
+                getOrCreateTest(lastActiveTitle).steps.push({ type: "log", content: line, status: "INFO" });
+            }
         }
     });
 
@@ -196,17 +253,15 @@ export const parseLogsToDashboardData = (
             tc.duration = `${tc.steps.length * 1.5}s`;
             tc.browser = detectedBrowser; // Sync final detected browser
         });
-    } else if (lines.length > 0) {
-        // Fallback ONLY if absolutely no features were found.
-        // User says they DON'T want generic tabs, but we need to show SOMETHING if logs exist.
-        // Let's create one "Execution Log" as a last resort, but we try to avoid it.
+    } else if (rawLines.length > 0) {
+        // Absolute last resort fallback if NO steps/videos were found at all
         const fallback = {
             id: `test-execution-log`,
             title: "Execution Log",
             status: "PASSED" as const,
             duration: "0s",
             browser: detectedBrowser,
-            steps: lines.map(l => ({ type: "log", content: l, status: "INFO" as const })),
+            steps: rawLines.map(l => ({ type: "log", content: cleanLogLine(l), status: "INFO" as const })),
             video: null,
             videos: [],
             errors: [],

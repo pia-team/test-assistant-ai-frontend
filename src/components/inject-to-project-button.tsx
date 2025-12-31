@@ -57,7 +57,10 @@ export function InjectToProjectButton({
             setInjectionSuccess(true);
             lastResultRef.current = result;
             setHasCompleted(true);
-            toast.success(dictionary.injection.successMessage.replace("{count}", String(result.injectedFiles.length)));
+            toast.success(
+                dictionary.injection.successMessage.replace("{count}", String(result.injectedFiles.length)),
+                { id: `injection-success-${files.length}` }
+            );
 
             // Just for the button icon state
             setTimeout(() => setInjectionSuccess(false), 2000);

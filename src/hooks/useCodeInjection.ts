@@ -66,6 +66,7 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
     const totalFilesRef = useRef<number>(0);
     const resultRef = useRef<InjectionResult | null>(null);
     const completedBySocketRef = useRef<boolean>(false);
+    const hasCalledSuccessRef = useRef<boolean>(false);
 
     const injectMutation = useMutation({
         mutationFn: async (params: {
@@ -85,6 +86,7 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
             totalFilesRef.current = variables.files.length;
             resultRef.current = null;
             completedBySocketRef.current = false;
+            hasCalledSuccessRef.current = false;
         },
         onSuccess: (result, variables) => {
             console.log('[useCodeInjection] Mutation success:', result);
@@ -99,11 +101,15 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
                 options.onConflict?.(result.conflicts);
             } else if (completedBySocketRef.current) {
                 // If socket already said we're done, trigger success now
-                setTimeout(() => {
-                    setIsInjecting(false);
-                    options.onSuccess?.(result);
-                    if (jobId) leaveInjectionRoom(jobId);
-                }, 500);
+                if (!hasCalledSuccessRef.current) {
+                    hasCalledSuccessRef.current = true;
+                    setTimeout(() => {
+                        setIsInjecting(false);
+                        options.onSuccess?.(result);
+                        if (jobId) leaveInjectionRoom(jobId);
+
+                    }, 500);
+                }
             }
         },
         onError: (error: Error, variables) => {
@@ -111,6 +117,7 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
             setProgress(null);
             if (variables.jobId) leaveInjectionRoom(variables.jobId);
             options.onError?.(error);
+
         },
     });
 
@@ -162,11 +169,14 @@ export function useCodeInjection(options: UseCodeInjectionOptions = {}) {
 
             // Trigger success callback only after socket confirms completion AND we have the result
             if (resultRef.current) {
-                setTimeout(() => {
-                    setIsInjecting(false);
-                    options.onSuccess?.(resultRef.current!);
-                    if (data.jobId) leaveInjectionRoom(data.jobId);
-                }, 500);
+                if (!hasCalledSuccessRef.current) {
+                    hasCalledSuccessRef.current = true;
+                    setTimeout(() => {
+                        setIsInjecting(false);
+                        options.onSuccess?.(resultRef.current!);
+                        if (data.jobId) leaveInjectionRoom(data.jobId);
+                    }, 500);
+                }
             }
         });
 
