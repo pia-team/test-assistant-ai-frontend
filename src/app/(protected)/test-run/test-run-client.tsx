@@ -661,19 +661,26 @@ export function TestRunClient({ dictionary }: TestRunClientProps) {
 
     // Load config when environment changes (FROM LOCAL STATE)
     useEffect(() => {
+        // If we have an active profile, use it to sync values
+        if (activeProfileId) {
+            const profile = environments.find((p) => p.id === activeProfileId);
+            if (profile) {
+                setValue("baseLoginUrl", profile.baseLoginUrl || "");
+                setValue("username", profile.username || "");
+                setValue("password", profile.password || "");
+                setValue("env", profile.envKey); // Ensure env matches profile
+                return;
+            }
+        }
+
+        // If no active profile, try to find a default for the selected environment
         const selectedEnv = environments.find((e) => e.envKey === env);
         if (selectedEnv) {
             setValue("baseLoginUrl", selectedEnv.baseLoginUrl || "");
             setValue("username", selectedEnv.username || "");
             setValue("password", selectedEnv.password || "");
-        } else {
-            // If manual entry or not found yet
-            // Maybe clear? Or keep?
-            // setValue("baseLoginUrl", "");
-            // setValue("username", "");
-            // setValue("password", "");
         }
-    }, [env, environments, setValue]);
+    }, [env, activeProfileId, environments, setValue]);
 
     const { data: jobStatus } = useJobStatus(viewJobId);
     const startJobMutation = useStartRunTestsJob();
