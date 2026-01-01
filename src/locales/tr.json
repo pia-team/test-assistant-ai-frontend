@@ -480,6 +480,7 @@
       "starting": "JSON işleme başlatılıyor...",
       "parsingJson": "JSON içeriği ayrıştırılıyor...",
       "analyzingEndpoints": "API endpoint'leri analiz ediliyor...",
+      "projectAnalysis": "Playwright projesi analiz ediliyor (Context Extraction)...",
       "generatingWithAI": "Yapay zeka ile kodlar oluşturuluyor...",
       "creatingFiles": "Dosyalar oluşturuluyor...",
       "completed": "JSON işleme tamamlandı!"

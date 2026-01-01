@@ -480,6 +480,7 @@
       "starting": "Starting JSON processing...",
       "parsingJson": "Parsing JSON content...",
       "analyzingEndpoints": "Analyzing API endpoints...",
+      "projectAnalysis": "Analyzing Playwright project structure...",
       "generatingWithAI": "Generating code with AI...",
       "creatingFiles": "Creating files...",
       "completed": "JSON processing completed!"
