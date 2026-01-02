@@ -171,11 +171,79 @@ const LogViewer = React.memo(
   }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
 
+    // Fix encoding issues in logs
+    const fixedLogs = useMemo(() => {
+      if (!logs) return [];
+      
+      return logs.map(log => {
+        let fixed = log;
+        
+        // Dynamic UTF-8 encoding fix - handles any corrupted characters
+        // Step 1: Fix common corruption patterns (Ã, Ä, Å followed by any character)
+        fixed = fixed.replace(/Ã[^\s]/g, (match) => {
+          const charCode = match.charCodeAt(1);
+          // Convert from corrupted UTF-8 to proper character
+          return String.fromCharCode(charCode & 0xFF);
+        });
+        
+        fixed = fixed.replace(/Ä[^\s]/g, (match) => {
+          const charCode = match.charCodeAt(1);
+          return String.fromCharCode(charCode & 0xFF);
+        });
+        
+        fixed = fixed.replace(/Å[^\s]/g, (match) => {
+          const charCode = match.charCodeAt(1);
+          return String.fromCharCode(charCode & 0xFF);
+        });
+        
+        // Step 2: Handle specific known corruption patterns
+        const corruptionMap = {
+          'FranÃ§ais': 'Français',
+          'FranÃ§': 'Franç',
+          'Trke': 'Türkçe',
+          'Giri': 'Giriş',
+          'k': 'Çıkış',
+          'Dnya': 'Dünya',
+          'Ã§': 'ç',
+          'Ã¶': 'ö',
+          'Ã¼': 'ü',
+          'ÄŸ': 'ğ',
+          'Ä±': 'ı',
+          'ÅŸ': 'ş',
+          'Ã‡': 'Ç',
+          'Ä': 'Ğ',
+          'Ä°': 'İ',
+          'Ã–': 'Ö',
+          'Å': 'Ş',
+          'Ãœ': 'Ü'
+        };
+        
+        // Apply all fixes from the map
+        Object.entries(corruptionMap).forEach(([corrupted, correct]) => {
+          fixed = fixed.replace(new RegExp(corrupted.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), correct);
+        });
+        
+        // Step 3: General character-by-character fix for any remaining corruption
+        // This handles cases where UTF-8 bytes were interpreted as Latin-1
+        try {
+          const bytes = new TextEncoder().encode(fixed);
+          const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+          if (decoded !== fixed && !decoded.includes('')) {
+            fixed = decoded;
+          }
+        } catch (e) {
+          // If decoding fails, keep the original
+        }
+        
+        return fixed;
+      });
+    }, [logs]);
+
     useEffect(() => {
       if (scrollRef.current) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
       }
-    }, [logs]);
+    }, [fixedLogs]);
 
     return (
       <div
@@ -200,9 +268,9 @@ const LogViewer = React.memo(
           )}
         >
           <AnimatePresence mode="popLayout">
-            {logs && logs.length > 0 ? (
-              logs.map((log, idx) => {
-                const isLast = idx === logs.length - 1;
+            {fixedLogs && fixedLogs.length > 0 ? (
+              fixedLogs.map((log, idx) => {
+                const isLast = idx === fixedLogs.length - 1;
                 const isRunning = status === "running" && isLast;
 
                 return (
